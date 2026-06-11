@@ -1,0 +1,38 @@
+# Contributing to keel
+
+keel improves by dogfooding its own "close the loop" principle on itself.
+
+## The loop
+
+1. **Feedback in** — each application of keel drops a report in `docs/feedback/<date>-<source>.md`
+   (format in `docs/feedback/README.md`).
+2. **Triage** — cluster reports by underlying cause (`src/keel/templates/reflection-triage.md`).
+3. **Promote** each recurring / high-cost trap to exactly one home:
+   - a **template / doctrine** edit (`src/keel/templates/`, `docs/doctrine.md`),
+   - a **new / upgraded gate** (`src/keel/`, wired in `cli.py`, tested),
+   - or an **ADR** (`docs/adr/`).
+4. **Record** in `CHANGELOG.md` and **bump SemVer**.
+
+## Gate health (closing the loop)
+
+So "a bug bites once" holds mechanically, not by hope:
+
+1. **Every promoted gate ships a regression test** that fails on the originating defect and
+   passes after the fix — no gate lands without the test that proves it bites.
+2. **Track each gate's hit-rate.** A gate that has fired zero times across N series is a
+   triage input: sharpen it, or cut it as decayed ritual.
+3. **A tool-wrapping gate asserts the tool ran to completion**, not just error-count ≤
+   baseline (a fatal early-exit emits fewer errors and would false-pass).
+4. **Reflection-triage is fail-closed:** the next series does not pass DoR until the prior
+   series' reflections were triaged and recurring traps promoted.
+
+## Quality gates (Definition of Done)
+
+```bash
+uv run ruff format --check .
+uv run ruff check .
+uv run ty check src
+uv run pytest
+```
+
+All green before merge. keel holds itself to the gates it preaches.

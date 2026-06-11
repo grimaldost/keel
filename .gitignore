@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+.coverage
+.pytest_cache/
+.hypothesis/
+.ruff_cache/
+.ty_cache/
+.pr-outputs/
+.worktrees/
+.remember/
+.claude/
+
+# Local-only working docs: dogfooding feedback and development design history
+# (the format README stays published).
+docs/feedback/*
+!docs/feedback/README.md
+docs/design/
+docs/superpowers/
