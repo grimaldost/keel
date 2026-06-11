@@ -1,8 +1,8 @@
 # Feedback intake
 
-Each application of keel (e.g. a treasuryutils submodule round) drops one report here.
+Each application of keel (e.g. a governed wave on a consumer project) drops one report here.
 
-**Filename:** `<YYYY-MM-DD>-<source>.md` (e.g. `2026-06-10-tu-authenticator.md`), source slug
+**Filename:** `<YYYY-MM-DD>-<source>.md` (e.g. `2026-06-10-acme-authenticator.md`), source slug
 distinct per wave/phase so reports never clobber earlier ones.
 
 **Format (as of 2026-06-09):** the `session-workflow:tool-feedback` skill template
