@@ -6,6 +6,7 @@ from pathlib import Path
 
 import typer
 
+from keel import __version__
 from keel.bindings import check_bindings
 from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready
@@ -17,6 +18,25 @@ app = typer.Typer(
     add_completion=False,
     help='keel - method gates and scaffolding',
 )
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(__version__)
+        raise typer.Exit()
+
+
+@app.callback()
+def _root(
+    version: bool = typer.Option(
+        False,
+        '--version',
+        help='Show the keel version and exit.',
+        is_eager=True,
+        callback=_version_callback,
+    ),
+) -> None:
+    """keel - method gates and scaffolding."""
 
 
 def _emit(run: Callable[[], GateResult]) -> None:
@@ -35,9 +55,16 @@ def _emit(run: Callable[[], GateResult]) -> None:
 
 
 @app.command('check-ready')
-def check_ready_cmd(spec: Path) -> None:
+def check_ready_cmd(
+    spec: Path,
+    structure_only: bool = typer.Option(
+        False,
+        '--structure-only',
+        help='Run Part A (well-formedness) only; skip the B1 pre-mortem check.',
+    ),
+) -> None:
     """Definition-of-Ready gate for a spec."""
-    _emit(lambda: check_spec_ready(spec))
+    _emit(lambda: check_spec_ready(spec, structure_only=structure_only))
 
 
 @app.command('bind-check')

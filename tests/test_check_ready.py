@@ -326,3 +326,145 @@ def test_enforcement_no_table_dozes_a10(tmp_path):
     good = READY_SPEC + '\nThe boundary-rule is enforced at every commit.\n'
     result = check_spec_ready(_write(tmp_path, good))
     assert result.passed, [v.message for v in result.violations]
+
+
+# --- A11: anchor-range closes-structure -------------------------------------
+
+# a 5-line set literal: the brace opens on line 1 and closes on line 5.
+_LITERAL = 'ALLOWED = {\n    "a",\n    "b",\n    "c",\n}\n'
+
+
+def test_anchor_range_unclosed_fails_a11(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'lit.py').write_text(_LITERAL, encoding='utf-8')
+    spec = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See `lit.py:1-3` for it.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('1-3' in v.message and 'close' in v.message.lower() for v in result.violations)
+
+
+def test_anchor_range_balanced_passes_a11(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'lit.py').write_text(_LITERAL, encoding='utf-8')
+    spec = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See `lit.py:1-5` for it.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_anchor_range_bracket_in_string_or_comment_passes_a11(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 's.py').write_text('label = "a ] b"\nz = 10  # ) not real\n', encoding='utf-8')
+    spec = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See `s.py:1-2` here.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_single_line_anchor_untouched_by_a11(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'lit.py').write_text(_LITERAL, encoding='utf-8')
+    spec = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See `lit.py:1` here.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+# --- A12: fold-ledger anchor-resolution -------------------------------------
+
+
+def _ledger(rows: str) -> str:
+    return (
+        '\n\n### Fold ledger\n\n'
+        '| Finding | Target | artifact:line | Confirmed |\n'
+        '|---|---|---|---|\n' + rows
+    )
+
+
+def test_fold_ledger_blank_anchor_fails_a12(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 |  | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('ledger' in v.message.lower() for v in result.violations)
+
+
+def test_fold_ledger_bad_anchor_fails_a12(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `ghost.py:5` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('ghost.py' in v.message for v in result.violations)
+
+
+def test_fold_ledger_resolves_passes_a12(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_no_fold_ledger_dozes_a12(tmp_path):
+    result = check_spec_ready(_write(tmp_path, READY_SPEC))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_anchor_range_non_code_file_passes_a11(tmp_path):
+    # A11's bracket-balance is Python-only; a range into prose with a stray { must not fire.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'doc.md').write_text(
+        'Use {placeholder and ${VAR}\nmore prose here\n', encoding='utf-8'
+    )
+    spec = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See `doc.md:1-2` here.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+_MULTILINE_STR = 's = """\n[ a bracket inside a multi-line string\n"""\nx = 1\n'
+
+
+def test_anchor_range_multiline_string_passes_a11(tmp_path):
+    # a [ inside a triple-quoted string spanning the range must not count as unclosed.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'ml.py').write_text(_MULTILINE_STR, encoding='utf-8')
+    spec = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See `ml.py:1-4` now.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_header_word_in_data_cell_still_fails_a12(tmp_path):
+    # the header skip is positional, so a data row whose cell is the word "artifact" still fires.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | artifact | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('ledger' in v.message.lower() for v in result.violations)
+
+
+# --- R1: a claimed fold must carry a ledger ---------------------------------
+
+
+def test_fold_claimed_without_ledger_fails_r1(tmp_path):
+    # a CERTIFIED spec whose "folded in" field claims a fold but has no ledger fails (R1).
+    bad = READY_SPEC.replace(
+        '- **Failure modes considered & folded in:** none outstanding',
+        '- **Failure modes considered & folded in:** 3 findings folded (1 BLOCKER, 2 MINOR).',
+    )
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    assert any('ledger' in v.message.lower() for v in result.violations)
+
+
+def test_fold_claimed_with_resolving_ledger_passes_r1(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('a\nb\n', encoding='utf-8')
+    good = READY_SPEC.replace(
+        '- **Failure modes considered & folded in:** none outstanding',
+        '- **Failure modes considered & folded in:** 1 finding folded.',
+    ) + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, good))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_clean_certify_dozes_r1(tmp_path):
+    # "none outstanding" claims no fold, so no ledger is required (clean certs do not retro-break).
+    result = check_spec_ready(_write(tmp_path, READY_SPEC))
+    assert result.passed, [v.message for v in result.violations]
