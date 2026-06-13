@@ -75,7 +75,7 @@ agent's head and pin it to an artifact or a machine.
   with a regression test, and a gate that never fires is itself a triage input —
   gates decay, so their hit-rate is tracked.
 
-Three sharpenings:
+Sharpenings (each one face of the thesis; numbered, not counted in the heading):
 
 1. **Externalization relocates judgment; it does not remove it.** Stateless
    workers will faithfully and coherently build a wrong spec — coherently wrong
@@ -102,6 +102,35 @@ Three sharpenings:
    half-applied finding no gate can see. `check-ready` mechanizes the slices it can (A8 §-refs,
    A9 reuse-targets, A10 enforcement-claim honesty); the rest stays a pre-mortem prompt and an
    attested re-read (ADR-0004).
+5. **Ground the verification, model the mechanical consumers, verify the transformation.**
+   Sharpening 4 grounds the *referent* and verifies the fold; sharpening 5 extends it one level out,
+   across the three axes the field showed dominate once Part A holds. **(DC1) Ground the
+   verification, not just the referent:** a claim the author "verified" is still wrong if the view
+   was partial (exemplars, not the population), stale, moved (an external dep's SHA shifted), or
+   wrong-shaped (a line-anchor blind to indented code) — and a verifier's own script gets the same
+   scrutiny as the spec. **(DC2) Model the mechanical consumers:** the spec models the logical
+   design, but the in-place toolchain, the autofixer, and staged files consume the artifact too — a
+   staged `.py` pollutes `mypy .`, a diff-shape rule contradicts isort. **(DC3) Verify the
+   transformation:** the fold/fix is an unverified, instance-scoped delta — a per-finding ledger and
+   class-not-instance scope close it. What is mechanizable ships as a gate (A11 anchor ranges, A12
+   fold-ledger anchors); the rest is a pre-mortem directive or routed out — ADR-0002's
+   form/correctness split and ADR-0004's grounding/fold, held one level up (ADR-0005).
+
+Three operating notes carry sharpening 5 into practice:
+
+- **Two-pass cadence (DESIGN ⊕ SERIES), blast-radius-scaled.** For a wave touching enforcement or a
+  shared contract, run two blind pre-mortems: a DESIGN pass (contract / radius / vacuity / projected
+  verification) and a SERIES pass (execution mechanics, prompt-internal contradictions, staging×gate
+  interactions — and it attacks the DESIGN pass's folds). One pass suffices only when the wave is
+  docs-only / zero-behaviour-change AND the first pass is CERT-clean AND no executable gate changes.
+- **Verification convergence.** Hardened verification must terminate: a pass STOPS when it surfaces
+  zero new BLOCKER/MAJOR findings, and a `CONDITIONAL-CERTIFY` (ready modulo a named ≤N-line fix)
+  avoids forcing a full extra round (`pre-mortem-prompt.md`). Unbounded verification is the cost
+  centre the spine would otherwise create.
+- **Cost-of-defect (why the left-shift pays).** Field accounting prices a correctness defect caught
+  late at roughly 30× its design-time cost (~$347, 41% of one $853 program, vs ~$3 caught at design).
+  This is the quantified form of the §1 evidence-status note — the economic case for spending the
+  pre-mortem/gate budget up front.
 
 ## 3. Phases
 

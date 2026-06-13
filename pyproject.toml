@@ -1,6 +1,6 @@
 [project]
 name = 'keel'
-version = '0.4.0'
+version = '0.5.0'
 description = 'The method: gates, templates, and doctrine for artifact-and-machine-governed development.'
 readme = 'README.md'
 requires-python = '>=3.11'

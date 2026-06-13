@@ -2,6 +2,53 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.5.0] - 2026-06-13
+
+### Added
+
+- `check-ready` Part A gains two checks (extending ADR-0002/0004; each verified *when present*, so
+  existing specs do not retro-break):
+  - **A11** — a `path:lo-hi` range anchor must close (string/comment-aware) every bracket it opens,
+    so a citation cannot silently truncate a collection literal. Single-line `path:line` anchors
+    stay A6; both now share an extracted `_resolve_anchor` helper (a behaviour-preserving refactor).
+  - **A12** — when a `### Fold ledger` sub-table is present in the certification block, every row's
+    `artifact:line` confirmation anchor must resolve (it records the fold against a real line; the
+    fold's correctness stays Part B).
+  - **R1** — a certification that *claims* a non-trivial fold must carry a `### Fold ledger` with >=1
+    resolving row (a deliberate DoR tightening, **not** verify-when-present; a clean certify dozes) —
+    closes the DC3 "skip the ledger by omission" hole at the gate (ADR-0005).
+- `keel --version`; `check-ready --structure-only` (Part A only, for the author loop).
+- `tests/test_premortem_agent.py`: a drift guard holding the bundled `pre-mortem-review` agent and
+  `pre-mortem-prompt.md` to a shared contract-marker set (the `agent ⇄ prompt fidelity` invariant).
+- `ADR-0005`: the verification spine.
+
+### Changed
+
+- The bundled `pre-mortem-review` agent is rewritten to carry the current contract (structured
+  findings, grounding-of-referents, verified fold) — it had drifted back to the 0.2.0 "top 5" prose,
+  so the plugin's out-of-box pre-mortem lagged keel's own doctrine.
+- `pre-mortem-prompt` gains the DC1/DC2/DC3 directive layer (ground the verification incl. a
+  verifier's own script; staged-files × in-place-gates and diff-shape × lint; the per-finding fold
+  ledger + class-not-instance scope) and an operational convergence / stopping rule.
+- `spec-template` gains anchor-range guidance, a `### Fold ledger` block, a `Reviewed against:` SHA
+  field, and removal/retype + counting guidance; `definition-of-ready` documents A11/A12; `doctrine`
+  gains sharpening 5 (ground the verification, model the mechanical consumers, verify the
+  transformation) plus the two-pass-cadence, convergence, and cost-of-defect notes.
+
+### Origin
+
+- The 2026-06-13 post-0.4.0 field triage (`docs/feedback/2026-06-13-post-040-field-triage.md`, 19
+  reports) + a four-lens review distilled the residual misses to three root causes (DC1/DC2/DC3) and
+  a keystone agent-drift defect. Spec: `docs/design/2026-06-13-keel-0.5.0-spec.md`, DoR-certified by
+  a two-lens blind pre-mortem (4 BLOCKER + 7 MAJOR + 5 MINOR folded). Each new gate ships a
+  regression test; `check-ready` was re-run on the 0.5.0 spec after the checks landed (FM-6 re-dogfood).
+
+### Routed out / declined
+
+- → pr-pilot: silent engine-loss + the watchdog, the cost model, scaffold employer-identity defaults.
+- Held at `watch`: N6b cardinal-vs-enumeration lint (false-positive risk). Deferred as a standalone
+  repo script: N9a publish-readiness sweep (repo tooling, not a method gate — thinness, ADR-0003).
+
 ## [0.4.0] - 2026-06-09
 
 ### Added

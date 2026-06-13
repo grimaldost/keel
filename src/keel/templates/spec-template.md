@@ -70,6 +70,19 @@ backticks) — `check-ready` verifies they resolve and match. Cite a new ADR as
 `**Reuse:** <backticked path::symbol>`; `check-ready` (A9) resolves the path, and the symbol
 when given — so a spec cannot say "model-on / reuse X" without X actually existing.*
 
+*Anchor ranges: a multi-line citation is `` `path:lo-hi` ``; `check-ready` (A11) flags a range that
+opens a bracket/brace/paren it does not close, so a citation cannot silently truncate a collection
+literal mid-structure. Quote a literal complete or not at all.*
+
+*Out-of-wave consumers: when a section MOVES, RENAMES, or RETYPES a symbol, or strips content from a
+file, list every consumer beyond the import graph — scripts that regex/parse the file's TEXT
+(docs-sync checks, doc anchors, tests reading it as data) and every READER of a retyped symbol — and
+add each to that PR's file-list. (Not gated; the pre-mortem attacks it.)*
+
+*Counting: a test-count tripwire counts pytest ITEMS (post-parametrize collection), not function
+defs, and shows the parametrize expansion; enumerate code constructs by AST, never a bare text grep
+(grep is a superset pre-filter only); pin both the UNIT and the AUTHORITY of any recount.*
+
 ## PR ↔ section manifest
 
 | PR | Implements section | One concern? |
@@ -93,8 +106,19 @@ verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not 
 - **Reviewer:**
 - **Verdict:** not yet certified
 - **Date:**
+- **Reviewed against:** <external dependency SHAs/versions reasoned against, if any>
 - **Post-fold coherence:**
 - **Failure modes considered & folded in:**
+
+### Fold ledger
+
+*Required when the certification claims a non-trivial fold (R1); a clean certify dozes: one row per folded finding so the post-fold delta is
+reviewable. `check-ready` (A12) holds each `artifact:line` to a resolving anchor — it verifies the
+fold was recorded against a real line, not that it is correct (that is the reviewer's job). Leave the
+header only (no data rows) and A12 dozes.*
+
+| Finding | Target section | artifact:line | Confirmed |
+|---|---|---|---|
 
 ---
 *This template is structured so that most of the deterministic Definition-of-Ready

@@ -38,12 +38,52 @@ Apply these grounding checks (the failure class the method most often misses):
 - When a design supersedes a prior version, verify decisions against the committed
   register, not the superseded doc.
 
+Grounding-completeness (DC1) — a claim the author "verified" is still wrong if the VIEW was
+partial, stale, moved, or wrong-shaped. Attack each:
+- Population, not exemplars: a "green on arrival / verified clean" claim must enumerate the FULL
+  matched population (run the predicate over the real input), not the instances already seen; the
+  scope read (src AND tests AND docs, and sibling repos) must be named.
+- Whole-file, not projected: a file recorded "verified clean" from one section/table read is
+  unproven for the rest — re-read each cleared file end to end.
+- Stale / moved referent: a finding cited from a PRIOR pre-mortem carries its date and is
+  re-verified against the current tree; a spec reasoning against an editable/external dependency
+  must record its SHA, and you re-verify that SHA at run time and state it.
+- Evidence-timeline on overturn: when you OVERTURN a prior claim, state the evidence timeline
+  (current state, and when/why it differs) — never "X is wrong" alone; a moved referent can
+  otherwise launder a false narrative into the spec.
+- The verifier's own script: a purity grep, a count regex, or a fold checker is itself an
+  artifact — give it the same grounding scrutiny (a column-0 regex blind to indented code, or a
+  fence that reads CLEAN on command failure, is the same blind spot one level up).
+
+Mechanical consumers (DC2) — the spec models the logical design, but mechanical processes consume
+the artifact too:
+- Staged-files x in-place-gates: for every file the FIRE step STAGES into the worktree, enumerate
+  which in-place gates will SEE it (`mypy .`, `ruff .`, repo-wide greps, pytest collection) and
+  simulate each interaction (excluded / walked-clean / must-relocate).
+- Diff-shape x lint: for any constraint on a diff's SHAPE (in-place / single-hunk / no-reorder),
+  apply it to one representative file and run the repo's full lint+format gate; if the autofixer
+  edits or rejects the literal form, the constraint contradicts the gate — rewrite it as
+  line-content purity, not position.
+
+Verify the transformation (DC3) — the fold/fix is an unverified, instance-scoped delta:
+- Per-finding fold ledger: require a finding -> target -> artifact:line -> confirmed row per folded
+  finding; nothing else reviews the post-fold delta.
+- Fold-scope recursion & class-not-instance: scope each fix to the whole defect CLASS (sweep the
+  artifact for siblings), not the cited instance; the SECOND pass attacks the FIRST pass's folds.
+
+Counting — does each test-count count pytest ITEMS (post-parametrize), not function defs? Is each
+code construct enumerated by AST, with grep only as a superset pre-filter?
+
 Emit findings as a YAML list, one entry per failure mode, then the prose:
   - id: FM-1
     severity: BLOCKER      # BLOCKER | MAJOR | MINOR
     evidence: path/to/file.py:line
     smallest_fix: "<one-line spec/prompt edit>"
     target_section: "section N"
+
+Convergence (so hardened verification stays bounded): a pass STOPS when it surfaces zero new
+BLOCKER/MAJOR findings; emit CONDITIONAL-CERTIFY when only named MINOR fixes remain (ready modulo a
+listed <=N-line fix), rather than forcing another full round.
 
 <paste: the spec + the PR↔section manifest>
 ```

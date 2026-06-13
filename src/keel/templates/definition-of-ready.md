@@ -34,6 +34,11 @@ is Part B's job).
       denotes this spec's own sections — a cross-document reference names the document.
 - [ ] When an `Enforcement status` table is present, no prose claims an invariant
       "enforced" / "guaranteed" that the table marks review-only / planned / absent (A10).
+- [ ] Every `path:lo-hi` range anchor closes (string/comment-aware) every bracket it opens (A11) —
+      a citation cannot truncate a collection literal mid-structure.
+- [ ] A certification that claims a non-trivial fold carries a `### Fold ledger` with a resolving
+      `artifact:line` row per finding (R1); when rows are present each anchor resolves (A12); a clean
+      certify (folded in: none) dozes.
 
 ### Reference: what `check_spec_ready` asserts (keel 0.3.0)
 
@@ -48,6 +53,9 @@ A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section (skips `§N.M`, headings, doc-cued refs)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
 A10 when an Enforcement-status table is present: fail if prose claims an invariant "enforced"/"guaranteed" whose row is not enforced
+A11 each `path:lo-hi` range anchor: fail unless it closes (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
+A12 when a `### Fold ledger` sub-table is present: fail unless each row's `artifact:line` confirmation anchor resolves
+R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED + a Reviewer
 ```
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge

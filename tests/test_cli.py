@@ -132,3 +132,26 @@ def test_init_force_overwrites(tmp_path):
     runner.invoke(app, ['init', str(target)])
     result = runner.invoke(app, ['init', '--force', str(target)])
     assert result.exit_code == 0
+
+
+def test_version_flag_prints_version():
+    from keel import __version__
+
+    result = runner.invoke(app, ['--version'])
+    assert result.exit_code == 0
+    assert __version__ in result.output
+
+
+def test_structure_only_skips_b1(tmp_path):
+    spec = tmp_path / 'spec.md'
+    spec.write_text(
+        READY_SPEC.replace('- **Verdict:** CERTIFIED', '- **Verdict:** not yet certified'),
+        encoding='utf-8',
+    )
+    # Part A is clean but B1 would fail; --structure-only skips B1 only.
+    structure = runner.invoke(app, ['check-ready', '--structure-only', str(spec)])
+    assert structure.exit_code == 0, structure.output
+    assert 'OK' in structure.output
+    # Without the flag, B1 fires.
+    full = runner.invoke(app, ['check-ready', str(spec)])
+    assert full.exit_code == 1

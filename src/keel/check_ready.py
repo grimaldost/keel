@@ -23,13 +23,18 @@ _DOC_CUES = frozenset({'doctrine', 'concepts', 'readme', 'adr', 'contributing'})
 _CUE_STRIP = '\'"`*()[]{}.,;:'  # surrounding punctuation peeled off a preceding cue word
 _CLAIM_RE = re.compile(r'\b(enforced|guaranteed)\b', re.IGNORECASE)
 _NEG_TOKENS = frozenset({'not', 'never', 'to', 'be', 'will', 'once', 'no'})
+_ANCHOR_RANGE_RE = re.compile(r'`([^`\s]+\.[A-Za-z0-9]+):(\d+)-(\d+)`')
+_OPEN = frozenset('([{')
+_CLOSE = frozenset(')]}')
 
 
-def check_spec_ready(spec_path: Path) -> GateResult:
+def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateResult:
     """Assert a spec is Ready: well-formed (Part A) and pre-mortem-certified (Part B).
 
     A pass means the spec is structurally well-formed AND carries a recorded blind
-    pre-mortem certification (ADR-0002); it never passes on structure alone.
+    pre-mortem certification (ADR-0002); it never passes on structure alone. With
+    ``structure_only`` set, only Part A (A1-A12) runs - the author-loop mode that
+    suppresses the expected B1 PENDING before a pre-mortem is recorded.
     """
     if not spec_path.exists():
         raise FileNotFoundError(
@@ -50,12 +55,16 @@ def check_spec_ready(spec_path: Path) -> GateResult:
     violations += _check_placeholders(text)
     violations += _check_manifest(_find_section(sections, 'section', 'manifest'), section_ids)
     violations += _check_paths(_find_section(sections, 'concept', 'module'), subsections, spec_path)
+    cert = _find_section(sections, 'pre-mortem', 'certification')
     violations += _check_anchors(text, spec_path)
+    violations += _check_anchor_ranges(text, spec_path)
     violations += _check_adr_numbers(text, spec_path)
     violations += _check_references(text, spec_path)
     violations += _check_section_refs(text, section_ids)
     violations += _check_enforcement_claims(sections, text)
-    violations += _check_premortem(_find_section(sections, 'pre-mortem', 'certification'))
+    violations += _check_fold_ledger(cert, spec_path)
+    if not structure_only:
+        violations += _check_premortem(cert)
 
     return GateResult(passed=not violations, violations=tuple(violations))
 
@@ -144,6 +153,67 @@ def _field(body: str, name: str) -> str:
         if match:
             return match.group(1).strip()
     return ''
+
+
+def _resolve_anchor(
+    base: Path, path: str, line_no: int, where: str
+) -> tuple[list[str] | None, Violation | None]:
+    """Resolve a `path:line` anchor: (file lines, None) if it resolves, else (None, Violation)."""
+    target = base / path
+    if not target.exists():
+        return None, Violation(where, f'anchor path {path!r} does not exist.')
+    lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
+    if line_no < 1 or line_no > len(lines):
+        return None, Violation(
+            where, f'anchor line {line_no} is out of range ({len(lines)} lines).'
+        )
+    return lines, None
+
+
+def _bracket_balance(lines: list[str]) -> int:
+    """Net unclosed-bracket depth over Python lines, ignoring strings and `#` comments.
+
+    Single- and triple-quoted strings are skipped (a triple-quoted string spans lines), so a
+    bracket inside a string or a comment does not count. This is a Python-literal notion; callers
+    restrict it to `.py`/`.pyi` anchors.
+    """
+    depth = 0
+    quote: str | None = None  # "'" / '"' (single) or a 3-char triple-quote opener
+    for line in lines:
+        i, n = 0, len(line)
+        while i < n:
+            if quote is not None:
+                if len(quote) == 3:
+                    if line[i : i + 3] == quote:
+                        quote, i = None, i + 3
+                        continue
+                    i += 1
+                    continue
+                ch = line[i]
+                if ch == '\\':
+                    i += 2  # skip the escaped char
+                    continue
+                if ch == quote:
+                    quote = None
+                i += 1
+                continue
+            triple = line[i : i + 3]
+            if triple in ('"""', "'''"):
+                quote, i = triple, i + 3
+                continue
+            ch = line[i]
+            if ch == '#':
+                break
+            if ch in ('"', "'"):
+                quote = ch
+            elif ch in _OPEN:
+                depth += 1
+            elif ch in _CLOSE:
+                depth -= 1
+            i += 1
+        if quote is not None and len(quote) == 1:
+            quote = None  # a single-quoted string does not span lines; a triple-quoted one does
+    return depth
 
 
 # --- checks ------------------------------------------------------------------
@@ -271,23 +341,107 @@ def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
     for match in _ANCHOR_RE.finditer(text):
         path, line_text, snippet = match.group(1), match.group(2), match.group(3)
         where = f'{path}:{line_text}'
-        target = base / path
-        if not target.exists():
-            violations.append(Violation(where, f'anchor path {path!r} does not exist.'))
-            continue
-        lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
         line_no = int(line_text)
-        if line_no < 1 or line_no > len(lines):
-            violations.append(
-                Violation(where, f'anchor line {line_no} is out of range ({len(lines)} lines).')
-            )
+        lines, violation = _resolve_anchor(base, path, line_no, where)
+        if violation is not None:
+            violations.append(violation)
             continue
-        if snippet is not None:
+        if snippet is not None and lines is not None:
             actual = ' '.join(lines[line_no - 1].split())
             if ' '.join(snippet.split()) not in actual:
                 violations.append(
                     Violation(where, f'anchor snippet {snippet!r} does not match line {line_no}.')
                 )
+    return violations
+
+
+def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
+    """A11: a `path:lo-hi` range anchor must close every bracket it opens (string/comment-aware).
+
+    A range whose `hi` line leaves a bracket opened inside the range unclosed is a truncated
+    citation (the observation window stops mid-literal). Verify-when-present: fires only on
+    `path:lo-hi` range anchors; single-line `path:line` anchors (A6) are untouched. The
+    bracket-balance is a Python-literal notion, so it runs only for `.py`/`.pyi` anchors — a range
+    into a non-code file still has its file/line resolved, but is not balance-checked.
+    """
+    base = _resolve_base(spec_path)
+    violations: list[Violation] = []
+    for match in _ANCHOR_RANGE_RE.finditer(text):
+        path, lo, hi = match.group(1), int(match.group(2)), int(match.group(3))
+        where = f'{path}:{lo}-{hi}'
+        lines, violation = _resolve_anchor(base, path, hi, where)
+        if violation is not None:
+            violations.append(violation)
+            continue
+        if lo < 1 or lo > hi or lines is None:
+            violations.append(Violation(where, f'anchor range {lo}-{hi} is malformed.'))
+            continue
+        if path.endswith(('.py', '.pyi')) and _bracket_balance(lines[lo - 1 : hi]) > 0:
+            violations.append(
+                Violation(
+                    where,
+                    f'anchor range :{lo}-{hi} opens a bracket it does not close — '
+                    'quote the literal complete or not at all.',
+                )
+            )
+    return violations
+
+
+_FOLD_NONE = frozenset({'', 'none', 'noneoutstanding', 'na', 'nil'})
+
+
+def _fold_claimed(cert_body: str) -> bool:
+    """R1 trigger: True if the certification's 'folded in' field names a non-trivial fold."""
+    for line in cert_body.splitlines():
+        if 'folded in' in line.lower():
+            _, _, value = line.partition(':')
+            return re.sub(r'[^a-z0-9]', '', value.lower()) not in _FOLD_NONE
+    return False
+
+
+def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation]:
+    """A12 + R1: a claimed fold carries a ledger, and every ledger row's anchor resolves.
+
+    R1 (a deliberate DoR tightening, NOT verify-when-present): a certification whose 'folded in'
+    field names a non-trivial fold MUST carry a `### Fold ledger` with >=1 data row — so the DC3
+    transformation-verification cannot be skipped by omission. A clean certify (folded in: none)
+    dozes, so it does not retro-break. A12: when ledger rows are present, each row's `artifact:line`
+    confirmation must resolve (the fold was recorded against a real line); it does not judge the
+    fold's correctness — that stays Part B (ADR-0002). The blank/prose-cell case is exactly what
+    A6 does not catch.
+    """
+    if cert_body is None:
+        return []
+    ledger = next(
+        (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
+    )
+    rows = [cells for i, cells in enumerate(_table_rows(ledger)) if i > 0] if ledger else []
+    if not rows:
+        if _fold_claimed(cert_body):
+            return [
+                Violation(
+                    'Fold ledger',
+                    'the certification claims a fold but carries no `### Fold ledger` rows; '
+                    'record one row (finding, target, artifact:line, confirmed) per finding (R1).',
+                )
+            ]
+        return []
+    base = _resolve_base(spec_path)
+    violations: list[Violation] = []
+    for cells in rows:
+        if len(cells) < 3:
+            continue
+        anchor = re.sub(r'[`*]', '', cells[2]).strip()
+        where = f'Fold ledger {cells[0].strip() or "(row)"}'
+        match = re.match(r'(\S+\.[A-Za-z0-9]+):(\d+)$', anchor)
+        if match is None:
+            violations.append(
+                Violation(where, 'fold-ledger row has no resolving `artifact:line` confirmation.')
+            )
+            continue
+        _, violation = _resolve_anchor(base, match.group(1), int(match.group(2)), where)
+        if violation is not None:
+            violations.append(violation)
     return violations
 
 
