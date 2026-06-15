@@ -2,6 +2,23 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.6.1] - 2026-06-15
+
+### Changed
+
+- The pre-mortem **fold step now re-grounds each proposed fix before applying it**: a `smallest_fix`
+  is a hypothesis, not an instruction — verify it against the code, since folding a wrong fix verbatim
+  ships the bug it named. Carried verbatim in both `pre-mortem-prompt.md` and the bundled
+  `pre-mortem-review` agent, pinned by the drift guard (`tests/test_premortem_agent.py`); doctrine
+  sharpening 4 gains the clause.
+
+### Origin
+
+- keel-on-keel: the 0.6.0 self-build (`docs/feedback/2026-06-14-keel-0.6.0-self-build.md`) caught a
+  DESIGN-pass proposed fix (`certified\b`) with a hyphen-boundary hole that would have shipped the
+  `CERTIFIED-NOT`-passes bug if folded verbatim. A sub-threshold refinement (no spec/two-pass
+  ceremony, per doctrine §6); extends the verified fold (ADR-0004) and sharpening 5.
+
 ## [0.6.0] - 2026-06-14
 
 ### Added

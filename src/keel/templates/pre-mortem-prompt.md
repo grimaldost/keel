@@ -105,7 +105,7 @@ listed <=N-line fix), rather than forcing another full round.
 ## Output handling
 
 Fold the proposed changes back in **from the structured findings list** — apply each
-`smallest_fix` to its `target_section` mechanically. Then run a **post-fold coherence
+`smallest_fix` to its `target_section` mechanically. Re-ground each proposed fix first: a `smallest_fix` is a hypothesis, not an instruction — verify it against the code before folding, since folding a wrong fix verbatim ships the bug it named. Then run a **post-fold coherence
 re-read**: read each edited artifact end to end and confirm every finding was applied
 consistently across ALL of its sections (Task / pre-read / Process / file-list); for any
 finding that NARROWED scope (removed a deletion / relocation / file), re-derive every

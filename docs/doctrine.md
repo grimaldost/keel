@@ -99,7 +99,8 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
    trusted from the prose ("proven" means proven on the original caller's shapes, not yours).
    And the fold of pre-mortem findings back into the spec is itself a **verified hop**:
    structured findings are folded mechanically, then a post-fold coherence re-read catches the
-   half-applied finding no gate can see. `check-ready` mechanizes the slices it can (A8 §-refs,
+   half-applied finding no gate can see; and each proposed fix is re-grounded as a hypothesis before
+   it is folded, since applying a wrong fix verbatim ships the bug it named. `check-ready` mechanizes the slices it can (A8 §-refs,
    A9 reuse-targets, A10 enforcement-claim honesty); the rest stays a pre-mortem prompt and an
    attested re-read (ADR-0004).
 5. **Ground the verification, model the mechanical consumers, verify the transformation.**
