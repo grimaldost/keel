@@ -116,7 +116,7 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
    fold-ledger anchors); the rest is a pre-mortem directive or routed out — ADR-0002's
    form/correctness split and ADR-0004's grounding/fold, held one level up (ADR-0005).
 
-Three operating notes carry sharpening 5 into practice:
+These operating notes carry sharpening 5 into practice:
 
 - **Two-pass cadence (DESIGN ⊕ SERIES), blast-radius-scaled.** For a wave touching enforcement or a
   shared contract, run two blind pre-mortems: a DESIGN pass (contract / radius / vacuity / projected
@@ -131,6 +131,15 @@ Three operating notes carry sharpening 5 into practice:
   late at roughly 30× its design-time cost (~$347, 41% of one $853 program, vs ~$3 caught at design).
   This is the quantified form of the §1 evidence-status note — the economic case for spending the
   pre-mortem/gate budget up front.
+- **Cross-artifact completeness & the pre-cut audit.** Per-wave gates verify each wave internally;
+  whether artifacts that must AGREE actually do — the design's named reviewer-subset vs the
+  executable command, a generated mirror vs the surface a later PR mutates, the cumulative CHANGELOG
+  vs every wave's new surface — is a cross-artifact property no per-wave gate sees (a consistency
+  gate checks cross-references, not completeness). Two practices close it: release-notes land IN the
+  wave that adds the surface or changes behaviour, and a cross-cutting blind audit (the consumer's
+  DoD#9-style panel: boundaries · API-surface · contracts · release-docs) runs once before a release
+  cut. The pre-mortem carries the per-wave directives (`pre-mortem-prompt.md`); the executable diff
+  and the release-notes mechanization route to the orchestrator (pr-pilot).
 
 ## 3. Phases
 

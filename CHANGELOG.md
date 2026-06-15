@@ -2,6 +2,47 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.6.0] - 2026-06-14
+
+### Added
+
+- `keel new-spec <path>` — stamps `spec-template.md` as a single-file scaffold (refuses overwrite
+  without `--force`), and `check-ready` now appends a one-line pointer to the template when a
+  top-level structure is entirely absent (A1/A4/A5) — the on-ramp the field flagged (4 runs to green).
+- Pre-mortem **cross-artifact-completeness** directives, carried verbatim in BOTH `pre-mortem-prompt`
+  and the bundled `pre-mortem-review` agent: a cross-PR generated-artifact-invalidation bullet (a
+  later PR mutates a mirror's source surface → re-run the generator, test the full tree), an
+  intent→executable bullet (a test the DESIGN names for the reviewer subset must appear in the
+  executable command), and a stress-test-recorded-predictions bullet (a "predicted signal" is a claim
+  to attack — could it floor/ceiling?). A DoR Part-B discriminating-power item for eval/experiment
+  specs; a `spec-template` release-notes-in-wave Definition-of-Done item; a `doctrine` operating note
+  blessing the cross-cutting pre-cut blind audit.
+- `ADR-0006`: the adoption surface & cross-artifact completeness.
+
+### Changed
+
+- **A2** matches `acceptance\s+criterion`, so a hard-wrapped `**Acceptance criterion:**` marker is
+  found (widen-only; a self-hit in the 0.5.0 build and a field miss).
+- **B1** accepts the verdict's leading token (`CERTIFIED` + trailing prose), capturing a hyphenated
+  compound whole so `CERTIFIED-NOT` still fails; the error states the bare-token contract (widen-only,
+  with a regression test that the hole stays closed).
+- `tests/test_premortem_agent.py` rises to distinctive per-directive markers, pinning the new
+  directives so the agent ⇄ prompt fidelity invariant holds as the directive set grows.
+
+### Origin
+
+- The 2026-06-14 post-0.5.0 field triage (`docs/feedback/2026-06-14-post-050-field-triage.md`, 5
+  reports). Spec: `docs/design/2026-06-14-keel-0.6.0-spec.md`, DoR-certified by a two-pass blind
+  pre-mortem (DESIGN + SERIES; 1 BLOCKER + 7 MAJOR + 6 MINOR folded across 14 findings). A2/B1 widen
+  only; `check-ready` was re-run on the 0.6.0 spec after they landed (the N8e re-dogfood rule).
+
+### Routed out / carried
+
+- → pr-pilot: the REVIEW-command-vs-design diff + full-tree generated-mirror freshness; the per-wave
+  FIRE release-notes line + predicted-vs-invariant tagging; the eval-run cost denominator.
+- Carried (no new field evidence this round): R2 program convergence budget, R3 observational ledger,
+  R4 cost-intensity dial, R5 DC4-A disk-truth axis.
+
 ## [0.5.0] - 2026-06-13
 
 ### Added

@@ -11,7 +11,7 @@ from keel.bindings import check_bindings
 from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready
 from keel.models import GateResult
-from keel.templates import copy_templates
+from keel.templates import copy_templates, stamp_spec
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -39,7 +39,11 @@ def _root(
     """keel - method gates and scaffolding."""
 
 
-def _emit(run: Callable[[], GateResult]) -> None:
+def _emit(
+    run: Callable[[], GateResult],
+    *,
+    hint: Callable[[GateResult], str | None] | None = None,
+) -> None:
     """Run a gate; exit 0 pass, 1 violations, 2 not runnable (stub or missing input)."""
     try:
         result = run()
@@ -51,7 +55,27 @@ def _emit(run: Callable[[], GateResult]) -> None:
         raise typer.Exit(code=0)
     for violation in result.violations:
         typer.echo(f'{violation.where}: {violation.message}')
+    if hint is not None and (message := hint(result)):
+        typer.echo(message)
     raise typer.Exit(code=1)
+
+
+_STRUCTURAL_WHERES = frozenset(
+    {'Numbered sections', 'PR ↔ section manifest', 'Concept → module map'}
+)
+
+
+def _spec_template_hint(result: GateResult) -> str | None:
+    """Point a hand-written spec at the template when a top-level section is absent (A1/A4/A5)."""
+    absent = any(
+        v.where in _STRUCTURAL_WHERES and v.message.startswith('no ') for v in result.violations
+    )
+    if not absent:
+        return None
+    return (
+        'hint: a required top-level section is missing — '
+        'start from spec-template.md (run `keel new-spec <path>`).'
+    )
 
 
 @app.command('check-ready')
@@ -64,7 +88,7 @@ def check_ready_cmd(
     ),
 ) -> None:
     """Definition-of-Ready gate for a spec."""
-    _emit(lambda: check_spec_ready(spec, structure_only=structure_only))
+    _emit(lambda: check_spec_ready(spec, structure_only=structure_only), hint=_spec_template_hint)
 
 
 @app.command('bind-check')
@@ -91,6 +115,20 @@ def init_cmd(
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
     typer.echo(f'Copied {len(copied)} templates to {target}')
+
+
+@app.command('new-spec')
+def new_spec_cmd(
+    target: Path,
+    force: bool = typer.Option(False, '--force', help='Overwrite an existing file.'),
+) -> None:
+    """Stamp spec-template.md to a new spec path (the keel spec on-ramp)."""
+    try:
+        stamped = stamp_spec(target, force=force)
+    except FileExistsError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2) from exc
+    typer.echo(f'Wrote {stamped}')
 
 
 def _force_utf8(stream: object) -> None:

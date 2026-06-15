@@ -12,16 +12,23 @@ ROOT = Path(__file__).resolve().parents[1]
 AGENT = ROOT / 'agents' / 'pre-mortem-review.md'
 PROMPT = ROOT / 'src' / 'keel' / 'templates' / 'pre-mortem-prompt.md'
 
-# Structured-findings schema + severity + the DC1/DC2/DC3 and convergence directives.
+# Structured-findings schema + severity + one distinctive token per directive section, so the
+# bundled agent and the prompt template cannot drift apart (ADR-0005 agent <-> prompt fidelity).
+# Each token is the verbatim string the directive carries; removing a directive from EITHER file
+# drops its token and fails the shared-markers test below.
 MARKERS = (
     'smallest_fix',
     'target_section',
     'BLOCKER',
-    'population',
-    'staged',
-    'fold ledger',
-    'evidence-timeline',
-    'CONDITIONAL-CERTIFY',
+    'population',  # DC1 ground-the-verification
+    'staged',  # DC2 mechanical consumers
+    'fold ledger',  # DC3 verify-the-transformation
+    'evidence-timeline',  # DC1 overturn
+    'CONDITIONAL-CERTIFY',  # convergence
+    'cross-pr',  # 0.6.0 §5: cross-PR generated-artifact invalidation
+    'intent vs. executable',  # 0.6.0 §5: intent -> executable cross-artifact
+    'predicted signal',  # 0.6.0 §7: stress-test recorded predictions
+    'stress-test',  # 0.6.0 §7: stress-test recorded predictions
 )
 
 

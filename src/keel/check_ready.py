@@ -239,7 +239,7 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
     violations: list[Violation] = []
     for title, sub_body in subsections:
         where = _id_or_title(title)
-        marker = re.search(r'acceptance criterion', sub_body, re.IGNORECASE)
+        marker = re.search(r'acceptance\s+criterion', sub_body, re.IGNORECASE)
         if marker is None:
             violations.append(Violation(where, 'missing an acceptance criterion.'))
             continue
@@ -570,11 +570,17 @@ def _check_premortem(cert_body: str | None) -> list[Violation]:
             )
         ]
     violations: list[Violation] = []
-    if _field(cert_body, 'verdict').strip().upper() != 'CERTIFIED':
-        verdict = _field(cert_body, 'verdict') or '(none)'
+    raw = _field(cert_body, 'verdict')
+    leading = re.match(
+        r'\s*([A-Za-z][A-Za-z-]*)', raw
+    )  # the bare verdict token, hyphens kept whole
+    if (leading.group(1).upper() if leading else '') != 'CERTIFIED':
+        verdict = raw or '(none)'
         violations.append(
             Violation(
-                'Pre-mortem certification', f'pre-mortem verdict is {verdict!r}, not "CERTIFIED".'
+                'Pre-mortem certification',
+                f'pre-mortem verdict is {verdict!r}, not "CERTIFIED" — the verdict field must '
+                'lead with the bare token CERTIFIED (trailing prose is allowed).',
             )
         )
     if not _field(cert_body, 'reviewer'):

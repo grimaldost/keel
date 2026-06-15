@@ -39,3 +39,24 @@ def copy_templates(target_dir: Path, *, force: bool = False) -> list[Path]:
         shutil.copy2(template, dest)
         copied.append(dest)
     return copied
+
+
+def stamp_spec(target: Path, *, force: bool = False) -> Path:
+    """Copy spec-template.md to target as a single-file scaffold; refuse overwrite unless force.
+
+    A single-file stamp (not the directory-copy copy_templates): `keel new-spec` gives an author
+    the keel spec shape directly, so a spec is not hand-written in a foreign format (the on-ramp the
+    field flagged).
+    """
+    source = templates_root() / 'spec-template.md'
+    if target.exists() and not force:
+        raise FileExistsError(
+            format_error(
+                what=f'{target} already exists.',
+                why='keel new-spec does not overwrite an existing file by default.',
+                fix='Re-run with --force to overwrite, or choose a new path.',
+            )
+        )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+    return target

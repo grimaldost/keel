@@ -134,6 +134,52 @@ def test_init_force_overwrites(tmp_path):
     assert result.exit_code == 0
 
 
+def test_new_spec_stamps_template(tmp_path):
+    target = tmp_path / 'specs' / 'my-spec.md'
+    result = runner.invoke(app, ['new-spec', str(target)])
+    assert result.exit_code == 0, result.output
+    assert target.exists()
+    text = target.read_text(encoding='utf-8')
+    assert 'Numbered sections' in text and 'Pre-mortem certification' in text
+
+
+def test_new_spec_refuses_overwrite_without_force(tmp_path):
+    target = tmp_path / 'my-spec.md'
+    runner.invoke(app, ['new-spec', str(target)])
+    result = runner.invoke(app, ['new-spec', str(target)])
+    assert result.exit_code == 2
+    assert 'already exists' in result.output
+
+
+def test_new_spec_force_overwrites(tmp_path):
+    target = tmp_path / 'my-spec.md'
+    runner.invoke(app, ['new-spec', str(target)])
+    result = runner.invoke(app, ['new-spec', '--force', str(target)])
+    assert result.exit_code == 0
+
+
+def test_check_ready_structural_failure_points_at_template(tmp_path):
+    spec = tmp_path / 'spec.md'
+    spec.write_text('# Spec — empty\n\nNo structure at all here.\n', encoding='utf-8')
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert result.exit_code == 1
+    assert 'spec-template.md' in result.output or 'new-spec' in result.output
+
+
+def test_check_ready_content_failure_no_pointer(tmp_path):
+    # content-only failure (structure present, trivial criterion): must NOT print the pointer.
+    content_fail = READY_SPEC.replace(
+        '`src/widget.py` exposes a\nmake() function and a unit test asserts the returned value '
+        'is a Widget.',
+        'done.',
+    )
+    spec = tmp_path / 'spec.md'
+    spec.write_text(content_fail, encoding='utf-8')
+    result = runner.invoke(app, ['check-ready', '--structure-only', str(spec)])
+    assert result.exit_code == 1
+    assert 'spec-template.md' not in result.output and 'new-spec' not in result.output
+
+
 def test_version_flag_prints_version():
     from keel import __version__
 

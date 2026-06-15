@@ -54,6 +54,11 @@ partial, stale, moved, or wrong-shaped. Attack each:
 - The verifier's own script: a purity grep, a count regex, or a fold checker is itself an
   artifact — give it the same grounding scrutiny (a column-0 regex blind to indented code, or a
   fence that reads CLEAN on command failure, is the same blind spot one level up).
+- Stress-test recorded predictions: a predicted signal, an expected outcome, or a "this
+  discriminates" claim recorded in the spec is a claim to ATTACK, not a fact — could the quantity
+  predicted to vary actually floor/ceiling (every arm passes, or every arm fails) so the run
+  measures nothing? For an eval/experiment spec, each measured criterion carries a one-line baseline
+  expectation.
 
 Mechanical consumers (DC2) — the spec models the logical design, but mechanical processes consume
 the artifact too:
@@ -64,6 +69,15 @@ the artifact too:
   apply it to one representative file and run the repo's full lint+format gate; if the autofixer
   edits or rejects the literal form, the constraint contradicts the gate — rewrite it as
   line-content purity, not position.
+- Cross-PR generated artifacts: if a PR regenerates a derived artifact (a generated API-doc mirror,
+  an exported-symbol snapshot) from a source surface, check whether a LATER PR mutates that surface —
+  if so the regenerator must re-run in/after the last mutating PR, and its freshness test runs on the
+  FULL tree, not a per-domain subset.
+
+Cross-artifact consistency (DC4-B) — artifacts that must agree (design, REVIEW command, CHANGELOG):
+- Intent vs. executable: every test or gate the DESIGN names for the reviewer subset must appear in
+  the executable mandated command — diff the named subset against the actual command; a public config
+  or dataclass field appears in the generated mirror, so predict churn, not none.
 
 Verify the transformation (DC3) — the fold/fix is an unverified, instance-scoped delta:
 - Per-finding fold ledger: require a finding -> target -> artifact:line -> confirmed row per folded
