@@ -1,6 +1,6 @@
 {
   "name": "keel",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "The method as a Claude Code plugin: the apply-method skill, slash commands, the pre-mortem agent, and the portable template kit. Deterministic gates run from the bundled keel CLI via uvx.",
   "author": {
     "name": "Grimaldo Stanzani",

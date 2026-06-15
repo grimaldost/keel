@@ -84,7 +84,7 @@ listed <=N-line fix), rather than forcing another full round.
 
 ## Output handling
 
-Fold each `smallest_fix` into its `target_section` mechanically, then run a post-fold coherence
+Re-ground each proposed fix first: a `smallest_fix` is a hypothesis, not an instruction — verify it against the code before folding, since folding a wrong fix verbatim ships the bug it named. Then fold each `smallest_fix` into its `target_section` mechanically, then run a post-fold coherence
 re-read: confirm every finding was applied consistently across ALL of a section's parts, and
 re-derive every dependent count for any finding that narrowed scope. Record the verdict in the
 spec's `## Pre-mortem certification` block: `CERTIFIED` once no blocking failure mode remains (else

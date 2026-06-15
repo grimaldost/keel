@@ -29,6 +29,7 @@ MARKERS = (
     'intent vs. executable',  # 0.6.0 §5: intent -> executable cross-artifact
     'predicted signal',  # 0.6.0 §7: stress-test recorded predictions
     'stress-test',  # 0.6.0 §7: stress-test recorded predictions
+    'hypothesis, not an instruction',  # 0.6.1: re-ground a proposed fix before folding
 )
 
 
