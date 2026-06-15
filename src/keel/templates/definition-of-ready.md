@@ -78,6 +78,9 @@ are stateless.
 - [ ] A post-fold coherence re-read was performed and recorded (`Post-fold coherence:` in
       the certification): each folded finding is applied consistently across all sections,
       and any scope-narrowing finding had its dependent counts re-derived.
+- [ ] *(eval/experiment specs)* each measured criterion carries a one-line baseline expectation —
+      will the control / `bare` arm plausibly pass it? — and the reviewer flagged ceiling/floor risk:
+      a procedurally-perfect spec still measures nothing if its criteria cannot vary across arms.
 
 **Gate result:** Ready ✅ only when Part A is well-formed **and** the Part B
 pre-mortem certification is recorded. `keel check-ready` enforces both halves; the

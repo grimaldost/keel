@@ -73,6 +73,39 @@ def test_trivial_acceptance_criterion_fails_a2(tmp_path):
     assert any('acceptance criterion' in v.message.lower() for v in result.violations)
 
 
+def test_wrapped_acceptance_marker_is_found_a2(tmp_path):
+    # §1: the **Acceptance criterion:** marker hard-wrapped across a newline must still be found.
+    spec = READY_SPEC.replace(
+        '**Acceptance criterion:** `src/widget.py` exposes `make()`',
+        '**Acceptance\ncriterion:** `src/widget.py` exposes `make()`',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_wrapped_marker_counts_criterion_after_newline_a2(tmp_path):
+    # FM-6: marker wrapped across a newline; the >=5-word criterion that follows is still counted.
+    spec = READY_SPEC.replace(
+        '**Acceptance criterion:** `src/widget.py` exposes `make()`\nand a unit test '
+        'asserts it returns a Widget instance.',
+        '**Acceptance\ncriterion:** the module exposes make and a unit test asserts a Widget.',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_missing_acceptance_marker_still_fails_a2(tmp_path):
+    # widening to \\s+ must not pass a section that has no acceptance marker at all.
+    bad = READY_SPEC.replace(
+        '**Acceptance criterion:** `src/widget.py` exposes `make()`\nand a unit test '
+        'asserts it returns a Widget instance.',
+        'The module is added.',
+    )
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    assert any('acceptance criterion' in v.message.lower() for v in result.violations)
+
+
 def test_placeholder_token_fails_a3(tmp_path):
     bad = READY_SPEC.replace(
         'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. TODO: finalize.'
@@ -128,6 +161,35 @@ def test_missing_certification_block_fails_b1(tmp_path):
     assert any(
         'certif' in v.message.lower() or 'pre-mortem' in v.message.lower()
         for v in result.violations
+    )
+
+
+def test_verdict_certified_with_trailing_prose_passes_b1(tmp_path):
+    # §2: a bare leading CERTIFIED token followed by prose is accepted.
+    good = READY_SPEC.replace(
+        '- **Verdict:** CERTIFIED',
+        '- **Verdict:** CERTIFIED. All round-1 blockers addressed.',
+    )
+    result = check_spec_ready(_write(tmp_path, good))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_verdict_non_leading_or_compound_fails_b1(tmp_path):
+    # §2: a hyphenated compound or a non-leading token must NOT pass (no new hole).
+    for bad_verdict in ('CERTIFIED-NOT', 'CERTIFIEDISH', 'CONDITIONAL-CERTIFY', 'NEEDS-REVISION'):
+        bad = READY_SPEC.replace('- **Verdict:** CERTIFIED', f'- **Verdict:** {bad_verdict}')
+        result = check_spec_ready(_write(tmp_path, bad))
+        assert not result.passed, bad_verdict
+        assert any('certif' in v.message.lower() for v in result.violations), bad_verdict
+
+
+def test_b1_error_states_bare_token_contract(tmp_path):
+    # §2: the B1 error names the bare-token contract (mentions both "token" and "certified").
+    bad = READY_SPEC.replace('- **Verdict:** CERTIFIED', '- **Verdict:** not yet certified')
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    assert any(
+        'token' in v.message.lower() and 'certified' in v.message.lower() for v in result.violations
     )
 
 
