@@ -180,6 +180,70 @@ def test_check_ready_content_failure_no_pointer(tmp_path):
     assert 'spec-template.md' not in result.output and 'new-spec' not in result.output
 
 
+def test_malformed_unnumbered_heading_points_at_template(tmp_path):
+    # §5(a) / T4a: a present-but-malformed structure (un-numbered heading) also gets the pointer.
+    spec = tmp_path / 'spec.md'
+    spec.write_text(
+        READY_SPEC.replace('### §1 Add the widget', '### Add the widget'), encoding='utf-8'
+    )
+    result = runner.invoke(app, ['check-ready', '--structure-only', str(spec)])
+    assert result.exit_code == 1
+    assert 'spec-template.md' in result.output or 'new-spec' in result.output
+
+
+def test_malformed_many_to_one_manifest_points_at_template(tmp_path):
+    # §5(a) / T4a: a many-to-one manifest (not a bijection) gets the pointer.
+    spec = tmp_path / 'spec.md'
+    spec.write_text(
+        READY_SPEC.replace('| PR01 | §1 | yes |', '| PR01 | §1 | yes |\n| PR02 | §1 | yes |'),
+        encoding='utf-8',
+    )
+    result = runner.invoke(app, ['check-ready', '--structure-only', str(spec)])
+    assert result.exit_code == 1
+    assert 'spec-template.md' in result.output or 'new-spec' in result.output
+
+
+def test_malformed_empty_manifest_points_at_template(tmp_path):
+    # §5(a) / T4a: an empty/header-only manifest (the `has no PR` trigger) gets the pointer.
+    spec = tmp_path / 'spec.md'
+    spec.write_text(
+        READY_SPEC.replace('|---|---|---|\n| PR01 | §1 | yes |', '|---|---|---|'), encoding='utf-8'
+    )
+    result = runner.invoke(app, ['check-ready', '--structure-only', str(spec)])
+    assert result.exit_code == 1
+    assert 'spec-template.md' in result.output or 'new-spec' in result.output
+
+
+def test_coverage_slip_no_pointer(tmp_path):
+    # §5(a) / T4a: a §2 uncovered by the manifest is a content slip on a template-shaped spec —
+    # no pointer (ADR-0006: do not re-open author-loop noise on a content failure).
+    two_section = READY_SPEC.replace(
+        '\n## Concept → module map',
+        '\n### §2 Wire it\nWire it. **Acceptance criterion:** an integration test asserts the '
+        'wired behaviour holds.\n\n## Concept → module map',
+    )
+    spec = tmp_path / 'spec.md'
+    spec.write_text(two_section, encoding='utf-8')
+    result = runner.invoke(app, ['check-ready', '--structure-only', str(spec)])
+    assert result.exit_code == 1
+    assert 'spec-template.md' not in result.output and 'new-spec' not in result.output
+
+
+def test_missing_concept_path_no_pointer(tmp_path):
+    # §5(a) / T4a: an A5 grounding failure (path does not exist) is content, not shape — no pointer.
+    (tmp_path / '.git').mkdir()
+    spec = tmp_path / 'spec.md'
+    spec.write_text(
+        READY_SPEC.replace(
+            '| widget | `src/widget.py` (to be created) |', '| widget | `src/ghost.py` |'
+        ),
+        encoding='utf-8',
+    )
+    result = runner.invoke(app, ['check-ready', '--structure-only', str(spec)])
+    assert result.exit_code == 1
+    assert 'spec-template.md' not in result.output and 'new-spec' not in result.output
+
+
 def test_version_flag_prints_version():
     from keel import __version__
 
@@ -201,3 +265,19 @@ def test_structure_only_skips_b1(tmp_path):
     # Without the flag, B1 fires.
     full = runner.invoke(app, ['check-ready', str(spec)])
     assert full.exit_code == 1
+
+
+def test_conditional_certify_with_operator_passes_with_warn(tmp_path):
+    # §2 / T1b: an operator-accepted CONDITIONAL-CERTIFY passes (exit 0) and prints a WARN line.
+    spec = tmp_path / 'spec.md'
+    spec.write_text(
+        READY_SPEC.replace(
+            '- **Verdict:** CERTIFIED',
+            '- **Verdict:** CONDITIONAL-CERTIFY — ready modulo a fix\n- **Operator:** grimaldo',
+        ),
+        encoding='utf-8',
+    )
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert result.exit_code == 0, result.output
+    assert 'WARN' in result.output and 'grimaldo' in result.output
+    assert 'OK' in result.output

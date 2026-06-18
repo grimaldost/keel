@@ -17,3 +17,4 @@ class GateResult:
 
     passed: bool
     violations: tuple[Violation, ...] = ()
+    warnings: tuple[str, ...] = ()

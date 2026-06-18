@@ -176,11 +176,42 @@ def test_verdict_certified_with_trailing_prose_passes_b1(tmp_path):
 
 def test_verdict_non_leading_or_compound_fails_b1(tmp_path):
     # §2: a hyphenated compound or a non-leading token must NOT pass (no new hole).
+    # CONDITIONAL-CERTIFY is here because READY_SPEC carries NO `Operator:` field — without an
+    # operator it is not recordable and still fails B1 (the 0.7.0 widen accepts it ONLY with one;
+    # the positive path is test_conditional_certify_with_operator_passes_b1 below).
     for bad_verdict in ('CERTIFIED-NOT', 'CERTIFIEDISH', 'CONDITIONAL-CERTIFY', 'NEEDS-REVISION'):
         bad = READY_SPEC.replace('- **Verdict:** CERTIFIED', f'- **Verdict:** {bad_verdict}')
         result = check_spec_ready(_write(tmp_path, bad))
         assert not result.passed, bad_verdict
         assert any('certif' in v.message.lower() for v in result.violations), bad_verdict
+
+
+def test_conditional_certify_with_operator_passes_b1(tmp_path):
+    # §2 / T1b: CONDITIONAL-CERTIFY + a named Operator passes B1 (operator-accepted), with a WARN.
+    good = READY_SPEC.replace(
+        '- **Verdict:** CERTIFIED',
+        '- **Verdict:** CONDITIONAL-CERTIFY — ready modulo a named fix\n- **Operator:** grimaldo',
+    )
+    result = check_spec_ready(_write(tmp_path, good))
+    assert result.passed, [v.message for v in result.violations]
+    assert any('grimaldo' in w for w in result.warnings)
+
+
+def test_conditional_certify_without_operator_fails_b1(tmp_path):
+    # §2 / T1b: CONDITIONAL-CERTIFY with no Operator is not recordable — fails, names the contract.
+    bad = READY_SPEC.replace(
+        '- **Verdict:** CERTIFIED', '- **Verdict:** CONDITIONAL-CERTIFY — ready modulo a named fix'
+    )
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    assert any('operator' in v.message.lower() for v in result.violations)
+
+
+def test_clean_certified_emits_no_warning_b1(tmp_path):
+    # §2 / T1b: a plain CERTIFIED is widen-only — passes with NO warning (no WARN line).
+    result = check_spec_ready(_write(tmp_path, READY_SPEC))
+    assert result.passed
+    assert result.warnings == ()
 
 
 def test_b1_error_states_bare_token_contract(tmp_path):
@@ -499,6 +530,16 @@ def test_fold_ledger_header_word_in_data_cell_still_fails_a12(tmp_path):
     result = check_spec_ready(_write(tmp_path, spec))
     assert not result.passed
     assert any('ledger' in v.message.lower() for v in result.violations)
+
+
+def test_fold_ledger_error_teaches_path_line_format_a12(tmp_path):
+    # §5(b) / T4b: the A12 error teaches the accepted format with a concrete path:line example.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 |  | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    msg = ' '.join(v.message for v in result.violations)
+    assert 'e.g.' in msg.lower() and ':' in msg
 
 
 # --- R1: a claimed fold must carry a ledger ---------------------------------

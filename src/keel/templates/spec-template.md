@@ -110,6 +110,7 @@ verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not 
 
 - **Reviewer:**
 - **Verdict:** not yet certified
+- **Operator:** <required only when the Verdict is CONDITIONAL-CERTIFY — the named owner who accepts "ready modulo a named fix"; check-ready then passes with a WARN (B1)>
 - **Date:**
 - **Reviewed against:** <external dependency SHAs/versions reasoned against, if any>
 - **Post-fold coherence:**

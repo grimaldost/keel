@@ -30,6 +30,10 @@ MARKERS = (
     'predicted signal',  # 0.6.0 §7: stress-test recorded predictions
     'stress-test',  # 0.6.0 §7: stress-test recorded predictions
     'hypothesis, not an instruction',  # 0.6.1: re-ground a proposed fix before folding
+    'rising bar',  # 0.7.0 §1: rising-bar / convergence directive
+    'source-ground capability claims',  # 0.7.0 §3: source-ground capability claims
+    'series-pass checklist',  # 0.7.0 §4: first-class SERIES-pass checklist
+    'instrument defeatability',  # 0.7.0 §6: eval-spec instrument defeatability
 )
 
 
