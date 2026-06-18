@@ -56,7 +56,7 @@ A10 when an Enforcement-status table is present: fail if prose claims an invaria
 A11 each `path:lo-hi` range anchor: fail unless it closes (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
 A12 when a `### Fold ledger` sub-table is present: fail unless each row's `artifact:line` confirmation anchor resolves
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
-B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED + a Reviewer
+B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
 ```
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*
@@ -70,7 +70,9 @@ only check aimed at "this approach is wrong," the dominant defect class once wor
 are stateless.
 
 - [ ] A pre-mortem pass has been run by a non-author reviewer, and the certification
-      block records `Verdict: CERTIFIED`. *(`keel check-ready` enforces this — B1.)*
+      block records `Verdict: CERTIFIED` — or `CONDITIONAL-CERTIFY` with a named `Operator:`
+      (operator-accepted, ready modulo a named fix; `check-ready` passes with a WARN, not EXIT 1).
+      *(`keel check-ready` enforces this — B1.)*
 - [ ] Every invariant the work touches is named in "Invariants touched", each with an ADR.
 - [ ] Every concept maps to a module in the concept→module map.
 - [ ] Every non-obvious design choice has an ADR (alternatives recorded).
@@ -81,6 +83,10 @@ are stateless.
 - [ ] *(eval/experiment specs)* each measured criterion carries a one-line baseline expectation —
       will the control / `bare` arm plausibly pass it? — and the reviewer flagged ceiling/floor risk:
       a procedurally-perfect spec still measures nothing if its criteria cannot vary across arms.
+- [ ] *(eval/experiment specs)* instrument defeatability — the reviewer asked the cheapest way an
+      agent sidesteps the planted difficulty (a tool, a shortcut, a grep) so the run measures nothing;
+      an instrument trivially bypassed yields a null for a reason the design never controlled (distinct
+      from the ceiling/floor question above).
 
 **Gate result:** Ready ✅ only when Part A is well-formed **and** the Part B
 pre-mortem certification is recorded. `keel check-ready` enforces both halves; the

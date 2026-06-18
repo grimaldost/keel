@@ -2,6 +2,56 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.7.0] - 2026-06-17
+
+### Added
+
+- The pre-mortem gains four directives, carried **verbatim and byte-identical** in BOTH
+  `pre-mortem-prompt.md` and the bundled `pre-mortem-review` agent, each pinned by a distinctive marker
+  in the drift guard (`tests/test_premortem_agent.py`): a **rising-bar / convergence** rule (round ≥2 the
+  BLOCKER/MAJOR bar rises — a finding blocks only if it plausibly corrupts the decision the spec gates;
+  a round of only nice-to-haves is CERTIFY-with-advisories, not another full round); **source-ground
+  capability claims** (any reuse/capability/existence claim is verified against the symbol's source or
+  tests, not a consumer API doc alone — the claim twin of 0.6.1's fix re-grounding); a first-class
+  **SERIES-pass checklist** (base-branch content reality, per-PR gate × contract-test interactions,
+  cross-prompt contract drift); and **instrument defeatability** for eval/experiment specs (the cheapest
+  way an agent sidesteps the planted difficulty so the run measures nothing).
+- A DoR Part-B eval-spec **instrument-defeatability** item (`definition-of-ready.md`), a sibling axis to
+  the 0.6.0 ceiling/floor discriminating-power item.
+- `ADR-0007`: pre-mortem convergence & grounding.
+
+### Changed
+
+- **B1** now records an operator-accepted **CONDITIONAL-CERTIFY**: the verdict passes when its leading
+  token is `CERTIFIED` (unchanged) **or** `CONDITIONAL-CERTIFY` paired with a named `Operator:` field —
+  the latter passes with a non-blocking **WARN** (a new `warnings` channel on `GateResult`, printed before
+  `OK`), never EXIT=1, so a consciously-accepted "ready modulo a named fix" spec is not blocked forever.
+  Widen-only: a bare `CERTIFIED` passes exactly as before with no warning; a `CONDITIONAL-CERTIFY` with no
+  Operator still fails. `spec-template.md` gains the `Operator:` Verdict field and `definition-of-ready.md`
+  describes the widened B1, so the state is recordable end to end. (closes the doctrine↔gate gap)
+- The `check-ready` **structural pointer** now fires on an absent OR **malformed-shape** top-level
+  structure (an un-numbered heading, a non-bijection manifest, an empty manifest), not only an absent one —
+  while staying quiet on a coverage slip or an A5 path-grounding failure (content, not shape; ADR-0006's
+  author-loop-quiet decision preserved). The **A12 fold-ledger** error now teaches the accepted form with a
+  concrete `path:line` example.
+- `docs/doctrine.md`: sharpening 4 gains the source-grounding clause; the convergence operating note gains
+  the rising-bar rule + the operator-accepted conditional verdict; the two-pass cadence note records the
+  first-class SERIES checklist.
+
+### Origin
+
+- The 2026-06-17 post-0.6.0/0.6.1 field triage (`docs/feedback/2026-06-17-post-061-field-triage.md`, 3
+  reports on keel 0.6.1). Spec: `docs/design/2026-06-17-keel-0.7.0-spec.md`, DoR-certified by a two-pass
+  blind pre-mortem (DESIGN + SERIES; 2 MAJOR + 8 MINOR folded across 10 findings, both passes resolving
+  CONDITIONAL-CERTIFY → CERTIFIED). B1 widens only; `check-ready` was re-run on the 0.7.0 spec after §2/§5
+  landed (the N8e re-dogfood rule).
+
+### Routed out / carried
+
+- → pr-pilot: the program-level convergence budget, the catch-cost telemetry denominator, and the
+  orchestrator-constraint SERIES checks (one-sink-per-dataset, base-branch targeting).
+- Held at `watch` (single LOW report): the calibration/threshold ceiling-direction eval note (T5b).
+
 ## [0.6.1] - 2026-06-15
 
 ### Changed

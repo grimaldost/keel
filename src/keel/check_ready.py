@@ -50,6 +50,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     section_ids = [m.group(1) for title, _ in subsections if (m := re.match(r'(§\d+)\b', title))]
 
     violations: list[Violation] = []
+    warnings: list[str] = []
     violations += _check_numbered(subsections)
     violations += _check_acceptance(subsections)
     violations += _check_placeholders(text)
@@ -64,9 +65,11 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     violations += _check_enforcement_claims(sections, text)
     violations += _check_fold_ledger(cert, spec_path)
     if not structure_only:
-        violations += _check_premortem(cert)
+        premortem_violations, premortem_warnings = _check_premortem(cert)
+        violations += premortem_violations
+        warnings += premortem_warnings
 
-    return GateResult(passed=not violations, violations=tuple(violations))
+    return GateResult(passed=not violations, violations=tuple(violations), warnings=tuple(warnings))
 
 
 # --- parsing -----------------------------------------------------------------
@@ -436,7 +439,11 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
         match = re.match(r'(\S+\.[A-Za-z0-9]+):(\d+)$', anchor)
         if match is None:
             violations.append(
-                Violation(where, 'fold-ledger row has no resolving `artifact:line` confirmation.')
+                Violation(
+                    where,
+                    'fold-ledger row has no resolving `artifact:line` confirmation '
+                    '(anchor each row to `path:line`, e.g. `docs/design/your-spec.md:142`).',
+                )
             )
             continue
         _, violation = _resolve_anchor(base, match.group(1), int(match.group(2)), where)
@@ -559,8 +566,15 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
     return violations
 
 
-def _check_premortem(cert_body: str | None) -> list[Violation]:
-    """B1: a blind pre-mortem certification (Verdict CERTIFIED + a reviewer) is recorded."""
+def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]:
+    """B1: a blind pre-mortem certification (a verdict + a reviewer) is recorded.
+
+    The verdict's leading token must be CERTIFIED, or CONDITIONAL-CERTIFY paired with a named
+    Operator — the operator-accepted "ready modulo a named fix" state the prompt already emits. The
+    conditional verdict passes with a non-blocking WARN rather than EXIT 1, so a consciously
+    accepted spec is not blocked forever; it stays a *form* check (a verdict and an owner were
+    RECORDED, not that the spec is correct — ADR-0002). Returns (violations, warnings).
+    """
     if cert_body is None:
         return [
             Violation(
@@ -568,19 +582,40 @@ def _check_premortem(cert_body: str | None) -> list[Violation]:
                 'no "## Pre-mortem certification" block; a non-author pre-mortem '
                 'must certify the spec (ADR-0002).',
             )
-        ]
+        ], []
     violations: list[Violation] = []
+    warnings: list[str] = []
     raw = _field(cert_body, 'verdict')
     leading = re.match(
         r'\s*([A-Za-z][A-Za-z-]*)', raw
     )  # the bare verdict token, hyphens kept whole
-    if (leading.group(1).upper() if leading else '') != 'CERTIFIED':
+    head = leading.group(1).upper() if leading else ''
+    if head == 'CERTIFIED':
+        pass
+    elif head == 'CONDITIONAL-CERTIFY':
+        operator = _field(cert_body, 'operator')
+        if operator:
+            warnings.append(
+                f'WARN: pre-mortem verdict is CONDITIONAL-CERTIFY, operator-accepted by '
+                f'{operator!r} (ready modulo a named fix) — not a clean CERTIFIED (B1).'
+            )
+        else:
+            violations.append(
+                Violation(
+                    'Pre-mortem certification',
+                    'pre-mortem verdict is CONDITIONAL-CERTIFY but names no Operator; an '
+                    'operator-accepted conditional certify must record an "Operator:" field (the '
+                    'named owner who accepts "ready modulo a named fix").',
+                )
+            )
+    else:
         verdict = raw or '(none)'
         violations.append(
             Violation(
                 'Pre-mortem certification',
                 f'pre-mortem verdict is {verdict!r}, not "CERTIFIED" — the verdict field must '
-                'lead with the bare token CERTIFIED (trailing prose is allowed).',
+                'lead with the bare token CERTIFIED (trailing prose allowed), or '
+                'CONDITIONAL-CERTIFY with a named Operator.',
             )
         )
     if not _field(cert_body, 'reviewer'):
@@ -590,4 +625,4 @@ def _check_premortem(cert_body: str | None) -> list[Violation]:
                 'pre-mortem certification names no reviewer (must be a non-author).',
             )
         )
-    return violations
+    return violations, warnings

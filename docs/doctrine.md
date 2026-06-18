@@ -96,7 +96,10 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
 4. **Ground referents, and verify the fold.** Code-grounding extends past factual anchors to
    *referents* — a "reuse the proven X" target, a "model-on" file, a claimed-existing seam, a
    superseded prior decision — each verified against the current code or register, never
-   trusted from the prose ("proven" means proven on the original caller's shapes, not yours).
+   trusted from the prose ("proven" means proven on the original caller's shapes, not yours). A
+   capability or existence claim ("X has no engine for this", "X does not exist") is grounded in the
+   symbol's SOURCE or its tests, not a consumer API doc or a generated reference — an API-doc-only
+   claim is a hypothesis until the source is read (the claim twin of the fix re-grounding below).
    And the fold of pre-mortem findings back into the spec is itself a **verified hop**:
    structured findings are folded mechanically, then a post-fold coherence re-read catches the
    half-applied finding no gate can see; and each proposed fix is re-grounded as a hypothesis before
@@ -122,12 +125,18 @@ These operating notes carry sharpening 5 into practice:
 - **Two-pass cadence (DESIGN ⊕ SERIES), blast-radius-scaled.** For a wave touching enforcement or a
   shared contract, run two blind pre-mortems: a DESIGN pass (contract / radius / vacuity / projected
   verification) and a SERIES pass (execution mechanics, prompt-internal contradictions, staging×gate
-  interactions — and it attacks the DESIGN pass's folds). One pass suffices only when the wave is
-  docs-only / zero-behaviour-change AND the first pass is CERT-clean AND no executable gate changes.
+  interactions — and it attacks the DESIGN pass's folds). The SERIES pass carries its own first-class
+  checklist (`pre-mortem-prompt.md`): base-branch content reality, per-PR gate × contract-test
+  interactions, cross-prompt contract drift. One pass suffices only when the wave is docs-only /
+  zero-behaviour-change AND the first pass is CERT-clean AND no executable gate changes.
 - **Verification convergence.** Hardened verification must terminate: a pass STOPS when it surfaces
   zero new BLOCKER/MAJOR findings, and a `CONDITIONAL-CERTIFY` (ready modulo a named ≤N-line fix)
-  avoids forcing a full extra round (`pre-mortem-prompt.md`). Unbounded verification is the cost
-  centre the spine would otherwise create.
+  avoids forcing a full extra round (`pre-mortem-prompt.md`). On a re-review the **bar rises**: at
+  round ≥2 a finding is blocking only if it plausibly corrupts the decision the spec gates, not merely
+  improves the spec — a round of only nice-to-haves is CERTIFY-with-advisories, and an operator may
+  record a `CONDITIONAL-CERTIFY` with a named `Operator:` that `check-ready` passes with a WARN (B1),
+  so a consciously-accepted spec is not blocked forever. Unbounded verification is the cost centre the
+  spine would otherwise create.
 - **Cost-of-defect (why the left-shift pays).** Field accounting prices a correctness defect caught
   late at roughly 30× its design-time cost (~$347, 41% of one $853 program, vs ~$3 caught at design).
   This is the quantified form of the §1 evidence-status note — the economic case for spending the

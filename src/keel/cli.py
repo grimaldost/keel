@@ -51,6 +51,8 @@ def _emit(
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
     if result.passed:
+        for warning in result.warnings:
+            typer.echo(warning)
         typer.echo('OK')
         raise typer.Exit(code=0)
     for violation in result.violations:
@@ -63,17 +65,32 @@ def _emit(
 _STRUCTURAL_WHERES = frozenset(
     {'Numbered sections', 'PR ↔ section manifest', 'Concept → module map'}
 )
+# Shape failures (not absence) that still mean "not built from the template": an un-numbered
+# heading (A1), a non-bijection manifest (A4), an empty manifest (A4). Matched lowercase against
+# the (capital-PR) violation strings; `not covered by any PR` and A5 path failures are absent.
+_MALFORMED_MARKERS = ('not numbered', 'bijection', 'has no pr')
 
 
 def _spec_template_hint(result: GateResult) -> str | None:
-    """Point a hand-written spec at the template when a top-level section is absent (A1/A4/A5)."""
-    absent = any(
-        v.where in _STRUCTURAL_WHERES and v.message.startswith('no ') for v in result.violations
+    """Point a hand-written spec at the template when a top-level structure is absent or malformed.
+
+    Fires on the structural-`where` set when the structure is absent (message begins `no `) OR
+    malformed in shape: an un-numbered heading (A1), a non-bijection manifest (A4), an empty
+    manifest (A4). A coverage slip (`not covered by any PR`) and an A5 path-grounding failure are
+    content, not shape — they do NOT fire it, keeping the author loop quiet (ADR-0006).
+    """
+    suspect = any(
+        v.where in _STRUCTURAL_WHERES
+        and (
+            v.message.startswith('no ')
+            or any(marker in v.message.lower() for marker in _MALFORMED_MARKERS)
+        )
+        for v in result.violations
     )
-    if not absent:
+    if not suspect:
         return None
     return (
-        'hint: a required top-level section is missing — '
+        'hint: a required top-level section is missing or malformed — '
         'start from spec-template.md (run `keel new-spec <path>`).'
     )
 

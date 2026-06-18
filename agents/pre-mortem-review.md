@@ -19,6 +19,7 @@ grounding checks (the failure class the method most often misses):
 - For each "reuse / port / model-on the proven X" instruction, READ X and confirm it handles THIS
   wave's shapes — "proven" means proven on the original caller's inputs, not yours.
 - Scrutinize each "what already exists" claim by grepping that the seam is actually built.
+- Source-ground capability claims: any reuse / capability / existence claim ("X does (not) exist", "X has no engine for this") is verified against the cited symbol source or its tests — not a consumer API doc or a generated reference alone — and tagged observed or inferred; an API-doc-only capability claim is a hypothesis until the source is read.
 - When a design supersedes a prior version, verify decisions against the committed register.
 
 Grounding-completeness (DC1) — a claim the author "verified" is still wrong if the VIEW was partial,
@@ -41,6 +42,7 @@ stale, moved, or wrong-shaped:
   predicted to vary actually floor/ceiling (every arm passes, or every arm fails) so the run
   measures nothing? For an eval/experiment spec, each measured criterion carries a one-line baseline
   expectation.
+- Instrument defeatability: for an eval/experiment spec, ask the cheapest way an agent sidesteps the planted difficulty (a tool, a shortcut, a grep) so the run measures nothing — distinct from the ceiling/floor question; an instrument an agent trivially bypasses yields a null for a reason the design never controlled.
 
 Mechanical consumers (DC2):
 
@@ -81,6 +83,10 @@ Emit findings as a YAML list, one entry per failure mode, then the prose:
 Convergence (so hardened verification stays bounded): a pass STOPS when it surfaces zero new
 BLOCKER/MAJOR findings; emit CONDITIONAL-CERTIFY when only named MINOR fixes remain (ready modulo a
 listed <=N-line fix), rather than forcing another full round.
+
+Rising bar (round >=2): on a re-review the bar for BLOCKER/MAJOR rises — a finding is blocking only if it plausibly corrupts the decision the spec gates, not merely improves the spec. A round that surfaces only nice-to-haves is CERTIFY-with-advisories (fold them as advisories), not another full round; do not manufacture a blocker to justify a pass.
+
+SERIES-pass checklist (when this is the SERIES pass over a decomposed PR set, attacking execution reality a DESIGN pass cannot see): base-branch content reality — confirm the base branch actually CONTAINS the infra/symbols the series consumes, not merely that a base exists (a series on the wrong base reads green and builds nothing); per-PR gate x contract-test interactions — a gate or contract test one PR adds may trip every later PR, so simulate it across the series, not just its own PR; cross-prompt contract drift — when PR prompts are multi-authored, diff the contract one prompt emits against what the next consumes.
 
 ## Output handling
 
