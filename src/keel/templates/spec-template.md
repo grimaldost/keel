@@ -121,7 +121,9 @@ verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not 
 *Required when the certification claims a non-trivial fold (R1); a clean certify dozes: one row per folded finding so the post-fold delta is
 reviewable. `check-ready` (A12) holds each `artifact:line` to a resolving anchor — it verifies the
 fold was recorded against a real line, not that it is correct (that is the reviewer's job). Leave the
-header only (no data rows) and A12 dozes.*
+header only (no data rows) and A12 dozes. The ledger must be the FIRST table under this `### Fold ledger`
+heading — A12 reads only the first contiguous table, so a round-history / disposition table belongs in
+its own section, not after the ledger here.*
 
 | Finding | Target section | artifact:line | Confirmed |
 |---|---|---|---|

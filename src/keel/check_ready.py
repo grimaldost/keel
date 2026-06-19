@@ -120,6 +120,29 @@ def _table_rows(body: str) -> list[list[str]]:
     return rows
 
 
+def _first_table_rows(body: str) -> list[list[str]]:
+    """Rows of only the FIRST contiguous markdown table in body (header kept, separator dropped).
+
+    Unlike `_table_rows`, this stops at the first blank/non-table line after the table starts, so a
+    sibling table sharing the same `### Fold ledger` subsection span is not merged in. By template
+    convention the ledger is the first table under that heading; a table placed before it is
+    out-of-contract.
+    """
+    rows: list[list[str]] = []
+    started = False
+    for raw in body.splitlines():
+        line = raw.strip()
+        if line.startswith('|'):
+            started = True
+            cells = [cell.strip() for cell in line.strip('|').split('|')]
+            if all(set(cell) <= set('-: ') for cell in cells):
+                continue
+            rows.append(cells)
+        elif started:
+            break
+    return rows
+
+
 def _words(text: str) -> list[str]:
     """Word tokens, with markdown punctuation stripped, for triviality checks."""
     return [word for word in re.sub(r'[`*:#|]', ' ', text).split() if word]
@@ -164,7 +187,11 @@ def _resolve_anchor(
     """Resolve a `path:line` anchor: (file lines, None) if it resolves, else (None, Violation)."""
     target = base / path
     if not target.exists():
-        return None, Violation(where, f'anchor path {path!r} does not exist.')
+        return None, Violation(
+            where,
+            f'anchor path {path!r} does not exist '
+            '(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).',
+        )
     lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
     if line_no < 1 or line_no > len(lines):
         return None, Violation(
@@ -226,7 +253,11 @@ def _check_numbered(subsections: list[tuple[str, str]]) -> list[Violation]:
     """A1: there are numbered sections and every section heading is numbered."""
     if not subsections:
         return [
-            Violation('Numbered sections', 'no numbered sections found (expected "### §1 ...").')
+            Violation(
+                'Numbered sections',
+                'no numbered sections found: expected a "## Numbered sections" section with '
+                '"### §N <title>" subsections.',
+            )
         ]
     violations: list[Violation] = []
     for title, _ in subsections:
@@ -324,7 +355,8 @@ def _check_paths(
                 violations.append(
                     Violation(
                         'Concept → module map',
-                        f'"to be created" path {path!r} is not claimed by any section.',
+                        f'"to be created" path {path!r} is not claimed by any section '
+                        '(name the path in the body of the section that creates it).',
                     )
                 )
         elif not (base / path).exists():
@@ -418,7 +450,7 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
     ledger = next(
         (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
     )
-    rows = [cells for i, cells in enumerate(_table_rows(ledger)) if i > 0] if ledger else []
+    rows = [cells for i, cells in enumerate(_first_table_rows(ledger)) if i > 0] if ledger else []
     if not rows:
         if _fold_claimed(cert_body):
             return [

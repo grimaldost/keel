@@ -99,7 +99,10 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
    trusted from the prose ("proven" means proven on the original caller's shapes, not yours). A
    capability or existence claim ("X has no engine for this", "X does not exist") is grounded in the
    symbol's SOURCE or its tests, not a consumer API doc or a generated reference — an API-doc-only
-   claim is a hypothesis until the source is read (the claim twin of the fix re-grounding below).
+   claim is a hypothesis until the source is read (the claim twin of the fix re-grounding below). And a
+   GENERATED artifact's behavior (generated SQL/DDL, a rendered template, codegen output) is grounded
+   only by running its output on the real target/dialect — reading the generator's source is itself a
+   hypothesis until the output is executed (0.8.0).
    And the fold of pre-mortem findings back into the spec is itself a **verified hop**:
    structured findings are folded mechanically, then a post-fold coherence re-read catches the
    half-applied finding no gate can see; and each proposed fix is re-grounded as a hypothesis before
@@ -114,7 +117,9 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
    wrong-shaped (a line-anchor blind to indented code) — and a verifier's own script gets the same
    scrutiny as the spec. **(DC2) Model the mechanical consumers:** the spec models the logical
    design, but the in-place toolchain, the autofixer, and staged files consume the artifact too — a
-   staged `.py` pollutes `mypy .`, a diff-shape rule contradicts isort. **(DC3) Verify the
+   staged `.py` pollutes `mypy .`, a diff-shape rule contradicts isort, and a committed/generated
+   artifact with a per-change freshness gate is not deferrable to a later PR (each PR perturbing its
+   source regenerates its slice, 0.8.0). **(DC3) Verify the
    transformation:** the fold/fix is an unverified, instance-scoped delta — a per-finding ledger and
    class-not-instance scope close it. What is mechanizable ships as a gate (A11 anchor ranges, A12
    fold-ledger anchors); the rest is a pre-mortem directive or routed out — ADR-0002's
@@ -136,7 +141,9 @@ These operating notes carry sharpening 5 into practice:
   improves the spec — a round of only nice-to-haves is CERTIFY-with-advisories, and an operator may
   record a `CONDITIONAL-CERTIFY` with a named `Operator:` that `check-ready` passes with a WARN (B1),
   so a consciously-accepted spec is not blocked forever. Unbounded verification is the cost centre the
-  spine would otherwise create.
+  spine would otherwise create. For an eval/experiment spec, a feasibility check — can the empirical
+  record support the headline being measured at all? — runs FIRST and can short-circuit the whole
+  review, the cheapest convergence there is (0.8.0).
 - **Cost-of-defect (why the left-shift pays).** Field accounting prices a correctness defect caught
   late at roughly 30× its design-time cost (~$347, 41% of one $853 program, vs ~$3 caught at design).
   This is the quantified form of the §1 evidence-status note — the economic case for spending the

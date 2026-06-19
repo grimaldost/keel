@@ -34,6 +34,11 @@ MARKERS = (
     'source-ground capability claims',  # 0.7.0 §3: source-ground capability claims
     'series-pass checklist',  # 0.7.0 §4: first-class SERIES-pass checklist
     'instrument defeatability',  # 0.7.0 §6: eval-spec instrument defeatability
+    'feasibility',  # 0.8.0 §1: feasibility-grounding-first (measurable on the record?)
+    'generated-artifact behavior',  # 0.8.0 §2: generated-output grounding on the target
+    'not deferrable',  # 0.8.0 §3: un-deferrable-when-gated cross-PR artifact
+    'caller folds and records',  # 0.8.0 §5: read-only agent returns, caller folds
+    'premortem-verdict',  # 0.8.0 §5: machine-greppable verdict line
 )
 
 
@@ -55,3 +60,9 @@ def test_agent_and_prompt_share_the_contract_markers():
         needle = marker.lower()
         assert needle in agent, f'agent missing contract marker: {marker!r}'
         assert needle in prompt, f'prompt template missing contract marker: {marker!r}'
+
+
+def test_markers_tuple_length_is_pinned():
+    # A marker added to the files but dropped from the guard (or vice-versa) is caught here:
+    # the count is the single source of truth for "how many directives are pinned".
+    assert len(MARKERS) == 22
