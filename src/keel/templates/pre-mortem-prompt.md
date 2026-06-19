@@ -36,6 +36,7 @@ Apply these grounding checks (the failure class the method most often misses):
   handles THIS wave's shapes — "proven" means proven on the original caller's inputs.
 - Scrutinize each "what already exists" claim by grepping that the seam is built.
 - Source-ground capability claims: any reuse / capability / existence claim ("X does (not) exist", "X has no engine for this") is verified against the cited symbol source or its tests — not a consumer API doc or a generated reference alone — and tagged observed or inferred; an API-doc-only capability claim is a hypothesis until the source is read.
+- Generated-artifact behavior on the target: a claim about how a GENERATED artifact behaves (generated SQL/DDL, a rendered template, codegen output, a serialized schema) is unverified until that output is executed or parsed on the real target/runtime — reading the generator's source is a hypothesis; flag such a claim as unverified-offline and name whether the offline tests share the target's dialect (identifier quoting, type coercion, reserved words are classic divergences a mock accepts).
 - When a design supersedes a prior version, verify decisions against the committed
   register, not the superseded doc.
 
@@ -59,7 +60,7 @@ partial, stale, moved, or wrong-shaped. Attack each:
   discriminates" claim recorded in the spec is a claim to ATTACK, not a fact — could the quantity
   predicted to vary actually floor/ceiling (every arm passes, or every arm fails) so the run
   measures nothing? For an eval/experiment spec, each measured criterion carries a one-line baseline
-  expectation.
+  expectation. And before hardening internal validity, ground the headline's key variable against the empirical record it needs (prior-run data/ledger, the reused instrument): if that record cannot supply the variation the study measures, the study is null on these instruments — run this feasibility check FIRST, a null here short-circuits the round.
 - Instrument defeatability: for an eval/experiment spec, ask the cheapest way an agent sidesteps the planted difficulty (a tool, a shortcut, a grep) so the run measures nothing — distinct from the ceiling/floor question; an instrument an agent trivially bypasses yields a null for a reason the design never controlled.
 
 Mechanical consumers (DC2) — the spec models the logical design, but mechanical processes consume
@@ -74,7 +75,7 @@ the artifact too:
 - Cross-PR generated artifacts: if a PR regenerates a derived artifact (a generated API-doc mirror,
   an exported-symbol snapshot) from a source surface, check whether a LATER PR mutates that surface —
   if so the regenerator must re-run in/after the last mutating PR, and its freshness test runs on the
-  FULL tree, not a per-domain subset.
+  FULL tree, not a per-domain subset. And if a freshness gate asserts that artifact in sync on EVERY change to its source (a committed mirror/lockfile/golden with a per-change test), the regenerate-after-the-last-mutating-PR option does not apply — it is not deferrable: each PR that perturbs the source regenerates its slice in that same PR.
 
 Cross-artifact consistency (DC4-B) — artifacts that must agree (design, REVIEW command, CHANGELOG):
 - Intent vs. executable: every test or gate the DESIGN names for the reviewer subset must appear in
@@ -110,8 +111,11 @@ SERIES-pass checklist (when this is the SERIES pass over a decomposed PR set, at
 
 ## Output handling
 
-Fold the proposed changes back in **from the structured findings list** — apply each
-`smallest_fix` to its `target_section` mechanically. Re-ground each proposed fix first: a `smallest_fix` is a hypothesis, not an instruction — verify it against the code before folding, since folding a wrong fix verbatim ships the bug it named. Then run a **post-fold coherence
+You are read-only: RETURN your findings, ending with a machine-greppable last line
+`PREMORTEM-VERDICT: <CERTIFIED | CONDITIONAL-CERTIFY | NEEDS-REVISION>` so a caller can gate without
+parsing prose — do not write the spec yourself. The caller folds and records: fold the proposed
+changes back in **from the structured findings list** — apply each `smallest_fix` to its
+`target_section` mechanically. Re-ground each proposed fix first: a `smallest_fix` is a hypothesis, not an instruction — verify it against the code before folding, since folding a wrong fix verbatim ships the bug it named. Then run a **post-fold coherence
 re-read**: read each edited artifact end to end and confirm every finding was applied
 consistently across ALL of its sections (Task / pre-read / Process / file-list); for any
 finding that NARROWED scope (removed a deletion / relocation / file), re-derive every
@@ -119,7 +123,7 @@ dependent count (blast radius, file-list, DoD counts) and reconcile contradictio
 post-fold hop is where a fix lands in one section while a contradicting instruction
 survives in another — nothing else reviews the delta.
 
-Record the verdict in the spec's `## Pre-mortem certification` block: `CERTIFIED` once no
+The caller records the verdict in the spec's `## Pre-mortem certification` block: `CERTIFIED` once no
 blocking failure mode remains (else leave it uncertified and list the outstanding modes),
 with a `Reviewer:` and a `Post-fold coherence:` line. The pre-mortem is **required** — DoR
 does not pass without a recorded certification by a non-author reviewer (`keel check-ready`

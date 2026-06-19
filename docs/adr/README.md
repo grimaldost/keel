@@ -9,6 +9,7 @@
 | [0005](0005-verification-spine.md) | the verification spine (ground the verification, model the mechanical consumers, verify the transformation) | Accepted |
 | [0006](0006-adoption-surface-and-cross-artifact-completeness.md) | the adoption surface & cross-artifact completeness | Accepted |
 | [0007](0007-pre-mortem-convergence-and-grounding.md) | pre-mortem convergence & grounding | Accepted |
+| [0008](0008-grounding-reaches-generated-and-feasible.md) | the grounding directive reaches the generated & the feasible | Accepted |
 
 Status: Proposed | Accepted | Superseded by ADR-NNNN. Never edit an Accepted decision —
 supersede it.

@@ -8,7 +8,7 @@ def test_manifests_parse_and_name_keel():
     plugin = json.loads((ROOT / '.claude-plugin' / 'plugin.json').read_text(encoding='utf-8'))
     market = json.loads((ROOT / '.claude-plugin' / 'marketplace.json').read_text(encoding='utf-8'))
     assert plugin['name'] == 'keel'
-    assert plugin['version'] == '0.7.0'
+    assert plugin['version'] == '0.8.0'
     assert any(p['name'] == 'keel' for p in market['plugins'])
 
 

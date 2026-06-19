@@ -2,6 +2,45 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.8.0] - 2026-06-19
+
+### Added
+
+- The pre-mortem grounding directive reaches two steps further, carried **byte-identical** in BOTH
+  `pre-mortem-prompt.md` and the bundled `pre-mortem-review` agent, each pinned by a distinctive marker
+  in the drift guard: **generated-artifact behavior on the target** (a claim about how a generated
+  artifact behaves — generated SQL/DDL, a rendered template, codegen output — is unverified until that
+  output is executed or parsed on the real target/dialect; reading the generator's source is a
+  hypothesis, flagged unverified-offline by the read-only reviewer), and **feasibility-grounding first**
+  (before hardening internal validity, ground the study's headline against the empirical record it needs
+  — prior-run data/ledger; a null short-circuits the round). The feasibility axis also lands as a DoR
+  Part-B eval-spec item (`definition-of-ready.md`).
+- The pre-mortem output contract: the read-only agent **RETURNS** its findings ending with a
+  machine-greppable `PREMORTEM-VERDICT: <token>` line, and **the caller folds and records** (the agent
+  cannot write) — clarified in the agent, the prompt, and `commands/keel-premortem.md`.
+- `ADR-0008`: the grounding directive reaches the generated and the feasible.
+
+### Changed
+
+- The **Cross-PR generated artifacts** directive is sharpened with the **un-deferrable-when-gated**
+  clause: when a freshness gate asserts a committed/generated artifact in sync on EVERY change to its
+  source, the regenerate-after-the-last-mutating-PR option does not apply — each PR perturbing the
+  source regenerates its slice in that same PR.
+- `spec-template.md` records the **ledger-is-first-table** convention; doctrine's sharpening 4/5 and
+  two-pass notes carry the generated-output and feasibility grounding clauses.
+- The drift guard pins the MARKERS tuple length (now 22) so a marker added to the files but dropped
+  from the guard (or vice-versa) is caught.
+
+### Fixed
+
+- **A12 fold-ledger parser over-reach (a false positive):** a non-ledger table sharing the
+  `### Fold ledger` subsection span was parsed as ledger rows and demanded an `artifact:line`. A12 now
+  reads only the **first contiguous table** in that subsection (`_first_table_rows`).
+- The **absent-numbered-sections** error now names the `## Numbered sections` parent AND the `### §N`
+  child shape (keeping its `no ` prefix so the CLI template pointer still fires); the A6 anchor error
+  teaches repo-root-relative paths, and the A5 "to be created" error teaches that the path must also
+  appear in the creating section's body.
+
 ## [0.7.0] - 2026-06-17
 
 ### Added

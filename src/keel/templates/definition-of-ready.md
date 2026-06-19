@@ -87,6 +87,10 @@ are stateless.
       agent sidesteps the planted difficulty (a tool, a shortcut, a grep) so the run measures nothing;
       an instrument trivially bypassed yields a null for a reason the design never controlled (distinct
       from the ceiling/floor question above).
+- [ ] *(eval/experiment specs)* feasibility-grounding ran FIRST — before internal-validity attacks, the
+      reviewer grounded the headline's key variable against the empirical record it needs (prior-run
+      data/ledger, the reused instrument); if that record cannot supply the variation the study measures,
+      the study is null on these instruments and the rest of the review short-circuits.
 
 **Gate result:** Ready ✅ only when Part A is well-formed **and** the Part B
 pre-mortem certification is recorded. `keel check-ready` enforces both halves; the

@@ -571,3 +571,87 @@ def test_clean_certify_dozes_r1(tmp_path):
     # "none outstanding" claims no fold, so no ledger is required (clean certs do not retro-break).
     result = check_spec_ready(_write(tmp_path, READY_SPEC))
     assert result.passed, [v.message for v in result.violations]
+
+
+# --- §4/U3b: first-table-only fold-ledger parse -----------------------------
+
+
+def test_fold_ledger_ignores_sibling_table_in_subsection_a12(tmp_path):
+    # §4/U3b: a 4-col sibling table AFTER the ledger in the same `### Fold ledger` subsection must
+    # NOT be parsed as ledger rows. The OLD whole-span sweep read its cells (3rd col not an
+    # artifact:line) and failed A12; first-table-only reads only the ledger.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('a\nb\n', encoding='utf-8')
+    sibling = (
+        '\n| Finding | Round | Disposition | Note |\n'
+        '|---|---|---|---|\n'
+        '| FM-9 | R1 | rejected | out of scope |\n'
+    )
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n') + sibling
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_stops_at_prose_before_sibling_table_a12(tmp_path):
+    # §4/U3b: a prose line ends the ledger table; a later table is not parsed as ledger rows.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('a\nb\n', encoding='utf-8')
+    trailer = (
+        '\nRound-1 dispositions (historical):\n\n'
+        '| Finding | Round | Disposition | Note |\n'
+        '|---|---|---|---|\n'
+        '| FM-9 | R1 | rejected | out of scope |\n'
+    )
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n') + trailer
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_header_only_dozes_a12(tmp_path):
+    # §4/U3b: a `### Fold ledger` with a header row but no data rows dozes (clean certify).
+    spec = (
+        READY_SPEC
+        + '\n\n### Fold ledger\n\n'
+        + '| Finding | Target | artifact:line | Confirmed |\n|---|---|---|---|\n'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+# --- §4/U3a + U3c: error-string teaching ------------------------------------
+
+
+def test_absent_sections_error_names_parent_and_child_a1(tmp_path):
+    # §4/U3a: the absent-sections error names the `## Numbered sections` parent AND the `### §N`
+    # child shape, and keeps its leading "no " token (the CLI template pointer depends on it).
+    bad = '# Spec — empty\n\nNo numbered sections here.\n'
+    result = check_spec_ready(_write(tmp_path, bad))
+    nv = [v for v in result.violations if v.where == 'Numbered sections']
+    assert nv, [v.where for v in result.violations]
+    assert nv[0].message.startswith('no ')
+    assert '## Numbered sections' in nv[0].message and '### §' in nv[0].message
+
+
+def test_anchor_error_teaches_repo_root_relative_a6(tmp_path):
+    # §4/U3c: the A6 anchor error teaches the repo-root-relative rule.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `ghost.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    nv = [v for v in result.violations if 'ghost.py' in v.message]
+    assert nv and 'repo-root-relative' in nv[0].message.lower()
+
+
+def test_concept_to_be_created_error_teaches_body_mention_a5(tmp_path):
+    # §4/U3c: the A5 'to be created' error teaches the path must also appear in a section body.
+    (tmp_path / '.git').mkdir()
+    bad = READY_SPEC.replace(
+        '| widget | `src/widget.py` (to be created) |',
+        '| widget | `src/ghost.py` (to be created) |',
+    )
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    nv = [v for v in result.violations if 'ghost.py' in v.message]
+    assert nv and 'body' in nv[0].message.lower()
