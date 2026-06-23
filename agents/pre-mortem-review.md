@@ -44,6 +44,7 @@ stale, moved, or wrong-shaped:
   measures nothing? For an eval/experiment spec, each measured criterion carries a one-line baseline
   expectation. And before hardening internal validity, ground the headline's key variable against the empirical record it needs (prior-run data/ledger, the reused instrument): if that record cannot supply the variation the study measures, the study is null on these instruments — run this feasibility check FIRST, a null here short-circuits the round.
 - Instrument defeatability: for an eval/experiment spec, ask the cheapest way an agent sidesteps the planted difficulty (a tool, a shortcut, a grep) so the run measures nothing — distinct from the ceiling/floor question; an instrument an agent trivially bypasses yields a null for a reason the design never controlled.
+- Experimental-design validity (measurement/experiment specs): attack the design AS an experiment, not just the subject — name the estimand and the unit of analysis (the per-item delta vs the aggregate); are there enough reps to detect the minimum effect worth detecting, or is a 1-rep delta just noise (a power question — distinct from the feasibility check above: power is whether N can detect the effect, feasibility is whether the record supplies the variable at all)? is the comparison blinded and are confounds held constant? is there a correctness oracle distinct from "it ran green"? was the analysis plan pre-registered, or chosen after seeing results?
 
 Mechanical consumers (DC2):
 
@@ -71,13 +72,14 @@ Verify the transformation (DC3):
 Counting: test-counts count pytest ITEMS (post-parametrize), not function defs; enumerate code
 constructs by AST, with grep only as a superset pre-filter.
 
-Emit findings as a YAML list, one entry per failure mode, then the prose:
+Emit findings as a YAML list, one entry per failure mode, then the prose. Each mode also names its cheapest disconfirming test — the one observation that would confirm or refute it (distinct from smallest_fix, which prevents the mode; and from the stress-tested predictions above, which attack the spec's own claims) — so a predicted-but-dead risk is closed by evidence, not left as a worry:
 
 ```
 - id: FM-1
   severity: BLOCKER      # BLOCKER | MAJOR | MINOR
   evidence: path/to/file.py:line
   smallest_fix: "<one-line spec/prompt edit>"
+  disconfirming_test: "<the cheapest observation that would confirm or refute this mode>"
   target_section: "section N"
 ```
 

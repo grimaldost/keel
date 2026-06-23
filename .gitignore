@@ -20,3 +20,11 @@ docs/feedback/*
 !docs/feedback/README.md
 docs/design/
 docs/superpowers/
+
+# Cross-vendor review bridge: keel-local maintainer tooling, NOT shipped in the
+# published plugin (ADR-0003 thinness). The OpenRouter key, the bridge itself, and the
+# saved external reviews all stay out of this public repo.
+.env
+.env.*
+scripts/external_review/
+docs/external-reviews/

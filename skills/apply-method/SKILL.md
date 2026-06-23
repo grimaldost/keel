@@ -45,6 +45,16 @@ Follow the phases; the gates are the load-bearing part:
   checklist item, a guardrail, or a spec-template/DoR change. The series is not
   done reflecting until this is done.
 
+## Not every round runs all 8 phases
+
+A design, experiment, or triage round maps to a **subset** of the phases, named explicitly — e.g. an
+experiment round runs Decide + Specify (with the measurement validity bar as its DoR) and skips
+Decompose / Implement / Gate. Name the skipped phases; don't fake them. A **measurement / experiment
+spec** is a recognized artifact with its own validity bar — the eval/experiment DoR items
+(`definition-of-ready.md`): estimand + unit of analysis, reps / power & the minimum effect worth
+detecting, blinding + held-constant factors, a correctness oracle distinct from "ran green", and a
+pre-registered analysis plan.
+
 ## Source-of-truth boundary
 
 Orchestration mechanics (`series.toml` schema, hooks, scoring tiers) belong to
