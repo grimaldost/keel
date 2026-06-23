@@ -162,6 +162,11 @@ These operating notes carry sharpening 5 into practice:
 
 Each phase has an artifact, an entry gate (Ready), and an exit gate (Done).
 
+A work round may run a **subset** of the 8 phases, named explicitly: a design, experiment, or triage
+round is typically a Decide+Specify subset and skips Decompose / Implement / Gate — the unused phases
+are named-as-skipped, not faked. The 8 are the menu, not a mandate (the task / series / program scopes
+in Composition below describe the same nesting at larger grain).
+
 | Phase | Artifact | Entry gate (Ready) | Exit gate (Done) |
 |---|---|---|---|
 | 1 Decide | Numbered ADR | A choice with non-obvious trade-offs is identified | ADR written, numbered, Accepted; alternatives + decision + consequences recorded |

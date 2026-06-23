@@ -79,6 +79,10 @@ file, list every consumer beyond the import graph — scripts that regex/parse t
 (docs-sync checks, doc anchors, tests reading it as data) and every READER of a retyped symbol — and
 add each to that PR's file-list. (Not gated; the pre-mortem attacks it.)*
 
+*Measurement / experiment specs: name the estimand + unit of analysis, reps / power & the minimum effect
+worth detecting, blinding + held-constant factors, a correctness oracle distinct from "ran green", and a
+pre-registered analysis plan — the eval/experiment DoR items (`definition-of-ready.md`, Part B) gate these.*
+
 *Counting: a test-count tripwire counts pytest ITEMS (post-parametrize collection), not function
 defs, and shows the parametrize expansion; enumerate code constructs by AST, never a bare text grep
 (grep is a superset pre-filter only); pin both the UNIT and the AUTHORITY of any recount.*

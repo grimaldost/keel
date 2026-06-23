@@ -91,6 +91,12 @@ are stateless.
       reviewer grounded the headline's key variable against the empirical record it needs (prior-run
       data/ledger, the reused instrument); if that record cannot supply the variation the study measures,
       the study is null on these instruments and the rest of the review short-circuits.
+- [ ] *(eval/experiment specs)* the experimental design is named, not just the subject: the estimand +
+      unit of analysis (per-item delta vs aggregate); enough reps to detect the minimum effect worth
+      detecting — a 1-rep delta is noise (a power question, distinct from feasibility above: power is
+      whether N can detect the effect, feasibility is whether the record supplies the variable); blinding
+      + held-constant factors; and a correctness oracle distinct from "ran green" (distinct from the
+      baseline-expectation item).
 
 **Gate result:** Ready ✅ only when Part A is well-formed **and** the Part B
 pre-mortem certification is recorded. `keel check-ready` enforces both halves; the

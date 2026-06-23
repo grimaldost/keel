@@ -2,6 +2,30 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.9.0] - 2026-06-23
+
+### Added
+
+- **The eval-spec DoR profile gains the experimental-design axes** (`definition-of-ready.md`, Part B) plus a
+  **measurement-design** pre-mortem directive carried in BOTH `pre-mortem-prompt.md` and the bundled
+  `pre-mortem-review` agent (pinned by the `unit of analysis` drift-guard marker): estimand + unit of
+  analysis; reps / power & the minimum effect worth detecting (a 1-rep delta is noise — a **power** question,
+  distinct from 0.8.0 **feasibility**, which asks whether the record supplies the variable at all); blinding +
+  held-constant factors; a correctness oracle distinct from "ran green".
+- **The subset-of-phases framing** (`docs/doctrine.md` §3 + `apply-method`): a design / experiment / triage
+  round runs a named **subset** of the 8 phases (a Decide+Specify subset), the unused phases named-as-skipped,
+  not faked. A measurement/experiment spec is a recognized artifact with its own validity bar.
+- **A `disconfirming_test` field** in the pre-mortem output contract (prompt ⊕ agent, pinned by the
+  `disconfirming` marker): each predicted failure mode names the cheapest observation that would retire it —
+  distinct from `smallest_fix` (prevents the mode) and from stress-test-predictions (attacks the spec's claims).
+- `ADR-0009`: keel beyond the multi-PR wave.
+
+### Changed
+
+- The drift guard pins the MARKERS tuple length at 24 (each new marker lands with its count bump in the same
+  change). The cross-vendor pre-mortem panel (OpenRouter, gitignored maintainer tooling) joined the release
+  pre-mortem for the first time this release, as non-blocking enrichment.
+
 ## [0.8.0] - 2026-06-19
 
 ### Added

@@ -39,6 +39,8 @@ MARKERS = (
     'not deferrable',  # 0.8.0 §3: un-deferrable-when-gated cross-PR artifact
     'caller folds and records',  # 0.8.0 §5: read-only agent returns, caller folds
     'premortem-verdict',  # 0.8.0 §5: machine-greppable verdict line
+    'unit of analysis',  # 0.9.0 §1: measurement-design attack (experiment specs)
+    'disconfirming',  # 0.9.0 §3: each predicted mode names its disconfirming test
 )
 
 
@@ -65,4 +67,4 @@ def test_agent_and_prompt_share_the_contract_markers():
 def test_markers_tuple_length_is_pinned():
     # A marker added to the files but dropped from the guard (or vice-versa) is caught here:
     # the count is the single source of truth for "how many directives are pinned".
-    assert len(MARKERS) == 22
+    assert len(MARKERS) == 24
