@@ -79,9 +79,8 @@ file, list every consumer beyond the import graph — scripts that regex/parse t
 (docs-sync checks, doc anchors, tests reading it as data) and every READER of a retyped symbol — and
 add each to that PR's file-list. (Not gated; the pre-mortem attacks it.)*
 
-*Measurement / experiment specs: name the estimand + unit of analysis, reps / power & the minimum effect
-worth detecting, blinding + held-constant factors, a correctness oracle distinct from "ran green", and a
-pre-registered analysis plan — the eval/experiment DoR items (`definition-of-ready.md`, Part B) gate these.*
+*Measurement / experiment specs: fill the optional `## Experiment design (Part B)` section below — the
+eval/experiment DoR items (`definition-of-ready.md`, Part B) gate the axes it names.*
 
 *Counting: a test-count tripwire counts pytest ITEMS (post-parametrize collection), not function
 defs, and shows the parametrize expansion; enumerate code constructs by AST, never a bare text grep
@@ -105,6 +104,21 @@ Concrete, checkable conditions for the whole spec (beyond per-section criteria).
 CHANGELOG entry (and a migration-guide section, if consumer-facing) in the SAME wave — release-notes
 completeness is a per-wave exit condition, not a terminal-audit cleanup; a consistency gate (e.g. a
 docs-sync check) verifies cross-references, not completeness.*
+
+## Experiment design (Part B)
+
+*(Measurement / experiment specs only — delete this whole section for a code spec. The eval/experiment DoR
+items (`definition-of-ready.md`, Part B) gate these axes; the reviewer certifies the design, `keel
+check-ready` the certification. Fill the `<...>` placeholders; this is a `##` section, so it needs no
+acceptance criterion and carries no anchors.)*
+
+- **Estimand + unit of analysis:** <the effect measured, at what grain — per-item delta vs aggregate>
+- **Reps / power & MEWD:** <N per arm; the minimum effect worth detecting; why N can detect it — a 1-rep delta is noise>
+- **Blinding + held-constant factors:** <what is blinded; what is held equal across arms>
+- **Correctness oracle (not "ran green"):** <what decides "correct", distinct from the run completing>
+- **Measured-unit causal path:** <treatment end — the measured path READS what the treatment changes (not inert); measured-unit end — capabilities beyond the intended input enumerated, no side channel to the ground truth>
+- **Enforcement of isolation invariants:** <each leakage/isolation invariant, and the buildable mechanism that enforces it, claimed by a numbered section/PR>
+- **Pre-registered analysis plan:** <the analysis fixed before results are seen>
 
 ## Pre-mortem certification
 

@@ -97,6 +97,17 @@ are stateless.
       whether N can detect the effect, feasibility is whether the record supplies the variable); blinding
       + held-constant factors; and a correctness oracle distinct from "ran green" (distinct from the
       baseline-expectation item).
+- [ ] *(eval/experiment specs)* the causal path the study assumes is traced against code from BOTH ends:
+      the measured path actually READS what the treatment changes (a treatment the measured call recomputes
+      live or never reads is inert — mis-built, not null; distinct from feasibility), and the measured
+      unit's capabilities beyond the intended input (tools, network, filesystem + cwd, prior/session state)
+      include no side channel to the ground truth (a side channel CONFOUNDS the result — distinct from
+      defeatability's null).
+- [ ] *(eval/experiment specs)* every isolation / safety / leakage invariant the spec asserts names a
+      buildable enforcement mechanism claimed by a numbered §/PR — not a bare assertion, and not a smoke
+      that tests a jail no PR creates.
+- [ ] *(eval/experiment specs)* the analysis plan is pre-registered — fixed before results are seen, not
+      chosen after (the spec-template advertises this axis as DoR-gated; this is that gate).
 
 **Gate result:** Ready ✅ only when Part A is well-formed **and** the Part B
 pre-mortem certification is recorded. `keel check-ready` enforces both halves; the

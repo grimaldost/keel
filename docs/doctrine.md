@@ -106,7 +106,9 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
    And the fold of pre-mortem findings back into the spec is itself a **verified hop**:
    structured findings are folded mechanically, then a post-fold coherence re-read catches the
    half-applied finding no gate can see; and each proposed fix is re-grounded as a hypothesis before
-   it is folded, since applying a wrong fix verbatim ships the bug it named. `check-ready` mechanizes the slices it can (A8 §-refs,
+   it is folded, since applying a wrong fix verbatim ships the bug it named. The re-read also catches the
+   fold's own newly-introduced errors — a multi-finding fold can assert something freshly wrong, and a spec
+   that PIVOTS onto a new premise rests on a new linchpin to re-verify against code (0.10.0). `check-ready` mechanizes the slices it can (A8 §-refs,
    A9 reuse-targets, A10 enforcement-claim honesty); the rest stays a pre-mortem prompt and an
    attested re-read (ADR-0004).
 5. **Ground the verification, model the mechanical consumers, verify the transformation.**
