@@ -14,7 +14,7 @@ from keel.models import GateResult, Violation
 _PLACEHOLDER_RE = re.compile(r'\b(?:TBD|TODO|FIXME)\b|\?\?\?')
 _SECTION_ID_RE = re.compile(r'§\d+')
 _MIN_CRITERION_WORDS = 5
-_ANCHOR_RE = re.compile(r'`([^`\s]+\.[A-Za-z0-9]+):(\d+)`(?:\s+`([^`]+)`)?')
+_ANCHOR_RE = re.compile(r'`([^`\s]*[./][^`\s]*):(\d+)`(?:\s+`([^`]+)`)?')
 _ADR_REF_RE = re.compile(r'`(docs/adr/(\d+)-[^`]+\.md)`')
 _MODEL_ON_RE = re.compile(r'\*\*Model-on:\*\*\s*`([^`]+)`')
 _REUSE_RE = re.compile(r'\*\*Reuse:\*\*\s*`([^`]+)`')
@@ -23,7 +23,7 @@ _DOC_CUES = frozenset({'doctrine', 'concepts', 'readme', 'adr', 'contributing'})
 _CUE_STRIP = '\'"`*()[]{}.,;:'  # surrounding punctuation peeled off a preceding cue word
 _CLAIM_RE = re.compile(r'\b(enforced|guaranteed)\b', re.IGNORECASE)
 _NEG_TOKENS = frozenset({'not', 'never', 'to', 'be', 'will', 'once', 'no'})
-_ANCHOR_RANGE_RE = re.compile(r'`([^`\s]+\.[A-Za-z0-9]+):(\d+)-(\d+)`')
+_ANCHOR_RANGE_RE = re.compile(r'`([^`\s]*[./][^`\s]*):(\d+)-(\d+)`')
 _OPEN = frozenset('([{')
 _CLOSE = frozenset(')]}')
 
@@ -468,7 +468,7 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
             continue
         anchor = re.sub(r'[`*]', '', cells[2]).strip()
         where = f'Fold ledger {cells[0].strip() or "(row)"}'
-        match = re.match(r'(\S+\.[A-Za-z0-9]+):(\d+)$', anchor)
+        match = re.match(r'(\S*[./]\S*):(\d+)$', anchor)
         if match is None:
             violations.append(
                 Violation(

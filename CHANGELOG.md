@@ -31,6 +31,15 @@ All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
   via OpenRouter, gitignored maintainer tooling) ran again as non-blocking enrichment; GPT-5.5 caught a
   real pre-registration drift the Claude passes missed.
 
+### Fixed
+
+- `check-ready` anchor recognition (A6 / A11 / A12) now accepts **dotfile and extension-less paths**
+  (e.g. `.gitignore:19`, `docs/Makefile:5`). Previously the parser required a `name.ext` shape, so a
+  dotfile anchor was silently ignored (A6/A11) or rejected as "no resolving `artifact:line`" (the A12
+  fold ledger). An anchor path is now recognized when it is path-like — it contains a `.` or `/` — which
+  still rejects a bare `N:M` (e.g. a `3:4` ratio). Surfaced by the 0.10.0 self-build's own fold ledger;
+  fixed at the root with regression tests.
+
 ## [0.9.0] - 2026-06-23
 
 ### Added

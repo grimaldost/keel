@@ -284,6 +284,39 @@ def test_anchor_snippet_mismatch_fails(tmp_path):
     assert any('snippet' in v.message.lower() for v in result.violations)
 
 
+def test_dotfile_anchor_resolves_passes_a6(tmp_path):
+    # A dotfile anchor (leading dot, no extension) is path-like and must resolve like any path.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / '.gitignore').write_text('first\nsecond\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `.gitignore:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_dotfile_anchor_out_of_range_fails_a6(tmp_path):
+    # ... and it is genuinely RESOLVED, not silently ignored: an out-of-range line still fires.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / '.gitignore').write_text('only one line\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `.gitignore:99`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('out of range' in v.message.lower() for v in result.violations)
+
+
+def test_bare_colon_number_is_not_an_anchor_a6(tmp_path):
+    # The false-positive guard holds: a backticked `N:M` with no dot/slash is not a path anchor.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. A `3:4` ratio at `9:30`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
 def _with_adr(tmp_path, existing_name, declared_ref):
     (tmp_path / '.git').mkdir()
     adr = tmp_path / 'docs' / 'adr'
@@ -491,6 +524,16 @@ def test_fold_ledger_resolves_passes_a12(tmp_path):
     (tmp_path / '.git').mkdir()
     (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
     spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_dotfile_anchor_resolves_passes_a12(tmp_path):
+    # The 0.10.0 self-build friction: a fold-ledger anchor to a dotfile (`.gitignore:N`) was
+    # rejected as "no resolving anchor" because the parser required a name.ext shape.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / '.gitignore').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `.gitignore:2` | yes |\n')
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed, [v.message for v in result.violations]
 
