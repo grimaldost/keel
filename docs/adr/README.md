@@ -11,6 +11,7 @@
 | [0007](0007-pre-mortem-convergence-and-grounding.md) | pre-mortem convergence & grounding | Accepted |
 | [0008](0008-grounding-reaches-generated-and-feasible.md) | the grounding directive reaches the generated & the feasible | Accepted |
 | [0009](0009-keel-beyond-the-multi-pr-wave.md) | keel beyond the multi-PR wave (measurement lane & disconfirming-test) | Accepted |
+| [0010](0010-the-causal-path-and-capability-audit.md) | the causal-path & capability audit (the measurement lane gets teeth) | Accepted |
 
 Status: Proposed | Accepted | Superseded by ADR-NNNN. Never edit an Accepted decision —
 supersede it.

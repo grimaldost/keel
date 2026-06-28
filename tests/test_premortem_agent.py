@@ -41,6 +41,10 @@ MARKERS = (
     'premortem-verdict',  # 0.8.0 §5: machine-greppable verdict line
     'unit of analysis',  # 0.9.0 §1: measurement-design attack (experiment specs)
     'disconfirming',  # 0.9.0 §3: each predicted mode names its disconfirming test
+    'inert-treatment',  # 0.10.0 §1: causal path (treatment must reach the measured path)
+    'side channel',  # 0.10.0 §1: measured-unit capability audit (no back channel to ground truth)
+    'enforcement mechanism',  # 0.10.0 §1: each isolation invariant names a buildable mechanism
+    'newly-introduced',  # 0.10.0 §2: re-cert hunts the fold's own newly-introduced errors
 )
 
 
@@ -67,4 +71,4 @@ def test_agent_and_prompt_share_the_contract_markers():
 def test_markers_tuple_length_is_pinned():
     # A marker added to the files but dropped from the guard (or vice-versa) is caught here:
     # the count is the single source of truth for "how many directives are pinned".
-    assert len(MARKERS) == 24
+    assert len(MARKERS) == 28

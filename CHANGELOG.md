@@ -2,6 +2,35 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.10.0] - 2026-06-28
+
+### Added
+
+- **The measured-unit causal-path & capability audit** — a pre-mortem directive carried in BOTH
+  `pre-mortem-prompt.md` and the bundled `pre-mortem-review` agent (pinned by the `inert-treatment`,
+  `side channel`, and `enforcement mechanism` drift markers) plus matching eval-spec DoR items: a
+  measurement spec is attacked from BOTH ends of the causal arrow it assumes — the treatment must reach the
+  measured path (else **inert**: mis-built, not null — distinct from feasibility), and the measured unit
+  must have no capability beyond its intended input that is a **side channel** to the ground truth (else
+  **confounded**, not null — a sharpening of instrument defeatability), and every isolation/leakage
+  invariant must name a buildable **enforcement mechanism** assigned to a numbered §/PR. Closes the gap
+  that cost a ~$417 confounded eval run (field reports `2026-06-27-agent-discovery-d6` /
+  `-engine-eval-design`, `2026-06-26-tu-memory-eval-premortem`).
+- **The re-cert hunts the fold's own newly-introduced errors** (prompt ⊕ agent, pinned by the
+  `newly-introduced` marker; doctrine sharpening 4): the post-fold coherence re-read also re-grounds each
+  new/reworded claim the fold added, and re-verifies a pivoted spec's new linchpin against code.
+- **The `## Experiment design (Part B)` section** is now stamped (optional, self-contained) into
+  `spec-template.md`, and the eval-spec DoR profile gains the **pre-registered analysis plan** axis
+  (closing an inherited template-vs-DoR drift the cross-vendor panel surfaced).
+- `ADR-0010`: the causal-path & capability audit.
+
+### Changed
+
+- The drift guard pins the MARKERS tuple length at 28 (each new marker lands with its count bump in the
+  same change: §1 → 27, §2 → 28). The cross-vendor pre-mortem panel (DeepSeek-R1 + GPT-5.5 + Gemini-2.5-pro
+  via OpenRouter, gitignored maintainer tooling) ran again as non-blocking enrichment; GPT-5.5 caught a
+  real pre-registration drift the Claude passes missed.
+
 ## [0.9.0] - 2026-06-23
 
 ### Added
