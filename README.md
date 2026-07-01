@@ -26,15 +26,15 @@ uvx --from git+https://github.com/grimaldost/keel keel --help
 ## Quickstart
 
 - `keel init ./my-kit` — drop the template kit (DoR, DoD, checklists, spec/ADR templates) into a project.
-- `keel check-ready spec.md` — Definition-of-Ready gate: spec well-formedness + a recorded blind pre-mortem (0.2.0).
+- `keel check-ready spec.md` — Definition-of-Ready gate: spec well-formedness + a recorded blind pre-mortem.
 - `/keel-apply` — have an agent set up and run the method here.
 
 ## Status
 
-0.4.0 — the Definition-of-Ready gate (`keel check-ready`) is live, including
-grounded-referent and enforcement-claim lints; `bind-check` and `budget-drift`
-remain stubs. Capability lands via the feedback → triage → release loop
-(see `CHANGELOG.md`).
+The Definition-of-Ready gate (`keel check-ready`) is live — the full Part A
+well-formedness set (A1–A12, R1) plus the recorded blind pre-mortem
+certification (B1); `bind-check` and `budget-drift` remain stubs (deferred,
+ADR-0003). Current version and capability history: `CHANGELOG.md`.
 
 ## Learn more
 
