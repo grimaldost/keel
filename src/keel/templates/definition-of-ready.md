@@ -40,7 +40,7 @@ is Part B's job).
       `artifact:line` row per finding (R1); when rows are present each anchor resolves (A12); a clean
       certify (folded in: none) dozes.
 
-### Reference: what `check_spec_ready` asserts (keel 0.3.0)
+### Reference: what `check_spec_ready` asserts
 
 ```
 A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
