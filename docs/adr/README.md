@@ -12,6 +12,9 @@
 | [0008](0008-grounding-reaches-generated-and-feasible.md) | the grounding directive reaches the generated & the feasible | Accepted |
 | [0009](0009-keel-beyond-the-multi-pr-wave.md) | keel beyond the multi-PR wave (measurement lane & disconfirming-test) | Accepted |
 | [0010](0010-the-causal-path-and-capability-audit.md) | the causal-path & capability audit (the measurement lane gets teeth) | Accepted |
+| [0011](0011-the-enforcement-gap.md) | the enforcement gap — the gate must enforce what it documents | Accepted |
+| [0012](0012-the-publication-boundary.md) | the publication boundary — public claims must not cite private evidence | Accepted |
+| [0013](0013-deferred-design-calls.md) | deferred design calls from the 2026-07-01 panel | Accepted |
 
 Status: Proposed | Accepted | Superseded by ADR-NNNN. Never edit an Accepted decision —
 supersede it.
