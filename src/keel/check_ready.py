@@ -775,16 +775,21 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
     lines = text.splitlines()
     violations: list[Violation] = []
     for i, line in enumerate(lines):
+        if line.lstrip().startswith('|'):  # a status-table cell IS the status, not a prose claim
+            continue
         bare = re.sub(r'`[^`]*`', '', line)  # a backticked claim word is not a claim
         claim = _CLAIM_RE.search(bare)
         if claim is None:
             continue
+        # neighbourhood for the wrap fix, excluding table rows (their keys are the status source,
+        # not prose to match a claim against).
+        near = [ln for ln in lines[max(0, i - 1) : i + 2] if not ln.lstrip().startswith('|')]
         before = re.sub(r'`[^`]*`', '', ' '.join(lines[max(0, i - 1) : i + 1]))
         cut = before.rfind(claim.group(0))
         window_before = ' '.join(before[:cut].split()[-4:]).lower() if cut != -1 else ''
         if _NEG_RE.search(window_before):
             continue
-        window = re.sub(r'`([^`]*)`', r'\1', ' '.join(lines[max(0, i - 1) : i + 2])).lower()
+        window = re.sub(r'`([^`]*)`', r'\1', ' '.join(near)).lower()
         for key, status in non_enforced.items():
             if key.lower() in window:
                 violations.append(

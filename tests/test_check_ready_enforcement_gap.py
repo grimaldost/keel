@@ -255,3 +255,18 @@ def test_anchor_resolves_against_git_root_not_spec_parent(tmp_path):
     )
     result = check_spec_ready(spec)
     assert result.passed, [v.message for v in result.violations]
+
+
+def test_enforced_table_row_does_not_false_fire_a10(tmp_path):
+    # 0.11.0 dogfood self-hit: an 'enforced' status cell adjacent to a review-only row must not
+    # read as a prose over-claim (a table cell is the status, not a claim).
+    table = (
+        '\n## Enforcement status\n\n'
+        '| Invariant | Status | Gate/mechanism |\n'
+        '|---|---|---|\n'
+        '| version consistency | enforced | a test |\n'
+        '| hit-rate tracking | review-only | maintainer discipline |\n'
+    )
+    good = READY_SPEC + table
+    result = check_spec_ready(_write(tmp_path, good))
+    assert result.passed, [v.message for v in result.violations]
