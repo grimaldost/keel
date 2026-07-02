@@ -72,6 +72,9 @@ def _mask_fenced(text: str) -> str:
     certification (a fenced `Verdict: CERTIFIED` shadowing a real REJECTED one) or a quoted marker
     from false-failing an honest spec. Each masked line becomes empty, so `splitlines()` still
     numbers the surviving lines exactly as the raw text did.
+
+    An UNCLOSED fence masks to end-of-file: this fails *closed* (it blanks any real certification
+    below the open fence, so B1 reports a missing block) — it can never forge a passing verdict.
     """
     out: list[str] = []
     fence: str | None = None  # the fence char ("`"/"~") while inside a block

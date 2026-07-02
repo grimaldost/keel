@@ -70,7 +70,9 @@ agent's DC1 bullet had dropped "and sibling repos") is fixed.
 
 ## Consequences
 
-- The gate now means what its reference block says; 24 regression tests pin the fixes, one per hole.
+- The gate now means what its reference block says; 25 regression tests in
+  `tests/test_check_ready_enforcement_gap.py` pin the fixes, one per hole (28 new across the release
+  with the cross-artifact guards; 124 total).
 - **Widen-and-tighten, mixed.** Most fixes are widen-only (fewer false positives) or catch-more
   (fence, bijection, ledger) and do not retro-break a well-formed spec. Two can newly fail a
   previously-green spec: a leftover `<...>` placeholder (A3) and an absolute/backslash anchor (A6) —

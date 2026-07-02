@@ -64,8 +64,9 @@ mechanizable half; the design calls are recorded and deferred (ADR-0013).
 
 - The 2026-07-01 six-lens blind skeptic panel (`docs/feedback/2026-07-01-skeptic-panel-fable5.md`, 76
   findings across architecture / gate red-team / cold-user / epistemology / code / integration lenses;
-  maintainer-local). Spec: `docs/design/2026-07-01-keel-0.11.0-spec.md`. 28 new regression tests (124
-  total); each of the ten spec sections ships at least one. Not every finding shipped — the deep design
+  maintainer-local). Spec: `docs/design/2026-07-01-keel-0.11.0-spec.md`. 28 new regression tests (25 in
+  `tests/test_check_ready_enforcement_gap.py` + 3 cross-artifact guards; 124 total); each of the ten
+  spec sections ships at least one. Not every finding shipped — the deep design
   calls are deferred with triggers in ADR-0013, not silently dropped.
 
 ## [0.10.0] - 2026-06-28
