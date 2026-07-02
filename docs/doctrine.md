@@ -39,10 +39,12 @@ It is validated on **three governed waves** (kernel / authenticator / compute
 rounds on a production consumer, reported through the feedback intake), where a
 blind pre-mortem caught cross-PR
 blockers before code and the §↔PR bijection made salvages tractable. A controlled
-experiment against a disciplined baseline is still pending
-(`docs/design/2026-06-06-keel-validation-experiment.md`): until it runs, read the
+experiment against a disciplined baseline is still pending: until it runs, read the
 claims here as "designed to, and so far observed to," not "measured to beat" a careful
-generic flow.
+generic flow. **The waves, the cost figures below, and the CHANGELOG "Origin" citations
+draw on a maintainer-local field corpus that is not published** (real-consumer detail,
+ADR-0003); what a public reader can and cannot verify is set out in `docs/evidence.md`,
+and the run-or-retire commitment for the pending experiment is ADR-0013.
 
 | What governs quality | Generic agentic flow | This method |
 |---|---|---|
@@ -72,8 +74,9 @@ agent's head and pin it to an artifact or a machine.
   round — nothing green-lights itself.
 - **Close the loop.** Reflections are extracted to cross-project memory and feed
   the next round's checklist, so a class of bug bites once. A promoted check ships
-  with a regression test, and a gate that never fires is itself a triage input —
-  gates decay, so their hit-rate is tracked.
+  with a regression test (machine-enforced), and a gate that never fires is itself a
+  triage input — gates decay, so their hit-rate *should* be tracked (a maintainer
+  discipline; keel does not yet ship a hit-rate ledger — see `CONTRIBUTING.md`).
 
 Sharpenings (each one face of the thesis; numbered, not counted in the heading):
 

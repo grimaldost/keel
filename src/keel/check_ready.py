@@ -11,21 +11,114 @@ from pathlib import Path
 from keel.errors import format_error
 from keel.models import GateResult, Violation
 
+# A3 placeholders: the four legacy tokens, plus the spec-template's angle-bracket idiom
+# (`<title>`, `<the observable condition ...>`). The angle-bracket form is matched only OUTSIDE
+# inline code (callers strip backtick spans first), so documented CLI syntax like `keel init
+# <target>` in backticks is fine while a leftover bare `<title>` heading placeholder fails (A3).
 _PLACEHOLDER_RE = re.compile(r'\b(?:TBD|TODO|FIXME)\b|\?\?\?')
+_ANGLE_PLACEHOLDER_RE = re.compile(r'<[a-z][^>\n]{2,}>')
 _SECTION_ID_RE = re.compile(r'§\d+')
 _MIN_CRITERION_WORDS = 5
-_ANCHOR_RE = re.compile(r'`([^`\s]*[./][^`\s]*):(\d+)`(?:\s+`([^`]+)`)?')
+# Anchor tokens are `path:line` where path carries no colon (so `host:port`, `a:b:c` grep triples,
+# and `scheme://...` never parse as anchors). `_anchor_shaped` then rejects IPs/versions; the
+# optional snippet must not itself be anchor-shaped (else two adjacent anchors would eat each other)
+# and is same-line only ([ \t], never \n).
+_ANCHOR_RE = re.compile(r'`([^`\s:]+):(\d+)`(?:[ \t]+`(?!\S*:\d+`)([^`]+)`)?')
+_ANCHOR_RANGE_RE = re.compile(r'`([^`\s:]+):(\d+)-(\d+)`')
+_EXT_RE = re.compile(r'\.[A-Za-z][A-Za-z0-9]*$')  # a real file extension, not `.1` of an IP/version
+_KNOWN_BARE_ANCHORS = frozenset(
+    {
+        'Makefile',
+        'Dockerfile',
+        'LICENSE',
+        'Rakefile',
+        'Procfile',
+        'Gemfile',
+        'CODEOWNERS',
+        'Vagrantfile',
+        'Jenkinsfile',
+    }
+)
 _ADR_REF_RE = re.compile(r'`(docs/adr/(\d+)-[^`]+\.md)`')
 _MODEL_ON_RE = re.compile(r'\*\*Model-on:\*\*\s*`([^`]+)`')
 _REUSE_RE = re.compile(r'\*\*Reuse:\*\*\s*`([^`]+)`')
 _SECTION_REF_RE = re.compile(r'§(\d+)(?![.\d])')  # a bare §N, not a sub-decimal §N.M
 _DOC_CUES = frozenset({'doctrine', 'concepts', 'readme', 'adr', 'contributing'})
+# A preceding token that names an external document, so its `§N` is a cross-document ref, not an
+# intra-spec one: a *.md file, a listed cue word, or a standards identifier (ADR-12, RFC-9110,
+# PEP8, ISO8601, or the same with a trailing space before the number, handled by the number-cue).
+_DOC_ID_CUE_RE = re.compile(r'^(?:adr|rfc|pep|iso|sec|section)[-\s]?\d*$', re.IGNORECASE)
 _CUE_STRIP = '\'"`*()[]{}.,;:'  # surrounding punctuation peeled off a preceding cue word
 _CLAIM_RE = re.compile(r'\b(enforced|guaranteed)\b', re.IGNORECASE)
-_NEG_TOKENS = frozenset({'not', 'never', 'to', 'be', 'will', 'once', 'no'})
-_ANCHOR_RANGE_RE = re.compile(r'`([^`\s]*[./][^`\s]*):(\d+)-(\d+)`')
+# A negation/deferral immediately before the claim word (checked against the text right up to the
+# claim, so it survives a hard line-wrap): "not/never/no enforced", "isn't/aren't enforced",
+# "to be / will be / would be enforced", "not yet / planned / once ... enforced". Applied to the
+# words just before the claim, so a real over-claim ("... is fully enforced") still fires.
+_NEG_RE = re.compile(
+    r'\bnot\b|\bnever\b|\bno\b|n[\'’]t\b|\byet\b|\bplanned\b'  # noqa: RUF001 (curly apostrophe intended)
+    r'|\bto\s+be\b|\bwill\s+be\b|\bwould\s+be\b|\bonce\b'
+)
+_FENCE_RE = re.compile(r'^\s{0,3}(`{3,}|~{3,})(.*)$')
 _OPEN = frozenset('([{')
 _CLOSE = frozenset(')]}')
+
+
+def _mask_fenced(text: str) -> str:
+    """Blank the contents of fenced code blocks, preserving line count so line numbers stay true.
+
+    A spec quotes code, `# TODO` markers, example `### headings`, and even a sample certification
+    block inside ``` / ~~~ fences; those are illustrative, not live spec structure. Masking them
+    before section-splitting and every line scan stops a fenced example from forging the B1
+    certification (a fenced `Verdict: CERTIFIED` shadowing a real REJECTED one) or a quoted marker
+    from false-failing an honest spec. Each masked line becomes empty, so `splitlines()` still
+    numbers the surviving lines exactly as the raw text did.
+
+    An UNCLOSED fence masks to end-of-file: this fails *closed* (it blanks any real certification
+    below the open fence, so B1 reports a missing block) — it can never forge a passing verdict.
+    """
+    out: list[str] = []
+    fence: str | None = None  # the fence char ("`"/"~") while inside a block
+    fence_len = 0
+    for line in text.splitlines():
+        match = _FENCE_RE.match(line)
+        if fence is None:
+            if match is not None:
+                fence, fence_len = match.group(1)[0], len(match.group(1))
+                out.append('')
+            else:
+                out.append(line)
+            continue
+        out.append('')  # inside a fence: blank every line, including the closing fence
+        if (
+            match is not None
+            and match.group(1)[0] == fence
+            and len(match.group(1)) >= fence_len
+            and not match.group(2).strip()
+        ):
+            fence = None
+    return '\n'.join(out)
+
+
+def _anchor_shaped(path: str) -> bool:
+    """True if a matched `token:line` token is really a file anchor (not an IP, version, or URL)."""
+    if '://' in path:
+        return False
+    name = path.replace('\\', '/').rsplit('/', 1)[-1]
+    return '/' in path or bool(_EXT_RE.search(path)) or name in _KNOWN_BARE_ANCHORS
+
+
+def _bad_anchor_platform(path: str) -> str | None:
+    """A portability reason a resolvable-looking anchor must be rejected, or None if it is clean.
+
+    A backslash separator or a POSIX-absolute path resolves on one OS and dangles on another, so a
+    'deterministic' gate would give environment-dependent verdicts. (A drive-letter path like
+    `C:/x` carries a colon and never reaches here — it is not recognized as an anchor at all.)
+    """
+    if '\\' in path:
+        return 'use forward slashes'
+    if path.startswith('/'):
+        return 'anchors are repo-root-relative, not absolute'
+    return None
 
 
 def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateResult:
@@ -36,15 +129,27 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     ``structure_only`` set, only Part A (A1-A12) runs - the author-loop mode that
     suppresses the expected B1 PENDING before a pre-mortem is recorded.
     """
-    if not spec_path.exists():
+    if not spec_path.is_file():
         raise FileNotFoundError(
             format_error(
-                what=f'Spec not found: {spec_path}.',
-                why='check-ready needs an existing spec file to gate.',
-                fix='Pass the path to a spec written from spec-template.md.',
+                what=f'Spec not found (or not a readable file): {spec_path}.',
+                why='check-ready needs an existing spec FILE to gate (a missing path or a '
+                'directory is not runnable).',
+                fix='Pass the path to a spec file written from spec-template.md.',
             )
         )
-    text = spec_path.read_text(encoding='utf-8')
+    try:
+        raw = spec_path.read_text(encoding='utf-8')
+    except (UnicodeDecodeError, OSError) as exc:
+        raise FileNotFoundError(
+            format_error(
+                what=f'Spec is not readable UTF-8 text: {spec_path}.',
+                why=f'check-ready reads the spec as UTF-8 and could not decode it ({exc}).',
+                fix='Save the spec as UTF-8 (the § glyph is the usual culprit on a cp1252 editor).',
+            )
+        ) from exc
+    # Fenced code blocks are illustrative, not live structure: mask them before any parse or scan.
+    text = _mask_fenced(raw)
     sections = _split_top_sections(text)
     subsections = _subsections(_find_section(sections, 'numbered', 'sections') or '')
     section_ids = [m.group(1) for title, _ in subsections if (m := re.match(r'(§\d+)\b', title))]
@@ -186,10 +291,10 @@ def _resolve_anchor(
 ) -> tuple[list[str] | None, Violation | None]:
     """Resolve a `path:line` anchor: (file lines, None) if it resolves, else (None, Violation)."""
     target = base / path
-    if not target.exists():
+    if not target.is_file():
         return None, Violation(
             where,
-            f'anchor path {path!r} does not exist '
+            f'anchor path {path!r} does not exist as a file '
             '(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).',
         )
     lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
@@ -200,14 +305,17 @@ def _resolve_anchor(
     return lines, None
 
 
-def _bracket_balance(lines: list[str]) -> int:
-    """Net unclosed-bracket depth over Python lines, ignoring strings and `#` comments.
+def _bracket_balance(lines: list[str]) -> tuple[int, bool]:
+    """(net unclosed depth, ever-negative?) over Python lines, string/comment-aware.
 
     Single- and triple-quoted strings are skipped (a triple-quoted string spans lines), so a
     bracket inside a string or a comment does not count. This is a Python-literal notion; callers
-    restrict it to `.py`/`.pyi` anchors.
+    restrict it to `.py`/`.pyi` anchors. A net > 0 is a head-truncated citation (opens a bracket it
+    never closes); an ever-negative depth is a tail-truncated one (closes a bracket opened before
+    the window) — both mean the observation window stopped mid-literal.
     """
     depth = 0
+    ever_negative = False
     quote: str | None = None  # "'" / '"' (single) or a 3-char triple-quote opener
     for line in lines:
         i, n = 0, len(line)
@@ -240,10 +348,12 @@ def _bracket_balance(lines: list[str]) -> int:
                 depth += 1
             elif ch in _CLOSE:
                 depth -= 1
+                if depth < 0:
+                    ever_negative = True
             i += 1
         if quote is not None and len(quote) == 1:
             quote = None  # a single-quoted string does not span lines; a triple-quoted one does
-    return depth
+    return depth, ever_negative
 
 
 # --- checks ------------------------------------------------------------------
@@ -277,7 +387,10 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
         if marker is None:
             violations.append(Violation(where, 'missing an acceptance criterion.'))
             continue
-        words = _words(sub_body[marker.end() :])
+        # Count only the criterion's own paragraph (up to the first blank line), so an EMPTY
+        # criterion followed by unrelated prose cannot launder the >=5-word floor (A2).
+        para = re.split(r'\n[ \t]*\n', sub_body[marker.end() :], maxsplit=1)[0]
+        words = _words(para)
         if len(words) < _MIN_CRITERION_WORDS:
             violations.append(
                 Violation(
@@ -288,24 +401,64 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
 
 
 def _check_placeholders(text: str) -> list[Violation]:
-    """A3: no TBD / TODO / FIXME / ??? placeholder tokens anywhere in the spec."""
+    """A3: no TBD/TODO/FIXME/??? token, and no leftover `<...>` template placeholder, in the spec.
+
+    The angle-bracket idiom is matched only OUTSIDE inline code (backtick spans dropped first), so a
+    documented `keel init <target>` stays legal while a stamped `### §1 <title>` heading or an
+    unfilled `<the observable condition ...>` acceptance criterion is caught — closing the "a
+    minimally-edited new-spec stamp passes the whole gate" hole.
+    """
     violations: list[Violation] = []
     for lineno, line in enumerate(text.splitlines(), 1):
         for match in _PLACEHOLDER_RE.finditer(line):
             violations.append(
                 Violation(f'line {lineno}', f'placeholder token {match.group(0)!r} not allowed.')
             )
+        bare = re.sub(r'`[^`]*`', '', line)
+        for match in _ANGLE_PLACEHOLDER_RE.finditer(bare):
+            if '://' in match.group(0):  # an autolink <https://...>, not a placeholder
+                continue
+            violations.append(
+                Violation(
+                    f'line {lineno}',
+                    f'unfilled template placeholder {match.group(0)!r} — replace it with real '
+                    'content (angle-bracket placeholders outside `code` are not allowed).',
+                )
+            )
     return violations
 
 
 def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[Violation]:
-    """A4: the PR↔section manifest is a bijection with full section coverage."""
+    """A4: the PR↔section manifest is a true bijection — one section per PR, one PR per section.
+
+    Both sides are checked. The section id is read ONLY from the "Implements section" column (the
+    header naming it, else the second column), so a §N mentioned in a "One concern?" / "Depends on"
+    comment cell neither breaks the count nor lets a PR smuggle a second section past the gate; and
+    a single PR row citing two sections now fails (the scope-bundling A4 exists to forbid).
+    """
     if manifest_body is None:
         return [Violation('PR ↔ section manifest', 'no PR ↔ section manifest found.')]
-    cited: list[str] = []
-    for cells in _table_rows(manifest_body):
-        cited.extend(sid for cell in cells for sid in _SECTION_ID_RE.findall(cell))
+    rows = _table_rows(manifest_body)
+    header = rows[0] if rows else []
+    section_col = next(
+        (i for i, h in enumerate(header) if 'section' in h.lower() or 'implements' in h.lower()),
+        1 if len(header) > 1 else 0,
+    )
     violations: list[Violation] = []
+    cited: list[str] = []
+    for row in rows[1:]:
+        cell = row[section_col] if section_col < len(row) else ''
+        ids = _SECTION_ID_RE.findall(cell)
+        cited.extend(ids)
+        if len(ids) != 1:
+            pr = row[0].strip() if row else '(row)'
+            violations.append(
+                Violation(
+                    'PR ↔ section manifest',
+                    f'PR row {pr!r} cites {len(ids)} sections in its section column; each PR must '
+                    'implement exactly one section.',
+                )
+            )
     if not cited:
         violations.append(Violation('PR ↔ section manifest', 'manifest has no PR → section rows.'))
     for sid in section_ids:
@@ -375,7 +528,13 @@ def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
     violations: list[Violation] = []
     for match in _ANCHOR_RE.finditer(text):
         path, line_text, snippet = match.group(1), match.group(2), match.group(3)
+        if not _anchor_shaped(path):
+            continue  # a `host:port`, IP, or version literal — not a file anchor
         where = f'{path}:{line_text}'
+        reason = _bad_anchor_platform(path)
+        if reason is not None:
+            violations.append(Violation(where, f'anchor path {path!r} is not portable ({reason}).'))
+            continue
         line_no = int(line_text)
         lines, violation = _resolve_anchor(base, path, line_no, where)
         if violation is not None:
@@ -403,7 +562,13 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
     violations: list[Violation] = []
     for match in _ANCHOR_RANGE_RE.finditer(text):
         path, lo, hi = match.group(1), int(match.group(2)), int(match.group(3))
+        if not _anchor_shaped(path):
+            continue
         where = f'{path}:{lo}-{hi}'
+        reason = _bad_anchor_platform(path)
+        if reason is not None:
+            violations.append(Violation(where, f'anchor path {path!r} is not portable ({reason}).'))
+            continue
         lines, violation = _resolve_anchor(base, path, hi, where)
         if violation is not None:
             violations.append(violation)
@@ -411,14 +576,16 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
         if lo < 1 or lo > hi or lines is None:
             violations.append(Violation(where, f'anchor range {lo}-{hi} is malformed.'))
             continue
-        if path.endswith(('.py', '.pyi')) and _bracket_balance(lines[lo - 1 : hi]) > 0:
-            violations.append(
-                Violation(
-                    where,
-                    f'anchor range :{lo}-{hi} opens a bracket it does not close — '
-                    'quote the literal complete or not at all.',
+        if path.endswith(('.py', '.pyi')):
+            net, ever_negative = _bracket_balance(lines[lo - 1 : hi])
+            if net > 0 or ever_negative:
+                violations.append(
+                    Violation(
+                        where,
+                        f'anchor range :{lo}-{hi} does not close every bracket it opens (or closes '
+                        'one opened before it) — quote the literal complete or not at all.',
+                    )
                 )
-            )
     return violations
 
 
@@ -426,11 +593,19 @@ _FOLD_NONE = frozenset({'', 'none', 'noneoutstanding', 'na', 'nil'})
 
 
 def _fold_claimed(cert_body: str) -> bool:
-    """R1 trigger: True if the certification's 'folded in' field names a non-trivial fold."""
+    """R1 trigger: True if the certification's 'folded in' field names a non-trivial fold.
+
+    Only the FIRST word is tested against the clean set, so an elaborated clean certify ("none found
+    — the review surfaced nothing to fold") still dozes instead of demanding a ledger for a fold
+    that never happened.
+    """
     for line in cert_body.splitlines():
         if 'folded in' in line.lower():
             _, _, value = line.partition(':')
-            return re.sub(r'[^a-z0-9]', '', value.lower()) not in _FOLD_NONE
+            # skip leading markdown junk (e.g. the bold-close `**`) to the first word with content
+            normalized = (re.sub(r'[^a-z0-9]', '', w.lower()) for w in value.split())
+            first = next((w for w in normalized if w), '')
+            return first not in _FOLD_NONE
     return False
 
 
@@ -464,10 +639,17 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
     for cells in rows:
+        where = f'Fold ledger {cells[0].strip() if cells else "(row)"}'
         if len(cells) < 3:
+            violations.append(
+                Violation(
+                    where,
+                    'fold-ledger row is malformed — it needs finding, target, `artifact:line`, '
+                    'and confirmed cells; a short row carries no resolving anchor (R1/A12).',
+                )
+            )
             continue
         anchor = re.sub(r'[`*]', '', cells[2]).strip()
-        where = f'Fold ledger {cells[0].strip() or "(row)"}'
         match = re.match(r'(\S*[./]\S*):(\d+)$', anchor)
         if match is None:
             violations.append(
@@ -501,10 +683,12 @@ def _symbol_defined(target: Path, symbol: str) -> bool:
     """A9: a name is 'defined' as a top-level def/class/assignment or an __all__ entry."""
     name = symbol.split('.', 1)[0]  # a further .member is out of A9's scope
     src = target.read_text(encoding='utf-8', errors='replace')
+    # Column 0 only: the DoR contract is a *top-level* (importable) def/class/assignment, so a
+    # function-local of the same name does not satisfy a `Reuse:` target.
     defs = (
-        rf'^\s*(?:async\s+)?def\s+{re.escape(name)}\b',
-        rf'^\s*class\s+{re.escape(name)}\b',
-        rf'^\s*{re.escape(name)}\s*[:=]',
+        rf'^(?:async\s+)?def\s+{re.escape(name)}\b',
+        rf'^class\s+{re.escape(name)}\b',
+        rf'^{re.escape(name)}\s*[:=]',
     )
     if any(re.search(pattern, src, re.MULTILINE) for pattern in defs):
         return True
@@ -545,9 +729,19 @@ def _check_section_refs(text: str, section_ids: list[str]) -> list[Violation]:
         if line.lstrip().startswith('#'):  # a heading defines a section, it is not a ref
             continue
         for match in _SECTION_REF_RE.finditer(line):
-            prev = re.search(r'(\S+)\s*$', line[: match.start()])
-            cue = prev.group(1).lower().strip(_CUE_STRIP) if prev else ''
-            if cue.endswith('.md') or cue in _DOC_CUES:  # a cross-document reference
+            toks = re.findall(r'\S+', line[: match.start()])
+            last = toks[-1].lower().strip(_CUE_STRIP) if toks else ''
+            prev = toks[-2].lower().strip(_CUE_STRIP) if len(toks) >= 2 else ''
+            # cross-document: a *.md file, a listed cue word, a standards id (ADR-0002, PEP8), or a
+            # standards id split from its number ("RFC 9110 §15" → last='9110', prev='rfc').
+            if (
+                last.endswith('.md')
+                or last in _DOC_CUES
+                or _DOC_ID_CUE_RE.match(last) is not None
+                or (
+                    last.isdigit() and (prev in _DOC_CUES or _DOC_ID_CUE_RE.match(prev) is not None)
+                )
+            ):
                 continue
             sid = f'§{match.group(1)}'
             if sid not in known:
@@ -560,9 +754,13 @@ def _check_section_refs(text: str, section_ids: list[str]) -> list[Violation]:
 def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> list[Violation]:
     """A10: no prose claims an invariant 'enforced'/'guaranteed' that its status table denies.
 
-    Keyed off the spec-template 'Enforcement status' table (the convention), not free-text
-    parsing. Checked only when that table is present. A claim word inside backticks, or one
-    negated/deferred by a nearby cue ('not', 'to be', 'will be', 'once'), does not fire.
+    Keyed off the spec-template 'Enforcement status' table (the convention), not free-text parsing;
+    checked only when that table is present. A claim word inside backticks does not fire (a quoted
+    `enforced` is meta-discussion). The invariant key is matched with backtick spans kept as their
+    inner text (so a backticked `key` still counts) across the wrapped neighbourhood (prev+this+next
+    line), so a hard line-wrap between key and claim no longer hides an over-claim; a negation or
+    deferral in the words just before the claim ("not", "never", "n't", "to be", "will be", "yet",
+    "once") suppresses it.
     """
     body = _find_section(sections, 'enforcement')
     if body is None:
@@ -577,20 +775,29 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
             non_enforced[key] = status
     if not non_enforced:
         return []
+    lines = text.splitlines()
     violations: list[Violation] = []
-    for lineno, line in enumerate(text.splitlines(), 1):
-        bare = re.sub(r'`[^`]*`', '', line)  # drop inline code: a quoted `enforced` is fine
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith('|'):  # a status-table cell IS the status, not a prose claim
+            continue
+        bare = re.sub(r'`[^`]*`', '', line)  # a backticked claim word is not a claim
         claim = _CLAIM_RE.search(bare)
         if claim is None:
             continue
-        preceding = {word.lower().strip('.,;:') for word in bare[: claim.start()].split()[-4:]}
-        if preceding & _NEG_TOKENS:  # negated or deferred: "not", "to be", "will be", "once"
+        # neighbourhood for the wrap fix, excluding table rows (their keys are the status source,
+        # not prose to match a claim against).
+        near = [ln for ln in lines[max(0, i - 1) : i + 2] if not ln.lstrip().startswith('|')]
+        before = re.sub(r'`[^`]*`', '', ' '.join(lines[max(0, i - 1) : i + 1]))
+        cut = before.rfind(claim.group(0))
+        window_before = ' '.join(before[:cut].split()[-4:]).lower() if cut != -1 else ''
+        if _NEG_RE.search(window_before):
             continue
+        window = re.sub(r'`([^`]*)`', r'\1', ' '.join(near)).lower()
         for key, status in non_enforced.items():
-            if key.lower() in bare.lower():
+            if key.lower() in window:
                 violations.append(
                     Violation(
-                        f'line {lineno}',
+                        f'line {i + 1}',
                         f'claims {key!r} is "{claim.group(0)}" but its enforcement status '
                         f'is {status!r}.',
                     )
@@ -617,6 +824,19 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]
         ], []
     violations: list[Violation] = []
     warnings: list[str] = []
+    verdict_lines = [
+        ln
+        for ln in cert_body.splitlines()
+        if re.match(r'^[\-*\s]*verdict[\s*]*:', ln, re.IGNORECASE)
+    ]
+    if len(verdict_lines) > 1:
+        violations.append(
+            Violation(
+                'Pre-mortem certification',
+                f'certification records {len(verdict_lines)} Verdict lines; an appended or '
+                'retracted verdict is ambiguous — keep exactly one (edit in place, do not append).',
+            )
+        )
     raw = _field(cert_body, 'verdict')
     leading = re.match(
         r'\s*([A-Za-z][A-Za-z-]*)', raw

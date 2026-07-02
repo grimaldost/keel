@@ -1,12 +1,14 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 from typer.testing import CliRunner
 
 from keel.cli import app
 
 runner = CliRunner()
+_CLI_REFERENCE = Path(__file__).resolve().parents[1] / 'docs' / 'cli-reference.md'
 
 READY_SPEC = """# Spec — widget
 
@@ -68,8 +70,18 @@ Do another. **Acceptance criterion:** a unit test asserts the second behaviour h
 def test_help_lists_all_commands():
     result = runner.invoke(app, ['--help'])
     assert result.exit_code == 0
-    for command in ('check-ready', 'bind-check', 'budget-drift', 'init'):
+    for command in ('check-ready', 'new-spec', 'bind-check', 'budget-drift', 'init'):
         assert command in result.output
+
+
+def test_cli_reference_documents_every_command():
+    # F9/ARCH-10: the published CLI reference must not lag the typer app (new-spec was 4 releases
+    # stale). Every registered command name appears in docs/cli-reference.md.
+    reference = _CLI_REFERENCE.read_text(encoding='utf-8')
+    names = {c.name for c in app.registered_commands if c.name}
+    assert names, 'no commands registered'
+    missing = sorted(n for n in names if f'keel {n}' not in reference)
+    assert not missing, f'cli-reference.md is missing: {missing}'
 
 
 def test_check_ready_passes_on_ready_spec(tmp_path):

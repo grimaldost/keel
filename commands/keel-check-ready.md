@@ -3,11 +3,15 @@ description: Run the Definition-of-Ready gate on a spec file.
 argument-hint: <path-to-spec.md>
 ---
 
-Run the keel Definition-of-Ready gate on the spec at $ARGUMENTS with the installed
-keel CLI (setup: `installation.md`):
+Run the keel Definition-of-Ready gate on the spec at $ARGUMENTS from the installed
+plugin bundle (no separate CLI install needed):
 
-`keel check-ready $ARGUMENTS`
+`uvx --from ${CLAUDE_PLUGIN_ROOT} keel check-ready $ARGUMENTS`
+
+If the user has a persistent `keel` on PATH (`uv tool install …`, see
+`${CLAUDE_PLUGIN_ROOT}/docs/installation.md`), a bare `keel check-ready $ARGUMENTS`
+is equivalent.
 
 Report the verdict and any violations. The gate checks Part A well-formedness and
 requires a recorded blind pre-mortem certification (ADR-0002): exit 0 = Ready,
-1 = violations, 2 = not runnable (e.g. missing spec).
+1 = violations, 2 = not runnable (a missing/undecodable spec, or a directory).

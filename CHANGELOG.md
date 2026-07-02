@@ -2,6 +2,73 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.11.0] - 2026-07-01
+
+The enforcement-gap release. A six-lens blind skeptic panel (Fable 5, max effort; two lenses ran the
+CLI against adversarial specs) found the DoR gate enforced less than it documented and false-failed
+ordinary prose, and that the plugin adoption chain broke for a non-author machine. This closes the
+mechanizable half; the design calls are recorded and deferred (ADR-0013).
+
+### Fixed
+
+- **`check-ready` is now fence-aware** (`_mask_fenced`): fenced code is masked before section-splitting
+  and every line scan, so a fenced example `Verdict: CERTIFIED` can no longer shadow a real recorded
+  REJECTED verdict (a reproduced B1 forgery), and a quoted `# TODO` / `### heading` no longer
+  false-fails an honest spec.
+- **A4 is a real bijection**: the section id is read only from the "Implements section" column — one
+  section per PR row, one PR per section — so one PR citing two sections fails and a `§N` in a comment
+  cell no longer miscounts.
+- **R1/A12**: a fold-ledger row with fewer than three cells is a violation, not a silent skip.
+- **A6 anchors**: a backticked `host:port`, URL, or `path:line:col` no longer false-parses as an anchor;
+  the optional snippet is same-line and not itself anchor-shaped (so two adjacent anchors are both
+  checked); a known extension-less file (`Makefile`) resolves; a backslash or absolute path is rejected
+  as non-portable; a directory anchor no longer crashes (`is_file()`).
+- **A2 / A3**: the acceptance criterion is counted only within its own paragraph (an empty criterion
+  followed by prose no longer passes), and a leftover `<...>` template placeholder outside code fails —
+  so a minimally-edited `new-spec` stamp no longer passes the whole gate.
+- **A10**: scans across a hard line-wrap, keeps a backticked invariant key, and uses real negation cues
+  (`n't` / `yet` / `to be`) — fixing both the wrap/backtick bypass and the common-word false-fire.
+- **A9 / A11 / A8 / B1**: A9 requires a column-0 (importable) symbol; A11 also fires on a tail-truncated
+  range; A8 treats `ADR-`/`RFC-`/`PEP-` section references as cross-document; B1 rejects a second
+  (appended, retracted) Verdict line.
+- **Exit codes**: a directory or non-UTF-8 spec is not-runnable (exit 2) via a `format_error`, not a raw
+  traceback at exit 1.
+- **Plugin adoption**: commands and the `apply-method` skill address plugin files as
+  `${CLAUDE_PLUGIN_ROOT}/…` and run the CLI from the bundle (`uvx --from ${CLAUDE_PLUGIN_ROOT} keel …`);
+  the skill binds the copied `method-bindings.md`, not the packaged master; `keel-premortem.md` carries
+  the full certification-record protocol so it composes with `check-ready`; `installation.md` fixes the
+  invalid `uv add --git` and documents `uv tool install` + tag pinning.
+- **Drift guard**: a live prompt↔agent divergence is fixed (the agent's DC1 bullet had dropped "and
+  sibling repos"), and a verbatim clause-identity check is added; the guard's guarantee is stated
+  honestly (marker-presence + clause-identity, not "can never drift").
+
+### Added
+
+- `docs/evidence.md` and ADR-0012 (the publication boundary): public docs no longer cite gitignored
+  evidence as if it resolved; the maintainer-local corpus is labelled unpublished.
+- `ADR-0011` (the enforcement gap) and `ADR-0013` (deferred design calls: B2 artifact-backed
+  certification and the agent-tool decision → 0.12.0; the A4 subset-of-phases relaxation → 0.12.0 or a
+  real external report; the validation experiment → 0.13.0 run-or-retire).
+- Self-application guards: a version-consistency test across the four sites + the newest CHANGELOG
+  heading; a CLI-reference-coverage test; `_resolve_base`'s first nested-spec test; a CI matrix
+  (ubuntu + windows) using `uv sync --group dev`.
+
+### Changed
+
+- `CONTRIBUTING.md` and `docs/doctrine.md` separate machine-enforced gate-health rules from unshipped
+  maintainer disciplines (gate hit-rate tracking, fail-closed triage) — the over-claim class keel's own
+  A10 gate polices in specs.
+- `docs/cli-reference.md` gains `new-spec`, `--structure-only`, and `--version` (four releases stale).
+
+### Origin
+
+- The 2026-07-01 six-lens blind skeptic panel (`docs/feedback/2026-07-01-skeptic-panel-fable5.md`, 76
+  findings across architecture / gate red-team / cold-user / epistemology / code / integration lenses;
+  maintainer-local). Spec: `docs/design/2026-07-01-keel-0.11.0-spec.md`. 28 new regression tests (25 in
+  `tests/test_check_ready_enforcement_gap.py` + 3 cross-artifact guards; 124 total); each of the ten
+  spec sections ships at least one. Not every finding shipped — the deep design
+  calls are deferred with triggers in ADR-0013, not silently dropped.
+
 ## [0.10.0] - 2026-06-28
 
 ### Added

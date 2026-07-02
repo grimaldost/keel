@@ -8,24 +8,32 @@ description: Apply the keel method — the author's externalized development met
 The method externalizes discipline out of an agent's in-session judgment into
 durable artifacts (ADRs, numbered spec sections, the PR DAG) and deterministic
 machines (gates, hooks, the orchestrator). Full thesis and the 8 phases:
-`docs/doctrine.md`. Toolkit: `src/keel/templates/`.
+`${CLAUDE_PLUGIN_ROOT}/docs/doctrine.md`. Toolkit (the packaged source):
+`${CLAUDE_PLUGIN_ROOT}/src/keel/templates/`.
+
+**Paths:** files inside the plugin are addressed as `${CLAUDE_PLUGIN_ROOT}/…` (they do
+NOT exist in the consumer's project); files you create or bind live in the consumer's
+project by their project-relative path. Run the CLI from the bundle with
+`uvx --from ${CLAUDE_PLUGIN_ROOT} keel …` unless a persistent `keel` is on PATH.
 
 ## When NOT to use
 
 A throwaway script or a single short artifact is below the threshold where
 coordination cost pays. Implement it directly. Apply the method when the work clears
-the blast-radius trigger in `docs/doctrine.md` §6 (≥5 PRs, a chokepoint imported by
-≥~50 modules, additive-on-a-shared-contract, a boundary crossing, or a >1-quarter lifetime).
+the blast-radius trigger in `${CLAUDE_PLUGIN_ROOT}/docs/doctrine.md` §6 (≥5 PRs, a chokepoint
+imported by ≥~50 modules, additive-on-a-shared-contract, a boundary crossing, or a
+>1-quarter lifetime).
 
 ## Setting up the method in a new project
 
-1. Read `docs/doctrine.md` (thesis + the 8 phases + mechanism map).
-2. Run `keel init <target>` to copy the full template kit from `src/keel/templates/`
+1. Read `${CLAUDE_PLUGIN_ROOT}/docs/doctrine.md` (thesis + the 8 phases + mechanism map).
+2. Run `uvx --from ${CLAUDE_PLUGIN_ROOT} keel init <target>` to copy the full template kit
    into the target project — ADR + spec templates, the DoR and DoD gates, the review
    checklist, reflection-triage, the series/budget skeleton, method-bindings, and the
    pre-mortem prompt.
-3. Fill `src/keel/templates/method-bindings.md` — bind each slot (ADR home, spec
-   format, gates, review checklist, reflection sink) to a concrete mechanism.
+3. Fill the `method-bindings.md` that step 2 just copied **into `<target>`** (the project's
+   own copy, NOT the packaged template under `${CLAUDE_PLUGIN_ROOT}`) — bind each slot (ADR
+   home, spec format, gates, review checklist, reflection sink) to a concrete mechanism.
    Any unbound slot = method not fully applied.
 
 ## Running a change under the method
