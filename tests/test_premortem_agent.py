@@ -1,11 +1,23 @@
-"""N8a drift guard: the bundled pre-mortem agent must carry the prompt template's contract.
+"""Drift guard: the bundled pre-mortem agent must carry the prompt template's contract.
 
 The 0.4.0 release upgraded `pre-mortem-prompt.md` but left `agents/pre-mortem-review.md` on the
-0.2.0 "top 5" prose — so the agent that actually runs lagged keel's own doctrine. These tests hold
-the two files to the SAME contract markers: a marker removed from EITHER side fails, so neither can
-silently drift from the other again.
+0.2.0 "top 5" prose — so the agent that actually runs lagged keel's own doctrine. Two guarantees,
+each with a named limit (0.11.0, honest after the skeptic panel found a live divergence the marker
+check missed):
+
+- **Marker presence** — every pinned marker in `MARKERS` appears in BOTH files. Catches a directive
+  *dropped* from one side. Limit: it cannot see a directive *reworded* while its marker survives, or
+  a marker that recurs in cross-references (deleting one occurrence keeps the token).
+- **Clause identity** — every distinctive clause in `SHARED_CLAUSES` appears VERBATIM (modulo
+  whitespace) in BOTH files. Catches a pinned directive reworded on one side only (the divergence
+  class the panel exploited: "and sibling repos" added to the prompt but not the agent). Limit: it
+  only pins the enumerated clauses, not the whole directive set.
+
+Full byte-identity of the shared span stays deferred (V3b); these two together are what actually
+holds today, stated as such rather than over-claimed as "neither can ever drift".
 """
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +58,30 @@ MARKERS = (
     'enforcement mechanism',  # 0.10.0 §1: each isolation invariant names a buildable mechanism
     'newly-introduced',  # 0.10.0 §2: re-cert hunts the fold's own newly-introduced errors
 )
+
+
+# Distinctive directive clauses carried VERBATIM in both files. Each must appear (whitespace-
+# normalized) in the agent AND the prompt; rewording one side drops its count there and fails. Seed
+# set — extend it when a directive's exact wording is load-bearing.
+SHARED_CLAUSES = (
+    'the scope read (src AND tests AND docs, and sibling repos) must be named.',
+    'folding a wrong fix verbatim ships the bug it named',
+    'a grep of the ground truth is both a defeat and a side channel',
+    "the SECOND pass attacks the FIRST pass's folds",
+    'a store the measured call recomputes live',
+)
+
+
+def _normalized(path: Path) -> str:
+    return re.sub(r'\s+', ' ', path.read_text(encoding='utf-8'))
+
+
+def test_shared_directive_clauses_are_identical():
+    agent, prompt = _normalized(AGENT), _normalized(PROMPT)
+    for clause in SHARED_CLAUSES:
+        needle = re.sub(r'\s+', ' ', clause)
+        assert needle in agent, f'agent missing verbatim clause: {clause!r}'
+        assert needle in prompt, f'prompt missing verbatim clause: {clause!r}'
 
 
 def test_agent_preserves_frontmatter():

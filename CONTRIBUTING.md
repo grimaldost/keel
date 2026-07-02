@@ -15,16 +15,23 @@ keel improves by dogfooding its own "close the loop" principle on itself.
 
 ## Gate health (closing the loop)
 
-So "a bug bites once" holds mechanically, not by hope:
+So "a bug bites once", these hold. Be honest about which are machine-enforced and which are
+maintainer disciplines — the repo should not claim enforcement it does not ship (its own A10
+gate exists to catch exactly that over-claim in a spec):
 
 1. **Every promoted gate ships a regression test** that fails on the originating defect and
-   passes after the fix — no gate lands without the test that proves it bites.
-2. **Track each gate's hit-rate.** A gate that has fired zero times across N series is a
-   triage input: sharpen it, or cut it as decayed ritual.
-3. **A tool-wrapping gate asserts the tool ran to completion**, not just error-count ≤
-   baseline (a fatal early-exit emits fewer errors and would false-pass).
-4. **Reflection-triage is fail-closed:** the next series does not pass DoR until the prior
-   series' reflections were triaged and recurring traps promoted.
+   passes after the fix — no gate lands without the test that proves it bites. *Machine-enforced:*
+   the suite (and CI) runs it; the version-consistency and cli-reference-coverage tests are the
+   same idea applied to cross-artifact drift.
+2. **A tool-wrapping gate asserts the tool ran to completion**, not just error-count ≤
+   baseline (a fatal early-exit emits fewer errors and would false-pass). *Machine-enforced where
+   the gate is wired.*
+3. **Track each gate's hit-rate** — a gate that has fired zero times across N series is a triage
+   input: sharpen it, or cut it as decayed ritual. *Maintainer discipline, not yet mechanized:*
+   there is no hit-rate ledger in the tree today; treat this as a review question, not a guarantee.
+4. **Reflection-triage should gate the next series** — recurring traps promoted before the next
+   DoR. *Maintainer discipline, not yet mechanized:* `check-ready` does not read a triage state, so
+   nothing blocks a spec on an untriaged backlog; the operator holds this by hand.
 
 ## Quality gates (Definition of Done)
 

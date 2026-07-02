@@ -72,8 +72,9 @@ agent's head and pin it to an artifact or a machine.
   round — nothing green-lights itself.
 - **Close the loop.** Reflections are extracted to cross-project memory and feed
   the next round's checklist, so a class of bug bites once. A promoted check ships
-  with a regression test, and a gate that never fires is itself a triage input —
-  gates decay, so their hit-rate is tracked.
+  with a regression test (machine-enforced), and a gate that never fires is itself a
+  triage input — gates decay, so their hit-rate *should* be tracked (a maintainer
+  discipline; keel does not yet ship a hit-rate ledger — see `CONTRIBUTING.md`).
 
 Sharpenings (each one face of the thesis; numbered, not counted in the heading):
 

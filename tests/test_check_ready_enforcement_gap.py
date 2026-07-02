@@ -238,3 +238,20 @@ def test_non_utf8_spec_raises_not_runnable(tmp_path):
     spec.write_bytes(b'\xff\xfe\x00\x01 not utf-8 text')
     with pytest.raises(FileNotFoundError):
         check_spec_ready(spec)
+
+
+def test_anchor_resolves_against_git_root_not_spec_parent(tmp_path):
+    # C9/CODE-05: a spec under docs/design/ still resolves a repo-root anchor (base = git root,
+    # not the spec's parent). This pins _resolve_base, which had zero coverage before 0.11.0.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('a\nb\n', encoding='utf-8')
+    specdir = tmp_path / 'docs' / 'design'
+    specdir.mkdir(parents=True)
+    spec = specdir / 'spec.md'
+    spec.write_text(
+        READY_SPEC.replace('Introduce `src/widget.py`.', 'Introduce it; see `src/mod.py:2`.'),
+        encoding='utf-8',
+    )
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]

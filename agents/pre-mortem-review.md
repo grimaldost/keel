@@ -27,8 +27,8 @@ Grounding-completeness (DC1) — a claim the author "verified" is still wrong if
 stale, moved, or wrong-shaped:
 
 - Population, not exemplars: a "green on arrival / verified clean" claim must enumerate the FULL
-  matched population (run the predicate over the real input), not the instances already seen; name
-  the scope read (src AND tests AND docs).
+  matched population (run the predicate over the real input), not the instances already seen; the
+  scope read (src AND tests AND docs, and sibling repos) must be named.
 - Whole-file, not projected: a file recorded clean from one section read is unproven elsewhere —
   re-read each cleared file end to end.
 - Stale / moved referent: re-verify a prior finding against the current tree; a spec reasoning
