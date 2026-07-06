@@ -293,3 +293,38 @@ def test_conditional_certify_with_operator_passes_with_warn(tmp_path):
     assert result.exit_code == 0, result.output
     assert 'WARN' in result.output and 'grimaldo' in result.output
     assert 'OK' in result.output
+
+
+def test_warnings_print_on_a_failing_spec(tmp_path):
+    # 0.12.0 §1 (FM-2): a failing run still shows its WARN lines — they carry this release's
+    # new signals and were previously dropped on the violations path.
+    spec = tmp_path / 'spec.md'
+    spec.write_text(
+        READY_SPEC.replace(
+            '- **Verdict:** CERTIFIED',
+            '- **Verdict:** CONDITIONAL-CERTIFY — ready modulo a fix\n- **Operator:** grimaldo',
+        ).replace('Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See §9 for it.'),
+        encoding='utf-8',
+    )
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert result.exit_code == 1
+    assert '§9' in result.output  # the violation
+    assert 'WARN' in result.output and 'grimaldo' in result.output  # the warning, not dropped
+
+
+def test_spec_hash_prints_stable_hex(tmp_path):
+    # 0.12.0 §1: `keel spec-hash` prints the canonical hash; stable across invocations.
+    spec = tmp_path / 'spec.md'
+    spec.write_text(READY_SPEC, encoding='utf-8')
+    first = runner.invoke(app, ['spec-hash', str(spec)])
+    second = runner.invoke(app, ['spec-hash', str(spec)])
+    assert first.exit_code == 0 and second.exit_code == 0
+    digest = first.output.strip()
+    assert digest == second.output.strip()
+    assert len(digest) == 64 and all(c in '0123456789abcdef' for c in digest)
+
+
+def test_spec_hash_missing_file_exits_2(tmp_path):
+    result = runner.invoke(app, ['spec-hash', str(tmp_path / 'nope.md')])
+    assert result.exit_code == 2
+    assert 'not found' in result.output.lower()

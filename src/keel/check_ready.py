@@ -5,6 +5,7 @@ certification is recorded (Part B / B1), so the gate never green-lights a spec o
 structure alone. See docs/design/2026-06-05-dor-gate-design.md and ADR-0002.
 """
 
+import hashlib
 import re
 from pathlib import Path
 
@@ -121,6 +122,80 @@ def _bad_anchor_platform(path: str) -> str | None:
     return None
 
 
+def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
+    """Read a spec as UTF-8 text, or raise the not-runnable FileNotFoundError contract."""
+    if not spec_path.is_file():
+        raise FileNotFoundError(
+            format_error(
+                what=f'Spec not found (or not a readable file): {spec_path}.',
+                why=f'{purpose} needs an existing spec FILE (a missing path or a '
+                'directory is not runnable).',
+                fix='Pass the path to a spec file written from spec-template.md.',
+            )
+        )
+    try:
+        return spec_path.read_text(encoding='utf-8')
+    except (UnicodeDecodeError, OSError) as exc:
+        raise FileNotFoundError(
+            format_error(
+                what=f'Spec is not readable UTF-8 text: {spec_path}.',
+                why=f'{purpose} reads the spec as UTF-8 and could not decode it ({exc}).',
+                fix='Save the spec as UTF-8 (the § glyph is the usual culprit on a cp1252 editor).',
+            )
+        ) from exc
+
+
+def spec_hash(spec_path: Path) -> str:
+    """B2's canonical certification hash: sha256 of the spec minus its certification section.
+
+    The `## Pre-mortem certification` section's lines (heading included, through the next `## `
+    heading or EOF) are REMOVED from the ``splitlines()`` sequence and the remainder re-joined
+    with newlines — not blanked: blanked lines still contribute newline bytes, so a growing fold
+    ledger would change the very hash its own recording is part of (ADR-0014). Removal plus
+    splitlines normalization also makes the hash indifferent to CRLF/LF. Fenced text is masked
+    only to LOCATE the section (a fenced example heading cannot shift the span); the hash is
+    computed over the raw lines.
+    """
+    raw = _read_spec_text(spec_path, purpose='spec-hash')
+    masked_lines = _mask_fenced(raw).splitlines()
+    raw_lines = raw.splitlines()
+    keep: list[str] = []
+    in_cert = False
+    for i, masked in enumerate(masked_lines):
+        heading = re.match(r'^##[ \t]+(.+?)[ \t]*$', masked)
+        if heading is not None:
+            low = heading.group(1).lower()
+            in_cert = 'pre-mortem' in low and 'certification' in low
+        if not in_cert:
+            keep.append(raw_lines[i])
+    return hashlib.sha256('\n'.join(keep).encode('utf-8')).hexdigest()
+
+
+_KIT_STAMP_RE = re.compile(r'<!--\s*keel kit (\d+)\.(\d+)\.(\d+)\s*-->')
+
+
+def _kit_skew_warning(text: str) -> list[str]:
+    """§9 (0.12.0): a spec stamped from a different kit MAJOR.MINOR self-announces the skew.
+
+    WARN-only and verify-when-present: pre-0.12.0 specs carry no stamp and stay silent; a patch
+    difference is silent too (gate semantics are pinned per minor). Runs in the Part A path so the
+    author loop (--structure-only) sees it — that is where a stale kit bites first.
+    """
+    match = _KIT_STAMP_RE.search(text)
+    if match is None:
+        return []
+    from keel import __version__
+
+    own = __version__.split('.')
+    if (match.group(1), match.group(2)) == (own[0], own[1]):
+        return []
+    stamped = '.'.join(match.groups())
+    return [
+        f'WARN: spec stamped from kit {stamped}, gate is {__version__} — the kit and the gate '
+        'moved apart; regenerate the spec scaffold or diff the kit before trusting old guidance.'
+    ]
+
+
 def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateResult:
     """Assert a spec is Ready: well-formed (Part A) and pre-mortem-certified (Part B).
 
@@ -129,37 +204,32 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     ``structure_only`` set, only Part A (A1-A12) runs - the author-loop mode that
     suppresses the expected B1 PENDING before a pre-mortem is recorded.
     """
-    if not spec_path.is_file():
-        raise FileNotFoundError(
-            format_error(
-                what=f'Spec not found (or not a readable file): {spec_path}.',
-                why='check-ready needs an existing spec FILE to gate (a missing path or a '
-                'directory is not runnable).',
-                fix='Pass the path to a spec file written from spec-template.md.',
-            )
-        )
-    try:
-        raw = spec_path.read_text(encoding='utf-8')
-    except (UnicodeDecodeError, OSError) as exc:
-        raise FileNotFoundError(
-            format_error(
-                what=f'Spec is not readable UTF-8 text: {spec_path}.',
-                why=f'check-ready reads the spec as UTF-8 and could not decode it ({exc}).',
-                fix='Save the spec as UTF-8 (the § glyph is the usual culprit on a cp1252 editor).',
-            )
-        ) from exc
+    raw = _read_spec_text(spec_path, purpose='check-ready')
     # Fenced code blocks are illustrative, not live structure: mask them before any parse or scan.
     text = _mask_fenced(raw)
     sections = _split_top_sections(text)
     subsections = _subsections(_find_section(sections, 'numbered', 'sections') or '')
     section_ids = [m.group(1) for title, _ in subsections if (m := re.match(r'(§\d+)\b', title))]
 
+    first_heading = re.search(r'^##[ \t]+', text, re.MULTILINE)
+    header = text[: first_heading.start()] if first_heading else text
+
     violations: list[Violation] = []
     warnings: list[str] = []
+    warnings += _kit_skew_warning(text)
     violations += _check_numbered(subsections)
     violations += _check_acceptance(subsections)
     violations += _check_placeholders(text)
-    violations += _check_manifest(_find_section(sections, 'section', 'manifest'), section_ids)
+    # §11 (0.12.0): a header `Phases:` declaration that explicitly names Decompose as skipped
+    # relaxes the manifest requirement to absent-ok — a declared Decide+Specify round no longer
+    # invents a manifest to pass its own gate (ADR-0014). A manifest that IS present is still
+    # checked in full, and nothing else in Part A is relaxed; the declaration is content the
+    # pre-mortem can challenge.
+    phases = _field(header, 'phases').lower()
+    decompose_skipped = 'decompose' in phases and 'skipped' in phases
+    manifest_body = _find_section(sections, 'section', 'manifest')
+    if manifest_body is not None or not decompose_skipped:
+        violations += _check_manifest(manifest_body, section_ids)
     violations += _check_paths(_find_section(sections, 'concept', 'module'), subsections, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
     violations += _check_anchors(text, spec_path)
@@ -173,6 +243,11 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
         premortem_violations, premortem_warnings = _check_premortem(cert)
         violations += premortem_violations
         warnings += premortem_warnings
+        if cert is not None:
+            artifact_violations, artifact_warnings = _check_certification_artifact(cert, spec_path)
+            violations += artifact_violations
+            warnings += artifact_warnings
+        warnings += _status_currency_warning(header, cert)
 
     return GateResult(passed=not violations, violations=tuple(violations), warnings=tuple(warnings))
 
@@ -286,16 +361,45 @@ def _field(body: str, name: str) -> str:
     return ''
 
 
+_VENDOR_DIRS = frozenset({'.git', '.venv', 'node_modules', '__pycache__', 'site-packages'})
+
+
+def _unique_basename_match(base: Path, path: str) -> Path | None:
+    """The single repo file matching the path's basename, or None (zero or many).
+
+    Vendor/VCS trees are excluded from the population — an in-tree virtualenv must not defeat
+    exactly-one (0.12.0 §4). Called only on the failure path, so the rglob cost is paid only when
+    an anchor already failed to resolve.
+    """
+    name = path.replace('\\', '/').rsplit('/', 1)[-1]
+    if not name:
+        return None
+    matches = [
+        candidate
+        for candidate in base.rglob(name)
+        if candidate.is_file() and not (_VENDOR_DIRS & set(candidate.relative_to(base).parts[:-1]))
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
 def _resolve_anchor(
     base: Path, path: str, line_no: int, where: str
 ) -> tuple[list[str] | None, Violation | None]:
-    """Resolve a `path:line` anchor: (file lines, None) if it resolves, else (None, Violation)."""
+    """Resolve a `path:line` anchor: (file lines, None) if it resolves, else (None, Violation).
+
+    On a non-resolving path, a unique repo basename match is offered as a "did you mean" hint —
+    the guess-the-path loop the field hit three times in one session becomes a one-line fix.
+    """
     target = base / path
     if not target.is_file():
+        hint = ''
+        match = _unique_basename_match(base, path)
+        if match is not None:
+            hint = f" — did you mean '{match.relative_to(base).as_posix()}:{line_no}'?"
         return None, Violation(
             where,
             f'anchor path {path!r} does not exist as a file '
-            '(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).',
+            f'(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).{hint}',
         )
     lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
     if line_no < 1 or line_no > len(lines):
@@ -488,15 +592,25 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
 def _check_paths(
     concept_body: str | None, subsections: list[tuple[str, str]], spec_path: Path
 ) -> list[Violation]:
-    """A5: every concept→module path exists, or is 'to be created' and claimed by a section."""
+    """A5: every concept→module path exists, or is 'to be created' and claimed by a section.
+
+    A "to be created" path is claimed by its full repo-root-relative form, or — when a section
+    body names the file by its bare basename and that basename is unique among the map's
+    "to be created" rows — by the basename (0.12.0 §4: the body/map ergonomics the field hit on
+    three consumers). An ambiguous basename keeps the full-path requirement.
+    """
     if concept_body is None:
         return [Violation('Concept → module map', 'no concept → module map found.')]
     base = _resolve_base(spec_path)
     section_text = '\n'.join(sub_body for _, sub_body in subsections)
+    rows = [cells for cells in _table_rows(concept_body) if len(cells) >= 2]
+    tbc_basenames: list[str] = [
+        (_extract_path(cells[1]) or '').replace('\\', '/').rsplit('/', 1)[-1]
+        for cells in rows
+        if 'to be created' in cells[1].lower() and _extract_path(cells[1])
+    ]
     violations: list[Violation] = []
-    for cells in _table_rows(concept_body):
-        if len(cells) < 2:
-            continue
+    for cells in rows:
         module_cell = cells[1]
         if 'module' in module_cell.lower() and 'file' in module_cell.lower():
             continue
@@ -504,12 +618,18 @@ def _check_paths(
         if not path:
             continue
         if 'to be created' in module_cell.lower():
-            if path not in section_text:
+            name = path.replace('\\', '/').rsplit('/', 1)[-1]
+            claimed = path in section_text or (
+                tbc_basenames.count(name) == 1
+                and re.search(rf'(?<![\w./-]){re.escape(name)}', section_text) is not None
+            )
+            if not claimed:
                 violations.append(
                     Violation(
                         'Concept → module map',
                         f'"to be created" path {path!r} is not claimed by any section '
-                        '(name the path in the body of the section that creates it).',
+                        '(name the path — or its basename, when unique — in the body of the '
+                        'section that creates it).',
                     )
                 )
         elif not (base / path).exists():
@@ -649,20 +769,37 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
                 )
             )
             continue
-        anchor = re.sub(r'[`*]', '', cells[2]).strip()
-        match = re.match(r'(\S*[./]\S*):(\d+)$', anchor)
+        cell = re.sub(r'\*', '', cells[2]).strip()
+        # Anchor, optionally followed by a backticked snippet (0.12.0 §8): `path:line` `snippet`.
+        # The snippet makes in-range drift detectable — a bare line number survives an edit that
+        # moves content within range; the snippet does not.
+        match = re.match(r'`?([^`\s]*[./][^`\s]*):(\d+)`?(?:[ \t]+`([^`]+)`)?$', cell)
         if match is None:
             violations.append(
                 Violation(
                     where,
                     'fold-ledger row has no resolving `artifact:line` confirmation '
-                    '(anchor each row to `path:line`, e.g. `docs/design/your-spec.md:142`).',
+                    '(anchor each row to `path:line`, e.g. `docs/design/your-spec.md:142`; an '
+                    'optional backticked snippet after it is verified against that line).',
                 )
             )
             continue
-        _, violation = _resolve_anchor(base, match.group(1), int(match.group(2)), where)
+        line_no = int(match.group(2))
+        lines, violation = _resolve_anchor(base, match.group(1), line_no, where)
         if violation is not None:
             violations.append(violation)
+            continue
+        snippet = match.group(3)
+        if snippet is not None and lines is not None:
+            actual = ' '.join(lines[line_no - 1].split())
+            if ' '.join(snippet.split()) not in actual:
+                violations.append(
+                    Violation(
+                        where,
+                        f'fold-ledger snippet {snippet!r} does not match line {line_no} '
+                        '(in-range drift: the anchored content moved — re-anchor the row).',
+                    )
+                )
     return violations
 
 
@@ -805,6 +942,109 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
     return violations
 
 
+def _status_currency_warning(header: str, cert_body: str | None) -> list[str]:
+    """§10 (0.12.0): a recorded certification while the header still says draft is a currency slip.
+
+    WARN, not violation — the class recurred on release specs but it is a stale coordinate, not a
+    forgery. Silent when the header carries no Status field at all (pre-template specs), when the
+    Status has moved past draft, or when nothing is certified yet.
+    """
+    if cert_body is None:
+        return []
+    status = _field(header, 'status')
+    if not status or status.split()[0].lower() != 'draft':
+        return []
+    if _verdict_head(_field(cert_body, 'verdict')) not in ('CERTIFIED', 'CONDITIONAL-CERTIFY'):
+        return []
+    return [
+        "WARN: the header Status still says 'draft' though a certification is recorded — keep "
+        'the coordinate system current (update the Status field).'
+    ]
+
+
+_VERDICT_TOKEN_RE = re.compile(r'\s*([A-Za-z][A-Za-z-]*)')
+
+
+def _verdict_head(raw: str) -> str:
+    """The leading verdict token of a Verdict value or verdict line, uppercased ('' if none).
+
+    Leading-token semantics: hyphens are kept whole (`CONDITIONAL-CERTIFY` is one token) and
+    trailing text — prose, §2's `pre-mortem-review@<version>` identity suffix — is inert.
+    """
+    match = _VERDICT_TOKEN_RE.match(raw)
+    return match.group(1).upper() if match else ''
+
+
+def _check_certification_artifact(
+    cert_body: str, spec_path: Path
+) -> tuple[list[Violation], list[str]]:
+    """B2 (0.12.0, verify-when-present): the certification's named artifact exists and agrees.
+
+    No artifact named (field absent, or present with an empty value — the template ships it
+    empty, so a scaffolded field is absent, not broken): an adoption WARN, nothing more. An
+    artifact named: it must exist and carry a line-anchored `PREMORTEM-VERDICT:` line whose LAST
+    occurrence's leading token equals the recorded Verdict's (a column-0 schema quote above the
+    real verdict is inert); its `Spec-hash:` — when recorded — is compared against the current
+    canonical hash, and a mismatch WARNs ("certified against an earlier revision") rather than
+    fails, because a post-certification edit is exactly what a mismatch looks like. B2 raises the
+    forgery cost from one typed line to a consistent saved artifact; it does NOT prove a blind
+    pass ran — that residual trust stays named (ADR-0002, ADR-0014).
+    """
+    ref = re.sub(r'[`*]', '', _field(cert_body, 'certification artifact')).strip()
+    if not ref:
+        return [], [
+            'WARN: the certification names no artifact — B2 verifies one when present; save the '
+            "pass's returned output per keel-premortem.md and reference it "
+            '(`Certification artifact:`).'
+        ]
+    where = 'Certification artifact'
+    target = _resolve_base(spec_path) / ref
+    if not target.is_file():
+        return [
+            Violation(
+                where,
+                f'referenced artifact {ref!r} does not exist as a file '
+                '(the path is repo-root-relative, like an anchor).',
+            )
+        ], []
+    artifact_text = target.read_text(encoding='utf-8', errors='replace')
+    anchored = [
+        line
+        for line in artifact_text.splitlines()
+        if line.lstrip().startswith('PREMORTEM-VERDICT:')
+    ]
+    if not anchored:
+        return [
+            Violation(
+                where,
+                f'artifact {ref!r} carries no line-anchored `PREMORTEM-VERDICT:` line — it does '
+                "not look like a saved pre-mortem pass's output.",
+            )
+        ], []
+    artifact_head = _verdict_head(anchored[-1].split(':', 1)[1])
+    cert_head = _verdict_head(_field(cert_body, 'verdict'))
+    violations: list[Violation] = []
+    warnings: list[str] = []
+    if artifact_head != cert_head:
+        violations.append(
+            Violation(
+                where,
+                f'artifact verdict token {artifact_head!r} disagrees with the recorded Verdict '
+                f'{cert_head!r} — the saved pass is the record; re-run or re-record.',
+            )
+        )
+    recorded_hash = _field(artifact_text, 'spec-hash')
+    if recorded_hash:
+        first = recorded_hash.split()[0].strip('`').lower() if recorded_hash.split() else ''
+        if first != spec_hash(spec_path):
+            warnings.append(
+                'WARN: the artifact was certified against an earlier revision of this spec '
+                '(Spec-hash mismatch) — re-run the pass on the current spec, or accept knowingly '
+                '(B2).'
+            )
+    return violations, warnings
+
+
 def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]:
     """B1: a blind pre-mortem certification (a verdict + a reviewer) is recorded.
 
@@ -838,10 +1078,7 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]
             )
         )
     raw = _field(cert_body, 'verdict')
-    leading = re.match(
-        r'\s*([A-Za-z][A-Za-z-]*)', raw
-    )  # the bare verdict token, hyphens kept whole
-    head = leading.group(1).upper() if leading else ''
+    head = _verdict_head(raw)  # the bare verdict token, hyphens kept whole
     if head == 'CERTIFIED':
         pass
     elif head == 'CONDITIONAL-CERTIFY':

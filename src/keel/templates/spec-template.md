@@ -5,6 +5,12 @@
 - **Audience:** <who/what reads this>
 - **Output artifact(s):** <paths>
 
+*Optional header field for a declared non-series round: `- **Phases:** Decide+Specify
+(Decompose: skipped)` — when Decompose is explicitly named as skipped, `check-ready` (A4) relaxes
+the PR↔section manifest requirement to absent-ok. A manifest that IS present is still fully
+checked, everything else in Part A applies regardless, and the declaration is content the
+pre-mortem can challenge — not an escape hatch (ADR-0014).*
+
 ## Context
 
 Why this work, and what it builds on (link the relevant ADRs).
@@ -105,6 +111,10 @@ one section. A many-to-one or uncovered section is a DoR failure.*
 
 Concrete, checkable conditions for the whole spec (beyond per-section criteria).
 
+- Generated / mirrored / snapshot artifacts downstream of touched surfaces
+  (consumer-reference mirrors, golden fixtures, lockfiles), each with its freshness gate —
+  or the word "none": <enumerate them here; the pre-mortem challenges this declaration>
+
 *Release-notes-in-wave: any section that adds public surface or changes behaviour carries its
 CHANGELOG entry (and a migration-guide section, if consumer-facing) in the SAME wave — release-notes
 completeness is a per-wave exit condition, not a terminal-audit cleanup; a consistency gate (e.g. a
@@ -129,11 +139,16 @@ acceptance criterion and carries no anchors.)*
 
 *The externalized correctness pass (`pre-mortem-prompt.md`), certified by a fresh
 reviewer who did NOT author this spec. `keel check-ready` does not pass until the
-verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not Ready.*
+verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not Ready.
+Save the pass's returned output to the sibling `<spec-stem>.premortem.md` (header: spec path,
+date, reviewer, `Spec-hash:` from `keel spec-hash`) and name it below — `check-ready` B2 verifies
+a named artifact's existence, verdict agreement, and spec-hash currency. B2 raises the cost of
+forging a certification; it does not prove the pass was blind — that residual trust stays named.*
 
 - **Reviewer:**
 - **Verdict:** not yet certified
 - **Operator:** <required only when the Verdict is CONDITIONAL-CERTIFY — the named owner who accepts "ready modulo a named fix"; check-ready then passes with a WARN (B1)>
+- **Certification artifact:**
 - **Date:**
 - **Reviewed against:** <external dependency SHAs/versions reasoned against, if any>
 - **Post-fold coherence:**
@@ -143,7 +158,9 @@ verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not 
 
 *Required when the certification claims a non-trivial fold (R1); a clean certify dozes: one row per folded finding so the post-fold delta is
 reviewable. `check-ready` (A12) holds each `artifact:line` to a resolving anchor — it verifies the
-fold was recorded against a real line, not that it is correct (that is the reviewer's job). Leave the
+fold was recorded against a real line, not that it is correct (that is the reviewer's job). A row's
+anchor MAY carry a backticked snippet (`` `path:line` `snippet` ``): A12 then verifies the snippet
+matches that line, so an in-range edit that moves the anchored content no longer decays silently. Leave the
 header only (no data rows) and A12 dozes. The ledger must be the FIRST table under this `### Fold ledger`
 heading — A12 reads only the first contiguous table, so a round-history / disposition table belongs in
 its own section, not after the ledger here.*
@@ -158,3 +175,5 @@ per-section acceptance criteria, the concept→module map, and the PR↔section
 manifest are all required fields. The one field NOT satisfied by construction is the
 pre-mortem certification — a non-author reviewer must sign it, which is the point
 (ADR-0002).*
+
+<!-- keel kit 0.12.0 -->

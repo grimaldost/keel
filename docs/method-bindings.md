@@ -1,0 +1,35 @@
+# Method bindings — keel (keel-on-keel)
+
+keel applies its own method to itself; this sheet binds each slot to the concrete mechanism this
+repository actually uses. It is also the worked example the kit's `method-bindings.md` template
+asks every consumer to fill — a real one, not the fictional `acme-ledger`.
+
+## Portability slots
+
+| Slot (what it must provide) | keel's binding |
+|---|---|
+| **ADR home** — a numbered decision log | `docs/adr/` (ADR-0001…, one file per decision) |
+| **Spec format** — numberable sections, acceptance criteria | `docs/design/<date>-<name>-spec.md` from `spec-template.md`. Honest note: `docs/design/` is maintainer-local and not published (ADR-0012) — the public record of each round is the CHANGELOG entry, the ADRs, and the tests it lands |
+| **Guardrails + gate commands** — deterministic pass/fail | `uv run ruff format --check .` · `uv run ruff check .` · `uv run ty check src` · `uv run pytest` (CONTRIBUTING.md; CI runs the same) |
+| **Review checklist** — blocking | the starter `src/keel/templates/review-checklist.md`, applied as-is |
+| **Reflection sink** — feeds the next round | `docs/feedback/` (maintainer-local, ADR-0012) + `src/keel/templates/reflection-triage.md`; triage docs open `# Triage —` |
+
+## Upgrade bindings
+
+| Upgrade | keel's binding |
+|---|---|
+| **DoR gate** | `keel check-ready` on the release spec (Part A in the author loop via `--structure-only`, full gate before decompose) |
+| **Pre-mortem** | the bundled `pre-mortem-review` agent, blind, arc sized per the doctrine's round economy; artifact saved as `<spec-stem>.premortem.md` (B2) |
+| **Wave budget** | not bound — release waves run in-session (manual-checklist mode); no engine, no per-PR cost table |
+| **Edit-time invariant hook** | not bound — the drift guard and the version-consistency test hold the invariants at gate time instead |
+
+## Orchestrator
+
+| | keel |
+|---|---|
+| Series runner | in-session manual-checklist mode: one commit per spec section, all four gates after each |
+| Single-unit discipline | red→green per section (a failing test precedes each gate-behavior change) |
+| Cross-series memory | `docs/feedback/` reports → periodic triage → promotions into templates/gates/ADRs (CONTRIBUTING.md's loop) |
+
+*Two slots are consciously unbound (wave budget, edit-time hook) — named, not faked, per the
+subset-of-phases doctrine.*

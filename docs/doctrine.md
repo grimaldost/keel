@@ -140,8 +140,14 @@ These operating notes carry sharpening 5 into practice:
   verification) and a SERIES pass (execution mechanics, prompt-internal contradictions, staging×gate
   interactions — and it attacks the DESIGN pass's folds). The SERIES pass carries its own first-class
   checklist (`pre-mortem-prompt.md`): base-branch content reality, per-PR gate × contract-test
-  interactions, cross-prompt contract drift. One pass suffices only when the wave is docs-only /
-  zero-behaviour-change AND the first pass is CERT-clean AND no executable gate changes.
+  interactions, cross-prompt contract drift. **The round economy** (ADR-0014, field-calibrated):
+  run the full two-round arc — fresh pass → fold → re-gate under the rising bar — when round 1
+  found a BLOCKER, or the spec touches an irreversible or shared-contract surface, or the spec set
+  is fresh-drafted from an adjudicated catalog/triage. A single pass with executor-verified folds
+  suffices for a LOW-stakes, reversible round with no cross-wave surface; a single **targeted
+  confirmatory pass** — scoped to the areas an upstream merge could have invalidated — re-checks an
+  already-certified spec after a dependency lands. Round 2's value is *checking*, not guaranteeing
+  a hit: a zero-yield round 2 on a re-grounded fold is the system working.
 - **Verification convergence.** Hardened verification must terminate: a pass STOPS when it surfaces
   zero new BLOCKER/MAJOR findings, and a `CONDITIONAL-CERTIFY` (ready modulo a named ≤N-line fix)
   avoids forcing a full extra round (`pre-mortem-prompt.md`). On a re-review the **bar rises**: at
@@ -151,7 +157,9 @@ These operating notes carry sharpening 5 into practice:
   so a consciously-accepted spec is not blocked forever. Unbounded verification is the cost centre the
   spine would otherwise create. For an eval/experiment spec, a feasibility check — can the empirical
   record support the headline being measured at all? — runs FIRST and can short-circuit the whole
-  review, the cheapest convergence there is (0.8.0).
+  review, the cheapest convergence there is (0.8.0). And the final pass always re-reads the
+  *folded* spec: fold edits move lines and can introduce their own errors — which also makes the
+  saved artifact's spec-hash (B2) match the spec that ships.
 - **Cost-of-defect (why the left-shift pays).** One program's observational retro — two design-time
   catches, no counterfactual arm; maintainer-local corpus, see `docs/evidence.md` — priced a
   correctness defect caught late at roughly 30× its design-time cost (~$347, 41% of one $853

@@ -5,6 +5,10 @@ description: Apply the keel method — the author's externalized development met
 
 # Apply the method
 
+This skill ships with keel 0.12.0 — authoritative doctrine is the **installed** keel's
+`docs/doctrine.md`; if this copy's version lags `keel --version`, your plugin cache is stale
+(reinstall) and this text may trail the substance it routes to.
+
 The method externalizes discipline out of an agent's in-session judgment into
 durable artifacts (ADRs, numbered spec sections, the PR DAG) and deterministic
 machines (gates, hooks, the orchestrator). Full thesis and the 8 phases:

@@ -57,6 +57,11 @@ MARKERS = (
     'side channel',  # 0.10.0 §1: measured-unit capability audit (no back channel to ground truth)
     'enforcement mechanism',  # 0.10.0 §1: each isolation invariant names a buildable mechanism
     'newly-introduced',  # 0.10.0 §2: re-cert hunts the fold's own newly-introduced errors
+    'resolution audit',  # 0.12.0 §2: re-gate posture (round >=2 audits prior findings first)
+    'cleared:',  # 0.12.0 §2: verified-correct claims as confirmations (colon: bare word pre-exists)
+    'conditions:',  # 0.12.0 §2: CONDITIONAL-CERTIFY carries a structured conditions list
+    'blast_radius',  # 0.12.0 §2: shared/global-config fixes state their spread in-schema
+    'decomposition completeness',  # 0.12.0 §6: every asserted property is built by a named PR
 )
 
 
@@ -69,6 +74,9 @@ SHARED_CLAUSES = (
     'a grep of the ground truth is both a defeat and a side channel',
     "the SECOND pass attacks the FIRST pass's folds",
     'a store the measured call recomputes live',
+    "recording the `## Pre-mortem certification` block is the caller's step",
+    'so a cached or stale copy self-announces on every verdict it returns',
+    'a wave that plans no regeneration can still leave a mirror stale',
 )
 
 
@@ -107,4 +115,4 @@ def test_agent_and_prompt_share_the_contract_markers():
 def test_markers_tuple_length_is_pinned():
     # A marker added to the files but dropped from the guard (or vice-versa) is caught here:
     # the count is the single source of truth for "how many directives are pinned".
-    assert len(MARKERS) == 28
+    assert len(MARKERS) == 33

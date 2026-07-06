@@ -2,7 +2,7 @@
 
 import pytest
 
-from keel.check_ready import check_spec_ready
+from keel.check_ready import check_spec_ready, spec_hash
 
 # A well-formed, pre-mortem-certified spec in the spec-template.md shape.
 READY_SPEC = """# Spec — widget
@@ -207,11 +207,13 @@ def test_conditional_certify_without_operator_fails_b1(tmp_path):
     assert any('operator' in v.message.lower() for v in result.violations)
 
 
-def test_clean_certified_emits_no_warning_b1(tmp_path):
-    # §2 / T1b: a plain CERTIFIED is widen-only — passes with NO warning (no WARN line).
+def test_clean_certified_emits_only_the_b2_adoption_warn(tmp_path):
+    # 0.12.0 §1: a plain CERTIFIED with no artifact reference passes; the single delta vs 0.11.1
+    # is the B2 adoption WARN (verify-when-present nudge) — no other warning.
     result = check_spec_ready(_write(tmp_path, READY_SPEC))
     assert result.passed
-    assert result.warnings == ()
+    assert len(result.warnings) == 1
+    assert 'artifact' in result.warnings[0].lower()
 
 
 def test_b1_error_states_bare_token_contract(tmp_path):
@@ -543,6 +545,25 @@ def test_no_fold_ledger_dozes_a12(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
+def test_fold_ledger_snippet_matches_passes_a12(tmp_path):
+    # 0.12.0 §8: an optional backticked snippet after the anchor is verified against the line.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` `line two` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_snippet_mismatch_fails_a12(tmp_path):
+    # 0.12.0 §8: in-range drift becomes detectable — a stale snippet fires, a bare anchor cannot.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` `moved text` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('snippet' in v.message.lower() for v in result.violations)
+
+
 def test_anchor_range_non_code_file_passes_a11(tmp_path):
     # A11's bracket-balance is Python-only; a range into prose with a stray { must not fire.
     (tmp_path / '.git').mkdir()
@@ -698,3 +719,366 @@ def test_concept_to_be_created_error_teaches_body_mention_a5(tmp_path):
     assert not result.passed
     nv = [v for v in result.violations if 'ghost.py' in v.message]
     assert nv and 'body' in nv[0].message.lower()
+
+
+# --- §11 (0.12.0): the Phases header convention (A4 relaxation) --------------
+
+_NO_MANIFEST = READY_SPEC.replace(
+    """## PR ↔ section manifest
+
+| PR | Implements section | One concern? |
+|---|---|---|
+| PR01 | §1 | yes |
+| PR02 | §2 | yes |
+
+""",
+    '',
+)
+
+
+def test_phases_decompose_skipped_relaxes_manifest_a4(tmp_path):
+    spec = _NO_MANIFEST.replace(
+        '- **Status:** ready (DoR passed)',
+        '- **Status:** ready (DoR passed)\n- **Phases:** Decide+Specify (Decompose: skipped)',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_missing_manifest_without_declaration_still_fails_a4(tmp_path):
+    result = check_spec_ready(_write(tmp_path, _NO_MANIFEST))
+    assert not result.passed
+    assert any('manifest' in v.message.lower() for v in result.violations)
+
+
+def test_phases_without_skip_does_not_relax_a4(tmp_path):
+    spec = _NO_MANIFEST.replace(
+        '- **Status:** ready (DoR passed)',
+        '- **Status:** ready (DoR passed)\n- **Phases:** all 8',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('manifest' in v.message.lower() for v in result.violations)
+
+
+def test_declared_skip_with_present_manifest_still_checked_a4(tmp_path):
+    # The declaration is not a blanket escape: a manifest that IS present gets the full bijection.
+    spec = READY_SPEC.replace(
+        '- **Status:** ready (DoR passed)',
+        '- **Status:** ready (DoR passed)\n- **Phases:** Decide+Specify (Decompose: skipped)',
+    ).replace('| PR02 | §2 | yes |\n', '')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('§2' in v.message and 'cover' in v.message.lower() for v in result.violations)
+
+
+# --- §10 (0.12.0): Status x Verdict currency ---------------------------------
+
+
+def test_status_draft_with_certified_warns(tmp_path):
+    spec = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed
+    assert any('status' in w.lower() and 'draft' in w.lower() for w in result.warnings)
+
+
+def test_status_ready_no_currency_warn(tmp_path):
+    result = check_spec_ready(_write(tmp_path, READY_SPEC))
+    assert not any('draft' in w.lower() for w in result.warnings)
+
+
+def test_no_status_field_no_currency_warn(tmp_path):
+    # FM-19: pre-template specs (and the CLI fixtures) carry no Status header at all.
+    spec = READY_SPEC.replace('- **Status:** ready (DoR passed)\n', '')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed
+    assert not any('draft' in w.lower() for w in result.warnings)
+
+
+def test_status_currency_warn_not_in_structure_only(tmp_path):
+    spec = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft')
+    result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
+    assert not any('draft' in w.lower() for w in result.warnings)
+
+
+def test_uncertified_spec_no_currency_warn(tmp_path):
+    spec = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft').replace(
+        '- **Verdict:** CERTIFIED', '- **Verdict:** not yet certified'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert not any('draft' in w.lower() for w in result.warnings)
+
+
+# --- §4 (0.12.0): unique-basename resolution --------------------------------
+
+
+def test_anchor_unique_basename_gets_did_you_mean_a6(tmp_path):
+    (tmp_path / '.git').mkdir()
+    pkg = tmp_path / 'src' / 'pkg'
+    pkg.mkdir(parents=True)
+    (pkg / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    hinted = [v for v in result.violations if 'mod.py' in v.message]
+    assert hinted and 'did you mean' in hinted[0].message
+    assert 'src/pkg/mod.py:2' in hinted[0].message
+
+
+def test_anchor_ambiguous_basename_no_hint_a6(tmp_path):
+    (tmp_path / '.git').mkdir()
+    for sub in ('a', 'b'):
+        d = tmp_path / sub
+        d.mkdir()
+        (d / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    hinted = [v for v in result.violations if 'mod.py' in v.message]
+    assert hinted and 'did you mean' not in hinted[0].message
+
+
+def test_anchor_vendor_tree_excluded_from_uniqueness_a6(tmp_path):
+    # FM-12: a .venv copy must not defeat exactly-one; the hint points at the real file.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    venv = tmp_path / '.venv' / 'lib'
+    venv.mkdir(parents=True)
+    (venv / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    hinted = [v for v in result.violations if 'did you mean' in v.message]
+    assert hinted and 'src/mod.py:2' in hinted[0].message
+
+
+def test_fold_ledger_bare_basename_gets_did_you_mean_a12(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    hinted = [v for v in result.violations if 'did you mean' in v.message]
+    assert hinted, [v.message for v in result.violations]
+
+
+def test_to_be_created_basename_claim_passes_a5(tmp_path):
+    # A body naming the file by its unique basename claims the map's full path (0.12.0 §4).
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '| widget | `src/widget.py` (to be created) |',
+        '| widget | `src/pkg/server.py` (to be created) |',
+    ).replace('Introduce `src/widget.py`.', 'Introduce `server.py` as the entry module.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_to_be_created_ambiguous_basename_still_fails_a5(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '| widget | `src/widget.py` (to be created) |',
+        '| widget | `a/server.py` (to be created) |\n| gadget | `b/server.py` (to be created) |',
+    ).replace('Introduce `src/widget.py`.', 'Introduce `server.py` as the entry module.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert sum('server.py' in v.message for v in result.violations) == 2
+
+
+def test_to_be_created_basename_substring_does_not_claim_a5(tmp_path):
+    # `server.py` inside `myserver.py` is not a claim of server.py.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '| widget | `src/widget.py` (to be created) |',
+        '| widget | `src/pkg/server.py` (to be created) |',
+    ).replace('Introduce `src/widget.py`.', 'Introduce `myserver.py` here.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('server.py' in v.message for v in result.violations)
+
+
+# --- B2: certification artifact + canonical spec hash (0.12.0 §1) ------------
+
+
+def _with_artifact_field(ref: str) -> str:
+    return READY_SPEC.replace(
+        '- **Reviewer:** review-panel (non-author)',
+        f'- **Reviewer:** review-panel (non-author)\n- **Certification artifact:** {ref}',
+    )
+
+
+def _artifact_text(verdict_line: str, hash_value: str = '') -> str:
+    hash_line = f'- **Spec-hash:** {hash_value}\n' if hash_value else ''
+    return (
+        '# Pre-mortem artifact — widget\n\n'
+        '- **Spec:** spec.md\n'
+        '- **Reviewer:** review-panel (non-author)\n'
+        f'{hash_line}\n'
+        'Findings prose here.\n\n'
+        f'{verdict_line}\n'
+    )
+
+
+def test_absent_artifact_field_warns_b2(tmp_path):
+    result = check_spec_ready(_write(tmp_path, READY_SPEC))
+    assert result.passed
+    assert any('artifact' in w.lower() for w in result.warnings)
+
+
+def test_empty_artifact_field_is_absent_b2(tmp_path):
+    # FM-22: the template ships the field empty-valued; empty ≡ absent (WARN, no violation).
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('').rstrip() + '\n'))
+    assert result.passed, [v.message for v in result.violations]
+    assert any('artifact' in w.lower() for w in result.warnings)
+
+
+def test_artifact_missing_file_fails_b2(tmp_path):
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('ghost.premortem.md')))
+    assert not result.passed
+    assert any('ghost.premortem.md' in v.message for v in result.violations)
+
+
+def test_artifact_without_verdict_line_fails_b2(tmp_path):
+    (tmp_path / 'premortem.md').write_text('# artifact\n\nno verdict here\n', encoding='utf-8')
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('premortem.md')))
+    assert not result.passed
+    assert any('PREMORTEM-VERDICT' in v.message for v in result.violations)
+
+
+def test_artifact_verdict_mismatch_fails_b2(tmp_path):
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: NEEDS-REVISION'), encoding='utf-8'
+    )
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('premortem.md')))
+    assert not result.passed
+    assert any('disagrees' in v.message.lower() for v in result.violations)
+
+
+def test_artifact_matching_hash_and_verdict_passes_clean_b2(tmp_path):
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CERTIFIED', spec_hash(spec)), encoding='utf-8'
+    )
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]
+    assert result.warnings == ()
+
+
+def test_artifact_hash_mismatch_warns_b2(tmp_path):
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CERTIFIED', 'deadbeef' * 8), encoding='utf-8'
+    )
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]
+    assert any('earlier revision' in w.lower() for w in result.warnings)
+
+
+def test_artifact_identity_suffixed_verdict_passes_b2(tmp_path):
+    # FM-16 seventh case: §2's identity suffix after the token is inert trailing text.
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CERTIFIED — pre-mortem-review@0.12.0', spec_hash(spec)),
+        encoding='utf-8',
+    )
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]
+    assert result.warnings == ()
+
+
+def test_artifact_column_zero_schema_quote_does_not_shadow_b2(tmp_path):
+    # FM-8: B2 reads the LAST line-anchored verdict line; a column-0 schema quote above it is inert.
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    body = _artifact_text('PREMORTEM-VERDICT: CERTIFIED', spec_hash(spec)).replace(
+        'Findings prose here.',
+        'Findings prose here.\nPREMORTEM-VERDICT: <CERTIFIED | CONDITIONAL-CERTIFY | '
+        'NEEDS-REVISION> is the contract line.',
+    )
+    (tmp_path / 'premortem.md').write_text(body, encoding='utf-8')
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_kit_stamp_minor_skew_warns_even_structure_only(tmp_path):
+    # 0.12.0 §9: a spec stamped from an older kit self-announces — and the author loop
+    # (--structure-only) is where skew bites first, so the WARN reaches it.
+    spec = READY_SPEC + '\n<!-- keel kit 0.10.0 -->\n'
+    result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
+    assert result.passed, [v.message for v in result.violations]
+    assert any('kit' in w.lower() for w in result.warnings)
+
+
+def test_kit_stamp_current_version_is_silent(tmp_path):
+    from keel import __version__
+
+    spec = READY_SPEC + f'\n<!-- keel kit {__version__} -->\n'
+    result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
+    assert result.passed
+    assert not any('kit' in w.lower() for w in result.warnings)
+
+
+def test_no_kit_stamp_is_silent(tmp_path):
+    # Every pre-0.12.0 spec lacks the stamp; absence stays quiet (verify-when-present).
+    result = check_spec_ready(_write(tmp_path, READY_SPEC), structure_only=True)
+    assert result.passed
+    assert result.warnings == ()
+
+
+def test_structure_only_skips_b2(tmp_path):
+    result = check_spec_ready(
+        _write(tmp_path, _with_artifact_field('ghost.premortem.md')), structure_only=True
+    )
+    assert result.passed, [v.message for v in result.violations]
+    assert result.warnings == ()
+
+
+def test_spec_hash_stable_across_cert_block_growth(tmp_path):
+    # FM-1: appending ledger rows CHANGES the cert section's line count; the hash must not move.
+    before = spec_hash(_write(tmp_path, READY_SPEC))
+    grown = READY_SPEC + (
+        '\n### Fold ledger\n\n'
+        '| Finding | Target | artifact:line | Confirmed |\n'
+        '|---|---|---|---|\n'
+        '| FM-1 | §1 | `spec.md:1` | yes |\n'
+        '| FM-2 | §2 | `spec.md:1` | yes |\n'
+    )
+    after = spec_hash(_write(tmp_path, grown))
+    assert before == after
+
+
+def test_spec_hash_changes_on_body_edit(tmp_path):
+    before = spec_hash(_write(tmp_path, READY_SPEC))
+    after = spec_hash(_write(tmp_path, READY_SPEC.replace('Introduce', 'Rework')))
+    assert before != after
+
+
+def test_spec_hash_indifferent_to_crlf(tmp_path):
+    lf = spec_hash(_write(tmp_path, READY_SPEC))
+    crlf_spec = tmp_path / 'crlf.md'
+    crlf_spec.write_bytes(READY_SPEC.replace('\n', '\r\n').encode('utf-8'))
+    assert spec_hash(crlf_spec) == lf
+
+
+def test_spec_hash_fenced_cert_heading_does_not_shift_span(tmp_path):
+    # A fenced example `## Pre-mortem certification` heading must not truncate the hashed span.
+    fenced = READY_SPEC.replace(
+        'Introduce `src/widget.py`.',
+        'Introduce `src/widget.py`.\n\n```\n## Pre-mortem certification\n```\n',
+    )
+    with_fence = spec_hash(_write(tmp_path, fenced))
+    without = spec_hash(_write(tmp_path, READY_SPEC))
+    assert with_fence != without  # the fence lines themselves are hashed (raw), but…
+    # …the real cert section is still excluded: editing ITS content moves neither hash.
+    grown = fenced.replace(
+        '- **Failure modes considered & folded in:** none outstanding',
+        '- **Failure modes considered & folded in:** none outstanding\n- extra cert line',
+    )
+    assert spec_hash(_write(tmp_path, grown)) == with_fence
