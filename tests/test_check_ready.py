@@ -545,6 +545,25 @@ def test_no_fold_ledger_dozes_a12(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
+def test_fold_ledger_snippet_matches_passes_a12(tmp_path):
+    # 0.12.0 §8: an optional backticked snippet after the anchor is verified against the line.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` `line two` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_snippet_mismatch_fails_a12(tmp_path):
+    # 0.12.0 §8: in-range drift becomes detectable — a stale snippet fires, a bare anchor cannot.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` `moved text` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('snippet' in v.message.lower() for v in result.violations)
+
+
 def test_anchor_range_non_code_file_passes_a11(tmp_path):
     # A11's bracket-balance is Python-only; a range into prose with a stray { must not fire.
     (tmp_path / '.git').mkdir()

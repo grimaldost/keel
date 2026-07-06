@@ -730,20 +730,37 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
                 )
             )
             continue
-        anchor = re.sub(r'[`*]', '', cells[2]).strip()
-        match = re.match(r'(\S*[./]\S*):(\d+)$', anchor)
+        cell = re.sub(r'\*', '', cells[2]).strip()
+        # Anchor, optionally followed by a backticked snippet (0.12.0 §8): `path:line` `snippet`.
+        # The snippet makes in-range drift detectable — a bare line number survives an edit that
+        # moves content within range; the snippet does not.
+        match = re.match(r'`?([^`\s]*[./][^`\s]*):(\d+)`?(?:[ \t]+`([^`]+)`)?$', cell)
         if match is None:
             violations.append(
                 Violation(
                     where,
                     'fold-ledger row has no resolving `artifact:line` confirmation '
-                    '(anchor each row to `path:line`, e.g. `docs/design/your-spec.md:142`).',
+                    '(anchor each row to `path:line`, e.g. `docs/design/your-spec.md:142`; an '
+                    'optional backticked snippet after it is verified against that line).',
                 )
             )
             continue
-        _, violation = _resolve_anchor(base, match.group(1), int(match.group(2)), where)
+        line_no = int(match.group(2))
+        lines, violation = _resolve_anchor(base, match.group(1), line_no, where)
         if violation is not None:
             violations.append(violation)
+            continue
+        snippet = match.group(3)
+        if snippet is not None and lines is not None:
+            actual = ' '.join(lines[line_no - 1].split())
+            if ' '.join(snippet.split()) not in actual:
+                violations.append(
+                    Violation(
+                        where,
+                        f'fold-ledger snippet {snippet!r} does not match line {line_no} '
+                        '(in-range drift: the anchored content moved — re-anchor the row).',
+                    )
+                )
     return violations
 
 

@@ -152,7 +152,9 @@ forging a certification; it does not prove the pass was blind — that residual 
 
 *Required when the certification claims a non-trivial fold (R1); a clean certify dozes: one row per folded finding so the post-fold delta is
 reviewable. `check-ready` (A12) holds each `artifact:line` to a resolving anchor — it verifies the
-fold was recorded against a real line, not that it is correct (that is the reviewer's job). Leave the
+fold was recorded against a real line, not that it is correct (that is the reviewer's job). A row's
+anchor MAY carry a backticked snippet (`` `path:line` `snippet` ``): A12 then verifies the snippet
+matches that line, so an in-range edit that moves the anchored content no longer decays silently. Leave the
 header only (no data rows) and A12 dozes. The ledger must be the FIRST table under this `### Fold ledger`
 heading — A12 reads only the first contiguous table, so a round-history / disposition table belongs in
 its own section, not after the ledger here.*
