@@ -721,6 +721,44 @@ def test_concept_to_be_created_error_teaches_body_mention_a5(tmp_path):
     assert nv and 'body' in nv[0].message.lower()
 
 
+# --- §10 (0.12.0): Status x Verdict currency ---------------------------------
+
+
+def test_status_draft_with_certified_warns(tmp_path):
+    spec = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed
+    assert any('status' in w.lower() and 'draft' in w.lower() for w in result.warnings)
+
+
+def test_status_ready_no_currency_warn(tmp_path):
+    result = check_spec_ready(_write(tmp_path, READY_SPEC))
+    assert not any('draft' in w.lower() for w in result.warnings)
+
+
+def test_no_status_field_no_currency_warn(tmp_path):
+    # FM-19: pre-template specs (and the CLI fixtures) carry no Status header at all.
+    spec = READY_SPEC.replace('- **Status:** ready (DoR passed)\n', '')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed
+    assert not any('draft' in w.lower() for w in result.warnings)
+
+
+def test_status_currency_warn_not_in_structure_only(tmp_path):
+    spec = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft')
+    result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
+    assert not any('draft' in w.lower() for w in result.warnings)
+
+
+def test_uncertified_spec_no_currency_warn(tmp_path):
+    spec = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft').replace(
+        '- **Verdict:** CERTIFIED', '- **Verdict:** not yet certified'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert not any('draft' in w.lower() for w in result.warnings)
+
+
 # --- §4 (0.12.0): unique-basename resolution --------------------------------
 
 

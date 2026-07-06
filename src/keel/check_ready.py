@@ -235,6 +235,9 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
             artifact_violations, artifact_warnings = _check_certification_artifact(cert, spec_path)
             violations += artifact_violations
             warnings += artifact_warnings
+        first_heading = re.search(r'^##[ \t]+', text, re.MULTILINE)
+        header = text[: first_heading.start()] if first_heading else text
+        warnings += _status_currency_warning(header, cert)
 
     return GateResult(passed=not violations, violations=tuple(violations), warnings=tuple(warnings))
 
@@ -927,6 +930,26 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
                     )
                 )
     return violations
+
+
+def _status_currency_warning(header: str, cert_body: str | None) -> list[str]:
+    """§10 (0.12.0): a recorded certification while the header still says draft is a currency slip.
+
+    WARN, not violation — the class recurred on release specs but it is a stale coordinate, not a
+    forgery. Silent when the header carries no Status field at all (pre-template specs), when the
+    Status has moved past draft, or when nothing is certified yet.
+    """
+    if cert_body is None:
+        return []
+    status = _field(header, 'status')
+    if not status or status.split()[0].lower() != 'draft':
+        return []
+    if _verdict_head(_field(cert_body, 'verdict')) not in ('CERTIFIED', 'CONDITIONAL-CERTIFY'):
+        return []
+    return [
+        "WARN: the header Status still says 'draft' though a certification is recorded — keep "
+        'the coordinate system current (update the Status field).'
+    ]
 
 
 _VERDICT_TOKEN_RE = re.compile(r'\s*([A-Za-z][A-Za-z-]*)')
