@@ -61,6 +61,7 @@ MARKERS = (
     'cleared:',  # 0.12.0 §2: verified-correct claims recorded as confirmations (colon: bare word pre-exists)
     'conditions:',  # 0.12.0 §2: CONDITIONAL-CERTIFY carries a structured conditions list
     'blast_radius',  # 0.12.0 §2: shared/global-config fixes state their spread in-schema
+    'decomposition completeness',  # 0.12.0 §6: every asserted property is built by a named PR
 )
 
 
@@ -114,4 +115,4 @@ def test_agent_and_prompt_share_the_contract_markers():
 def test_markers_tuple_length_is_pinned():
     # A marker added to the files but dropped from the guard (or vice-versa) is caught here:
     # the count is the single source of truth for "how many directives are pinned".
-    assert len(MARKERS) == 32
+    assert len(MARKERS) == 33
