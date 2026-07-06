@@ -13,7 +13,12 @@ compounds. A series is not "done reflecting" until recurring traps are promoted.
 
 1. **Read** all reflections from the series.
 2. **Cluster** them — group by underlying cause, not by symptom.
-3. For each cluster that is **recurring or high-cost**, **promote** it to exactly
+3. **Ground each candidate promotion against current source before writing it** — verify the
+   mechanism it names is actually absent (or present) and cite the check. A promotion naming a
+   mechanism that already exists collapses to already-shipped or a docs gap; catching it here
+   keeps a no-op out of the backlog (a CHANGELOG window cannot see work shipped releases ago —
+   only the source can).
+4. For each grounded cluster that is **recurring or high-cost**, **promote** it to exactly
    one external destination:
    - a new **review-checklist item** (`review-checklist.md`) — for "a reviewer
      should have caught this";
@@ -21,8 +26,10 @@ compounds. A series is not "done reflecting" until recurring traps are promoted.
      deterministically";
    - a **spec-template change** (`spec-template.md`) — for "the spec should have
      required this up front" (often a new DoR check).
-4. **Record** what was promoted and where (one line per promotion), citing the
-   round/PR that motivated it.
+5. **Record** what was promoted and where (one line per promotion), citing the
+   round/PR that motivated it — and emit the triage document with an H1 beginning
+   `# Triage —`: the feedback-loop tooling that indexes such directories can detect
+   a triage doc by that heading (the filename is not a signal there).
 
 ## What to promote vs. decline (feedback flows up)
 
