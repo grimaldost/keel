@@ -67,7 +67,7 @@ partial, stale, moved, or wrong-shaped. Attack each:
 
 Mechanical consumers (DC2) — the spec models the logical design, but mechanical processes consume
 the artifact too:
-- Staged-files x in-place-gates: for every file the FIRE step STAGES into the worktree, enumerate
+- Staged-files x in-place-gates: for every file the orchestrator's file-staging step STAGES into the worktree, enumerate
   which in-place gates will SEE it (`mypy .`, `ruff .`, repo-wide greps, pytest collection) and
   simulate each interaction (excluded / walked-clean / must-relocate).
 - Diff-shape x lint: for any constraint on a diff's SHAPE (in-place / single-hunk / no-reorder),

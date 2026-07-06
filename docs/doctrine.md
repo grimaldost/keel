@@ -116,7 +116,7 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
    attested re-read (ADR-0004).
 5. **Ground the verification, model the mechanical consumers, verify the transformation.**
    Sharpening 4 grounds the *referent* and verifies the fold; sharpening 5 extends it one level out,
-   across the three axes the field showed dominate once Part A holds. **(DC1) Ground the
+   across the axes the field showed dominate once Part A holds. **(DC1) Ground the
    verification, not just the referent:** a claim the author "verified" is still wrong if the view
    was partial (exemplars, not the population), stale, moved (an external dep's SHA shifted), or
    wrong-shaped (a line-anchor blind to indented code) — and a verifier's own script gets the same
@@ -126,9 +126,12 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
    artifact with a per-change freshness gate is not deferrable to a later PR (each PR perturbing its
    source regenerates its slice, 0.8.0). **(DC3) Verify the
    transformation:** the fold/fix is an unverified, instance-scoped delta — a per-finding ledger and
-   class-not-instance scope close it. What is mechanizable ships as a gate (A11 anchor ranges, A12
-   fold-ledger anchors); the rest is a pre-mortem directive or routed out — ADR-0002's
-   form/correctness split and ADR-0004's grounding/fold, held one level up (ADR-0005).
+   class-not-instance scope close it. **(DC4-B) Standing cross-artifact consistency:** artifacts that
+   must AGREE — the design's named reviewer subset vs the executable mandated command, a generated
+   mirror vs the surface that feeds it, the CHANGELOG vs a wave's new public surface — are diffed, not
+   assumed (the prompt's intent-vs-executable item carries it). What is mechanizable ships as a gate
+   (A11 anchor ranges, A12 fold-ledger anchors); the rest is a pre-mortem directive or routed out —
+   ADR-0002's form/correctness split and ADR-0004's grounding/fold, held one level up (ADR-0005).
 
 These operating notes carry sharpening 5 into practice:
 
@@ -149,10 +152,12 @@ These operating notes carry sharpening 5 into practice:
   spine would otherwise create. For an eval/experiment spec, a feasibility check — can the empirical
   record support the headline being measured at all? — runs FIRST and can short-circuit the whole
   review, the cheapest convergence there is (0.8.0).
-- **Cost-of-defect (why the left-shift pays).** Field accounting prices a correctness defect caught
-  late at roughly 30× its design-time cost (~$347, 41% of one $853 program, vs ~$3 caught at design).
-  This is the quantified form of the §1 evidence-status note — the economic case for spending the
-  pre-mortem/gate budget up front.
+- **Cost-of-defect (why the left-shift pays).** One program's observational retro — two design-time
+  catches, no counterfactual arm; maintainer-local corpus, see `docs/evidence.md` — priced a
+  correctness defect caught late at roughly 30× its design-time cost (~$347, 41% of one $853
+  program, vs ~$3 caught at design). This is the quantified form of the §1 evidence-status note —
+  the economic case for spending the pre-mortem/gate budget up front — read with that single-program,
+  no-counterfactual caveat.
 - **Cross-artifact completeness & the pre-cut audit.** Per-wave gates verify each wave internally;
   whether artifacts that must AGREE actually do — the design's named reviewer-subset vs the
   executable command, a generated mirror vs the surface a later PR mutates, the cumulative CHANGELOG
@@ -241,8 +246,8 @@ own scope discipline to itself.
 
 ## 7. Portability checklist
 
-To run this method in a new project, fill these slots (SP2 provides a template
-for each):
+To run this method in a new project, fill these slots (the keel template kit —
+`src/keel/templates/`, emitted by `keel init` — provides one for each):
 
 - [ ] an ADR home (a `docs/adr/`-style log)
 - [ ] a spec format with numberable sections
@@ -250,7 +255,7 @@ for each):
 - [ ] a project-specific review checklist
 - [ ] a reflection sink that feeds the next round
 
-**Known gaps → SP3.** The top upgrade is a **Definition-of-Ready gate** (`keel
+**Known gaps → the upgrade set.** The top upgrade is a **Definition-of-Ready gate** (`keel
 check-ready`, shipped 0.2.0): it gates spec *well-formedness* deterministically and
 externalizes spec *correctness* to a required, blind pre-mortem certification — not a
 check "symmetric to" the Definition-of-Done (DoD has an executable oracle; DoR does

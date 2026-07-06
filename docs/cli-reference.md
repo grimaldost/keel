@@ -1,6 +1,8 @@
 # CLI reference
 
-Run via `uvx --from <repo> keel <command>` or, installed, `keel <command>`.
+Run via `uvx --from <repo> keel <command>` or, installed, `keel <command>` — or
+`python -m keel <command>` where an application-control policy blocks the
+console-script executable.
 
 | Command | Purpose | Exit codes | Status |
 |---|---|---|---|
