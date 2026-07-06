@@ -9,7 +9,7 @@ import typer
 from keel import __version__
 from keel.bindings import check_bindings
 from keel.budget_drift import check_budget_drift
-from keel.check_ready import check_spec_ready
+from keel.check_ready import check_spec_ready, spec_hash
 from keel.models import GateResult
 from keel.templates import copy_templates, stamp_spec
 
@@ -50,9 +50,11 @@ def _emit(
     except (NotImplementedError, FileNotFoundError) as exc:
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
+    # Warnings print on BOTH exit paths: they carry standing signals (operator-conditional B1,
+    # B2 artifact/hash, kit skew) and a failing spec must not hide them (0.12.0 §1).
+    for warning in result.warnings:
+        typer.echo(warning)
     if result.passed:
-        for warning in result.warnings:
-            typer.echo(warning)
         typer.echo('OK')
         raise typer.Exit(code=0)
     for violation in result.violations:
@@ -106,6 +108,17 @@ def check_ready_cmd(
 ) -> None:
     """Definition-of-Ready gate for a spec."""
     _emit(lambda: check_spec_ready(spec, structure_only=structure_only), hint=_spec_template_hint)
+
+
+@app.command('spec-hash')
+def spec_hash_cmd(spec: Path) -> None:
+    """Print the canonical certification hash of a spec (its certification section excluded)."""
+    try:
+        digest = spec_hash(spec)
+    except FileNotFoundError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2) from exc
+    typer.echo(digest)
 
 
 @app.command('bind-check')

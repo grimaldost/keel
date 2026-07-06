@@ -129,11 +129,16 @@ acceptance criterion and carries no anchors.)*
 
 *The externalized correctness pass (`pre-mortem-prompt.md`), certified by a fresh
 reviewer who did NOT author this spec. `keel check-ready` does not pass until the
-verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not Ready.*
+verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not Ready.
+Save the pass's returned output to the sibling `<spec-stem>.premortem.md` (header: spec path,
+date, reviewer, `Spec-hash:` from `keel spec-hash`) and name it below — `check-ready` B2 verifies
+a named artifact's existence, verdict agreement, and spec-hash currency. B2 raises the cost of
+forging a certification; it does not prove the pass was blind — that residual trust stays named.*
 
 - **Reviewer:**
 - **Verdict:** not yet certified
 - **Operator:** <required only when the Verdict is CONDITIONAL-CERTIFY — the named owner who accepts "ready modulo a named fix"; check-ready then passes with a WARN (B1)>
+- **Certification artifact:**
 - **Date:**
 - **Reviewed against:** <external dependency SHAs/versions reasoned against, if any>
 - **Post-fold coherence:**

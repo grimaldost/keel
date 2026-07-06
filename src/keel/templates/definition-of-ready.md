@@ -57,6 +57,7 @@ A11 each `path:lo-hi` range anchor: fail unless it closes (string/comment-aware)
 A12 when a `### Fold ledger` sub-table is present: fail unless each row's `artifact:line` confirmation anchor resolves
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
+B2 when the certification names a `Certification artifact:`: fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision") and when no artifact is named (adoption nudge)
 ```
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*
@@ -73,6 +74,10 @@ are stateless.
       block records `Verdict: CERTIFIED` — or `CONDITIONAL-CERTIFY` with a named `Operator:`
       (operator-accepted, ready modulo a named fix; `check-ready` passes with a WARN, not EXIT 1).
       *(`keel check-ready` enforces this — B1.)*
+- [ ] The pass's returned output is saved (`<spec-stem>.premortem.md`, with a `Spec-hash:` from
+      `keel spec-hash`) and named in the certification's `Certification artifact:` field.
+      *(`keel check-ready` verifies a named artifact — B2, verify-when-present: existence, verdict
+      agreement, hash currency; forgery cost, not blindness proof.)*
 - [ ] Every invariant the work touches is named in "Invariants touched", each with an ADR.
 - [ ] Every concept maps to a module in the concept→module map.
 - [ ] Every non-obvious design choice has an ADR (alternatives recorded).

@@ -7,6 +7,7 @@ console-script executable.
 | Command | Purpose | Exit codes | Status |
 |---|---|---|---|
 | `keel check-ready <spec> [--structure-only]` | Definition-of-Ready gate (Part A + pre-mortem cert); `--structure-only` runs Part A only, for the author loop | 0 pass, 1 fail, 2 not-runnable | **real** |
+| `keel spec-hash <spec>` | Print the canonical certification hash (the spec minus its certification section) — what a saved pre-mortem artifact records as `Spec-hash:` (B2) | 0 ok, 2 not-runnable | **real** |
 | `keel new-spec <target> [--force]` | Stamp `spec-template.md` to a new spec path (the author on-ramp) | 0 ok, 2 exists | **real** |
 | `keel init <target> [--force]` | Copy the full template kit into a project | 0 ok, 2 exists | **real** |
 | `keel bind-check <bindings>` | All method-binding slots filled | 0 / 1 / 2 | stub |

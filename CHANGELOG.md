@@ -2,7 +2,26 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
-## [0.11.1] - 2026-07-06
+## [0.12.0] - 2026-07-06
+
+The certification-artifact release: closes ADR-0013's deferred design calls (B2, the read-only
+reviewer's honesty contract, the A4 subset convention) and formalizes the round economy the
+0.11.0 field wave kept hand-rolling. Design register: ADR-0014. Spec gate arc: three blind
+pre-mortem rounds, 22 findings folded (1 BLOCKER — the certification hash as first designed was
+unstable under fold-ledger growth — caught before any code).
+
+### Added
+
+- **B2 — artifact-backed certification** (`check-ready`): a certification may name its saved
+  pre-mortem output (`Certification artifact:`); B2 then verifies the file exists, its last
+  line-anchored `PREMORTEM-VERDICT` token agrees with the recorded Verdict (leading-token parse —
+  an identity suffix is inert), and its `Spec-hash:` matches the current spec (mismatch = WARN
+  "certified against an earlier revision"; no artifact named = adoption WARN). New
+  `keel spec-hash` prints the canonical hash — sha256 of the spec with its certification
+  section's lines **removed** (not blanked), so the hash is invariant to certification-block
+  growth and CRLF/LF. Warnings now print on **both** CLI exit paths (a failing spec no longer
+  hides its WARNs). `keel-premortem.md` carries the save-the-artifact protocol; honest framing
+  everywhere: B2 raises forgery cost, it does not prove blindness (ADR-0002/ADR-0014).
 
 Docs-only patch (the panel-tail triage's docs lane; no gate-behavior change). Sub-threshold round
 per doctrine §6 — the 0.6.1 precedent.

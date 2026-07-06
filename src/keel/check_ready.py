@@ -5,6 +5,7 @@ certification is recorded (Part B / B1), so the gate never green-lights a spec o
 structure alone. See docs/design/2026-06-05-dor-gate-design.md and ADR-0002.
 """
 
+import hashlib
 import re
 from pathlib import Path
 
@@ -121,6 +122,55 @@ def _bad_anchor_platform(path: str) -> str | None:
     return None
 
 
+def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
+    """Read a spec as UTF-8 text, or raise the not-runnable FileNotFoundError contract."""
+    if not spec_path.is_file():
+        raise FileNotFoundError(
+            format_error(
+                what=f'Spec not found (or not a readable file): {spec_path}.',
+                why=f'{purpose} needs an existing spec FILE (a missing path or a '
+                'directory is not runnable).',
+                fix='Pass the path to a spec file written from spec-template.md.',
+            )
+        )
+    try:
+        return spec_path.read_text(encoding='utf-8')
+    except (UnicodeDecodeError, OSError) as exc:
+        raise FileNotFoundError(
+            format_error(
+                what=f'Spec is not readable UTF-8 text: {spec_path}.',
+                why=f'{purpose} reads the spec as UTF-8 and could not decode it ({exc}).',
+                fix='Save the spec as UTF-8 (the § glyph is the usual culprit on a cp1252 editor).',
+            )
+        ) from exc
+
+
+def spec_hash(spec_path: Path) -> str:
+    """B2's canonical certification hash: sha256 of the spec minus its certification section.
+
+    The `## Pre-mortem certification` section's lines (heading included, through the next `## `
+    heading or EOF) are REMOVED from the ``splitlines()`` sequence and the remainder re-joined
+    with newlines — not blanked: blanked lines still contribute newline bytes, so a growing fold
+    ledger would change the very hash its own recording is part of (ADR-0014). Removal plus
+    splitlines normalization also makes the hash indifferent to CRLF/LF. Fenced text is masked
+    only to LOCATE the section (a fenced example heading cannot shift the span); the hash is
+    computed over the raw lines.
+    """
+    raw = _read_spec_text(spec_path, purpose='spec-hash')
+    masked_lines = _mask_fenced(raw).splitlines()
+    raw_lines = raw.splitlines()
+    keep: list[str] = []
+    in_cert = False
+    for i, masked in enumerate(masked_lines):
+        heading = re.match(r'^##[ \t]+(.+?)[ \t]*$', masked)
+        if heading is not None:
+            low = heading.group(1).lower()
+            in_cert = 'pre-mortem' in low and 'certification' in low
+        if not in_cert:
+            keep.append(raw_lines[i])
+    return hashlib.sha256('\n'.join(keep).encode('utf-8')).hexdigest()
+
+
 def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateResult:
     """Assert a spec is Ready: well-formed (Part A) and pre-mortem-certified (Part B).
 
@@ -129,25 +179,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     ``structure_only`` set, only Part A (A1-A12) runs - the author-loop mode that
     suppresses the expected B1 PENDING before a pre-mortem is recorded.
     """
-    if not spec_path.is_file():
-        raise FileNotFoundError(
-            format_error(
-                what=f'Spec not found (or not a readable file): {spec_path}.',
-                why='check-ready needs an existing spec FILE to gate (a missing path or a '
-                'directory is not runnable).',
-                fix='Pass the path to a spec file written from spec-template.md.',
-            )
-        )
-    try:
-        raw = spec_path.read_text(encoding='utf-8')
-    except (UnicodeDecodeError, OSError) as exc:
-        raise FileNotFoundError(
-            format_error(
-                what=f'Spec is not readable UTF-8 text: {spec_path}.',
-                why=f'check-ready reads the spec as UTF-8 and could not decode it ({exc}).',
-                fix='Save the spec as UTF-8 (the § glyph is the usual culprit on a cp1252 editor).',
-            )
-        ) from exc
+    raw = _read_spec_text(spec_path, purpose='check-ready')
     # Fenced code blocks are illustrative, not live structure: mask them before any parse or scan.
     text = _mask_fenced(raw)
     sections = _split_top_sections(text)
@@ -173,6 +205,10 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
         premortem_violations, premortem_warnings = _check_premortem(cert)
         violations += premortem_violations
         warnings += premortem_warnings
+        if cert is not None:
+            artifact_violations, artifact_warnings = _check_certification_artifact(cert, spec_path)
+            violations += artifact_violations
+            warnings += artifact_warnings
 
     return GateResult(passed=not violations, violations=tuple(violations), warnings=tuple(warnings))
 
@@ -805,6 +841,89 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
     return violations
 
 
+_VERDICT_TOKEN_RE = re.compile(r'\s*([A-Za-z][A-Za-z-]*)')
+
+
+def _verdict_head(raw: str) -> str:
+    """The leading verdict token of a Verdict value or verdict line, uppercased ('' if none).
+
+    Leading-token semantics: hyphens are kept whole (`CONDITIONAL-CERTIFY` is one token) and
+    trailing text — prose, §2's `pre-mortem-review@<version>` identity suffix — is inert.
+    """
+    match = _VERDICT_TOKEN_RE.match(raw)
+    return match.group(1).upper() if match else ''
+
+
+def _check_certification_artifact(
+    cert_body: str, spec_path: Path
+) -> tuple[list[Violation], list[str]]:
+    """B2 (0.12.0, verify-when-present): the certification's named artifact exists and agrees.
+
+    No artifact named (field absent, or present with an empty value — the template ships it
+    empty, so a scaffolded field is absent, not broken): an adoption WARN, nothing more. An
+    artifact named: it must exist and carry a line-anchored `PREMORTEM-VERDICT:` line whose LAST
+    occurrence's leading token equals the recorded Verdict's (a column-0 schema quote above the
+    real verdict is inert); its `Spec-hash:` — when recorded — is compared against the current
+    canonical hash, and a mismatch WARNs ("certified against an earlier revision") rather than
+    fails, because a post-certification edit is exactly what a mismatch looks like. B2 raises the
+    forgery cost from one typed line to a consistent saved artifact; it does NOT prove a blind
+    pass ran — that residual trust stays named (ADR-0002, ADR-0014).
+    """
+    ref = re.sub(r'[`*]', '', _field(cert_body, 'certification artifact')).strip()
+    if not ref:
+        return [], [
+            'WARN: the certification names no artifact — B2 verifies one when present; save the '
+            "pass's returned output per keel-premortem.md and reference it "
+            '(`Certification artifact:`).'
+        ]
+    where = 'Certification artifact'
+    target = _resolve_base(spec_path) / ref
+    if not target.is_file():
+        return [
+            Violation(
+                where,
+                f'referenced artifact {ref!r} does not exist as a file '
+                '(the path is repo-root-relative, like an anchor).',
+            )
+        ], []
+    artifact_text = target.read_text(encoding='utf-8', errors='replace')
+    anchored = [
+        line
+        for line in artifact_text.splitlines()
+        if line.lstrip().startswith('PREMORTEM-VERDICT:')
+    ]
+    if not anchored:
+        return [
+            Violation(
+                where,
+                f'artifact {ref!r} carries no line-anchored `PREMORTEM-VERDICT:` line — it does '
+                "not look like a saved pre-mortem pass's output.",
+            )
+        ], []
+    artifact_head = _verdict_head(anchored[-1].split(':', 1)[1])
+    cert_head = _verdict_head(_field(cert_body, 'verdict'))
+    violations: list[Violation] = []
+    warnings: list[str] = []
+    if artifact_head != cert_head:
+        violations.append(
+            Violation(
+                where,
+                f'artifact verdict token {artifact_head!r} disagrees with the recorded Verdict '
+                f'{cert_head!r} — the saved pass is the record; re-run or re-record.',
+            )
+        )
+    recorded_hash = _field(artifact_text, 'spec-hash')
+    if recorded_hash:
+        first = recorded_hash.split()[0].strip('`').lower() if recorded_hash.split() else ''
+        if first != spec_hash(spec_path):
+            warnings.append(
+                'WARN: the artifact was certified against an earlier revision of this spec '
+                '(Spec-hash mismatch) — re-run the pass on the current spec, or accept knowingly '
+                '(B2).'
+            )
+    return violations, warnings
+
+
 def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]:
     """B1: a blind pre-mortem certification (a verdict + a reviewer) is recorded.
 
@@ -838,10 +957,7 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]
             )
         )
     raw = _field(cert_body, 'verdict')
-    leading = re.match(
-        r'\s*([A-Za-z][A-Za-z-]*)', raw
-    )  # the bare verdict token, hyphens kept whole
-    head = leading.group(1).upper() if leading else ''
+    head = _verdict_head(raw)  # the bare verdict token, hyphens kept whole
     if head == 'CERTIFIED':
         pass
     elif head == 'CONDITIONAL-CERTIFY':

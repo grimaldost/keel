@@ -2,7 +2,7 @@
 
 import pytest
 
-from keel.check_ready import check_spec_ready
+from keel.check_ready import check_spec_ready, spec_hash
 
 # A well-formed, pre-mortem-certified spec in the spec-template.md shape.
 READY_SPEC = """# Spec — widget
@@ -207,11 +207,13 @@ def test_conditional_certify_without_operator_fails_b1(tmp_path):
     assert any('operator' in v.message.lower() for v in result.violations)
 
 
-def test_clean_certified_emits_no_warning_b1(tmp_path):
-    # §2 / T1b: a plain CERTIFIED is widen-only — passes with NO warning (no WARN line).
+def test_clean_certified_emits_only_the_b2_adoption_warn(tmp_path):
+    # 0.12.0 §1: a plain CERTIFIED with no artifact reference passes; the single delta vs 0.11.1
+    # is the B2 adoption WARN (verify-when-present nudge) — no other warning.
     result = check_spec_ready(_write(tmp_path, READY_SPEC))
     assert result.passed
-    assert result.warnings == ()
+    assert len(result.warnings) == 1
+    assert 'artifact' in result.warnings[0].lower()
 
 
 def test_b1_error_states_bare_token_contract(tmp_path):
@@ -698,3 +700,157 @@ def test_concept_to_be_created_error_teaches_body_mention_a5(tmp_path):
     assert not result.passed
     nv = [v for v in result.violations if 'ghost.py' in v.message]
     assert nv and 'body' in nv[0].message.lower()
+
+
+# --- B2: certification artifact + canonical spec hash (0.12.0 §1) ------------
+
+
+def _with_artifact_field(ref: str) -> str:
+    return READY_SPEC.replace(
+        '- **Reviewer:** review-panel (non-author)',
+        f'- **Reviewer:** review-panel (non-author)\n- **Certification artifact:** {ref}',
+    )
+
+
+def _artifact_text(verdict_line: str, hash_value: str = '') -> str:
+    hash_line = f'- **Spec-hash:** {hash_value}\n' if hash_value else ''
+    return (
+        '# Pre-mortem artifact — widget\n\n'
+        '- **Spec:** spec.md\n'
+        '- **Reviewer:** review-panel (non-author)\n'
+        f'{hash_line}\n'
+        'Findings prose here.\n\n'
+        f'{verdict_line}\n'
+    )
+
+
+def test_absent_artifact_field_warns_b2(tmp_path):
+    result = check_spec_ready(_write(tmp_path, READY_SPEC))
+    assert result.passed
+    assert any('artifact' in w.lower() for w in result.warnings)
+
+
+def test_empty_artifact_field_is_absent_b2(tmp_path):
+    # FM-22: the template ships the field empty-valued; empty ≡ absent (WARN, no violation).
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('').rstrip() + '\n'))
+    assert result.passed, [v.message for v in result.violations]
+    assert any('artifact' in w.lower() for w in result.warnings)
+
+
+def test_artifact_missing_file_fails_b2(tmp_path):
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('ghost.premortem.md')))
+    assert not result.passed
+    assert any('ghost.premortem.md' in v.message for v in result.violations)
+
+
+def test_artifact_without_verdict_line_fails_b2(tmp_path):
+    (tmp_path / 'premortem.md').write_text('# artifact\n\nno verdict here\n', encoding='utf-8')
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('premortem.md')))
+    assert not result.passed
+    assert any('PREMORTEM-VERDICT' in v.message for v in result.violations)
+
+
+def test_artifact_verdict_mismatch_fails_b2(tmp_path):
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: NEEDS-REVISION'), encoding='utf-8'
+    )
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('premortem.md')))
+    assert not result.passed
+    assert any('disagrees' in v.message.lower() for v in result.violations)
+
+
+def test_artifact_matching_hash_and_verdict_passes_clean_b2(tmp_path):
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CERTIFIED', spec_hash(spec)), encoding='utf-8'
+    )
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]
+    assert result.warnings == ()
+
+
+def test_artifact_hash_mismatch_warns_b2(tmp_path):
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CERTIFIED', 'deadbeef' * 8), encoding='utf-8'
+    )
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]
+    assert any('earlier revision' in w.lower() for w in result.warnings)
+
+
+def test_artifact_identity_suffixed_verdict_passes_b2(tmp_path):
+    # FM-16 seventh case: §2's identity suffix after the token is inert trailing text.
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CERTIFIED — pre-mortem-review@0.12.0', spec_hash(spec)),
+        encoding='utf-8',
+    )
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]
+    assert result.warnings == ()
+
+
+def test_artifact_column_zero_schema_quote_does_not_shadow_b2(tmp_path):
+    # FM-8: B2 reads the LAST line-anchored verdict line; a column-0 schema quote above it is inert.
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    body = _artifact_text('PREMORTEM-VERDICT: CERTIFIED', spec_hash(spec)).replace(
+        'Findings prose here.',
+        'Findings prose here.\nPREMORTEM-VERDICT: <CERTIFIED | CONDITIONAL-CERTIFY | '
+        'NEEDS-REVISION> is the contract line.',
+    )
+    (tmp_path / 'premortem.md').write_text(body, encoding='utf-8')
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_structure_only_skips_b2(tmp_path):
+    result = check_spec_ready(
+        _write(tmp_path, _with_artifact_field('ghost.premortem.md')), structure_only=True
+    )
+    assert result.passed, [v.message for v in result.violations]
+    assert result.warnings == ()
+
+
+def test_spec_hash_stable_across_cert_block_growth(tmp_path):
+    # FM-1: appending ledger rows CHANGES the cert section's line count; the hash must not move.
+    before = spec_hash(_write(tmp_path, READY_SPEC))
+    grown = READY_SPEC + (
+        '\n### Fold ledger\n\n'
+        '| Finding | Target | artifact:line | Confirmed |\n'
+        '|---|---|---|---|\n'
+        '| FM-1 | §1 | `spec.md:1` | yes |\n'
+        '| FM-2 | §2 | `spec.md:1` | yes |\n'
+    )
+    after = spec_hash(_write(tmp_path, grown))
+    assert before == after
+
+
+def test_spec_hash_changes_on_body_edit(tmp_path):
+    before = spec_hash(_write(tmp_path, READY_SPEC))
+    after = spec_hash(_write(tmp_path, READY_SPEC.replace('Introduce', 'Rework')))
+    assert before != after
+
+
+def test_spec_hash_indifferent_to_crlf(tmp_path):
+    lf = spec_hash(_write(tmp_path, READY_SPEC))
+    crlf_spec = tmp_path / 'crlf.md'
+    crlf_spec.write_bytes(READY_SPEC.replace('\n', '\r\n').encode('utf-8'))
+    assert spec_hash(crlf_spec) == lf
+
+
+def test_spec_hash_fenced_cert_heading_does_not_shift_span(tmp_path):
+    # A fenced example `## Pre-mortem certification` heading must not truncate the hashed span.
+    fenced = READY_SPEC.replace(
+        'Introduce `src/widget.py`.',
+        'Introduce `src/widget.py`.\n\n```\n## Pre-mortem certification\n```\n',
+    )
+    with_fence = spec_hash(_write(tmp_path, fenced))
+    without = spec_hash(_write(tmp_path, READY_SPEC))
+    assert with_fence != without  # the fence lines themselves are hashed (raw), but…
+    # …the real cert section is still excluded: editing ITS content moves neither hash.
+    grown = fenced.replace(
+        '- **Failure modes considered & folded in:** none outstanding',
+        '- **Failure modes considered & folded in:** none outstanding\n- extra cert line',
+    )
+    assert spec_hash(_write(tmp_path, grown)) == with_fence
