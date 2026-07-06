@@ -591,7 +591,7 @@ def _check_paths(
     base = _resolve_base(spec_path)
     section_text = '\n'.join(sub_body for _, sub_body in subsections)
     rows = [cells for cells in _table_rows(concept_body) if len(cells) >= 2]
-    tbc_basenames = [
+    tbc_basenames: list[str] = [
         (_extract_path(cells[1]) or '').replace('\\', '/').rsplit('/', 1)[-1]
         for cells in rows
         if 'to be created' in cells[1].lower() and _extract_path(cells[1])
