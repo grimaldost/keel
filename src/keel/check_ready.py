@@ -322,16 +322,45 @@ def _field(body: str, name: str) -> str:
     return ''
 
 
+_VENDOR_DIRS = frozenset({'.git', '.venv', 'node_modules', '__pycache__', 'site-packages'})
+
+
+def _unique_basename_match(base: Path, path: str) -> Path | None:
+    """The single repo file matching the path's basename, or None (zero or many).
+
+    Vendor/VCS trees are excluded from the population — an in-tree virtualenv must not defeat
+    exactly-one (0.12.0 §4). Called only on the failure path, so the rglob cost is paid only when
+    an anchor already failed to resolve.
+    """
+    name = path.replace('\\', '/').rsplit('/', 1)[-1]
+    if not name:
+        return None
+    matches = [
+        candidate
+        for candidate in base.rglob(name)
+        if candidate.is_file() and not (_VENDOR_DIRS & set(candidate.relative_to(base).parts[:-1]))
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
 def _resolve_anchor(
     base: Path, path: str, line_no: int, where: str
 ) -> tuple[list[str] | None, Violation | None]:
-    """Resolve a `path:line` anchor: (file lines, None) if it resolves, else (None, Violation)."""
+    """Resolve a `path:line` anchor: (file lines, None) if it resolves, else (None, Violation).
+
+    On a non-resolving path, a unique repo basename match is offered as a "did you mean" hint —
+    the guess-the-path loop the field hit three times in one session becomes a one-line fix.
+    """
     target = base / path
     if not target.is_file():
+        hint = ''
+        match = _unique_basename_match(base, path)
+        if match is not None:
+            hint = f" — did you mean '{match.relative_to(base).as_posix()}:{line_no}'?"
         return None, Violation(
             where,
             f'anchor path {path!r} does not exist as a file '
-            '(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).',
+            f'(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).{hint}',
         )
     lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
     if line_no < 1 or line_no > len(lines):
@@ -524,15 +553,25 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
 def _check_paths(
     concept_body: str | None, subsections: list[tuple[str, str]], spec_path: Path
 ) -> list[Violation]:
-    """A5: every concept→module path exists, or is 'to be created' and claimed by a section."""
+    """A5: every concept→module path exists, or is 'to be created' and claimed by a section.
+
+    A "to be created" path is claimed by its full repo-root-relative form, or — when a section
+    body names the file by its bare basename and that basename is unique among the map's
+    "to be created" rows — by the basename (0.12.0 §4: the body/map ergonomics the field hit on
+    three consumers). An ambiguous basename keeps the full-path requirement.
+    """
     if concept_body is None:
         return [Violation('Concept → module map', 'no concept → module map found.')]
     base = _resolve_base(spec_path)
     section_text = '\n'.join(sub_body for _, sub_body in subsections)
+    rows = [cells for cells in _table_rows(concept_body) if len(cells) >= 2]
+    tbc_basenames = [
+        (_extract_path(cells[1]) or '').replace('\\', '/').rsplit('/', 1)[-1]
+        for cells in rows
+        if 'to be created' in cells[1].lower() and _extract_path(cells[1])
+    ]
     violations: list[Violation] = []
-    for cells in _table_rows(concept_body):
-        if len(cells) < 2:
-            continue
+    for cells in rows:
         module_cell = cells[1]
         if 'module' in module_cell.lower() and 'file' in module_cell.lower():
             continue
@@ -540,12 +579,18 @@ def _check_paths(
         if not path:
             continue
         if 'to be created' in module_cell.lower():
-            if path not in section_text:
+            name = path.replace('\\', '/').rsplit('/', 1)[-1]
+            claimed = path in section_text or (
+                tbc_basenames.count(name) == 1
+                and re.search(rf'(?<![\w./-]){re.escape(name)}', section_text) is not None
+            )
+            if not claimed:
                 violations.append(
                     Violation(
                         'Concept → module map',
                         f'"to be created" path {path!r} is not claimed by any section '
-                        '(name the path in the body of the section that creates it).',
+                        '(name the path — or its basename, when unique — in the body of the '
+                        'section that creates it).',
                     )
                 )
         elif not (base / path).exists():

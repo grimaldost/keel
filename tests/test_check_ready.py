@@ -702,6 +702,101 @@ def test_concept_to_be_created_error_teaches_body_mention_a5(tmp_path):
     assert nv and 'body' in nv[0].message.lower()
 
 
+# --- §4 (0.12.0): unique-basename resolution --------------------------------
+
+
+def test_anchor_unique_basename_gets_did_you_mean_a6(tmp_path):
+    (tmp_path / '.git').mkdir()
+    pkg = tmp_path / 'src' / 'pkg'
+    pkg.mkdir(parents=True)
+    (pkg / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    hinted = [v for v in result.violations if 'mod.py' in v.message]
+    assert hinted and 'did you mean' in hinted[0].message
+    assert 'src/pkg/mod.py:2' in hinted[0].message
+
+
+def test_anchor_ambiguous_basename_no_hint_a6(tmp_path):
+    (tmp_path / '.git').mkdir()
+    for sub in ('a', 'b'):
+        d = tmp_path / sub
+        d.mkdir()
+        (d / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    hinted = [v for v in result.violations if 'mod.py' in v.message]
+    assert hinted and 'did you mean' not in hinted[0].message
+
+
+def test_anchor_vendor_tree_excluded_from_uniqueness_a6(tmp_path):
+    # FM-12: a .venv copy must not defeat exactly-one; the hint points at the real file.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    venv = tmp_path / '.venv' / 'lib'
+    venv.mkdir(parents=True)
+    (venv / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    hinted = [v for v in result.violations if 'did you mean' in v.message]
+    assert hinted and 'src/mod.py:2' in hinted[0].message
+
+
+def test_fold_ledger_bare_basename_gets_did_you_mean_a12(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    hinted = [v for v in result.violations if 'did you mean' in v.message]
+    assert hinted, [v.message for v in result.violations]
+
+
+def test_to_be_created_basename_claim_passes_a5(tmp_path):
+    # A body naming the file by its unique basename claims the map's full path (0.12.0 §4).
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '| widget | `src/widget.py` (to be created) |',
+        '| widget | `src/pkg/server.py` (to be created) |',
+    ).replace('Introduce `src/widget.py`.', 'Introduce `server.py` as the entry module.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_to_be_created_ambiguous_basename_still_fails_a5(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '| widget | `src/widget.py` (to be created) |',
+        '| widget | `a/server.py` (to be created) |\n| gadget | `b/server.py` (to be created) |',
+    ).replace('Introduce `src/widget.py`.', 'Introduce `server.py` as the entry module.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert sum('server.py' in v.message for v in result.violations) == 2
+
+
+def test_to_be_created_basename_substring_does_not_claim_a5(tmp_path):
+    # `server.py` inside `myserver.py` is not a claim of server.py.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '| widget | `src/widget.py` (to be created) |',
+        '| widget | `src/pkg/server.py` (to be created) |',
+    ).replace('Introduce `src/widget.py`.', 'Introduce `myserver.py` here.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('server.py' in v.message for v in result.violations)
+
+
 # --- B2: certification artifact + canonical spec hash (0.12.0 §1) ------------
 
 
