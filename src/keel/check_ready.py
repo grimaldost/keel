@@ -171,6 +171,31 @@ def spec_hash(spec_path: Path) -> str:
     return hashlib.sha256('\n'.join(keep).encode('utf-8')).hexdigest()
 
 
+_KIT_STAMP_RE = re.compile(r'<!--\s*keel kit (\d+)\.(\d+)\.(\d+)\s*-->')
+
+
+def _kit_skew_warning(text: str) -> list[str]:
+    """§9 (0.12.0): a spec stamped from a different kit MAJOR.MINOR self-announces the skew.
+
+    WARN-only and verify-when-present: pre-0.12.0 specs carry no stamp and stay silent; a patch
+    difference is silent too (gate semantics are pinned per minor). Runs in the Part A path so the
+    author loop (--structure-only) sees it — that is where a stale kit bites first.
+    """
+    match = _KIT_STAMP_RE.search(text)
+    if match is None:
+        return []
+    from keel import __version__
+
+    own = __version__.split('.')
+    if (match.group(1), match.group(2)) == (own[0], own[1]):
+        return []
+    stamped = '.'.join(match.groups())
+    return [
+        f'WARN: spec stamped from kit {stamped}, gate is {__version__} — the kit and the gate '
+        'moved apart; regenerate the spec scaffold or diff the kit before trusting old guidance.'
+    ]
+
+
 def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateResult:
     """Assert a spec is Ready: well-formed (Part A) and pre-mortem-certified (Part B).
 
@@ -188,6 +213,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
 
     violations: list[Violation] = []
     warnings: list[str] = []
+    warnings += _kit_skew_warning(text)
     violations += _check_numbered(subsections)
     violations += _check_acceptance(subsections)
     violations += _check_placeholders(text)

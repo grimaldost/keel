@@ -169,3 +169,5 @@ per-section acceptance criteria, the concept→module map, and the PR↔section
 manifest are all required fields. The one field NOT satisfied by construction is the
 pre-mortem certification — a non-author reviewer must sign it, which is the point
 (ADR-0002).*
+
+<!-- keel kit 0.12.0 -->

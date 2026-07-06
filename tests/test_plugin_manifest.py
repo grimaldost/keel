@@ -28,14 +28,24 @@ def test_version_is_consistent_across_all_sites():
     agent_match = re.search(
         r'bundled `pre-mortem-review` agent from keel ([0-9]+\.[0-9]+\.[0-9]+)', agent_src
     )
+    template_src = (ROOT / 'src' / 'keel' / 'templates' / 'spec-template.md').read_text(
+        encoding='utf-8'
+    )
+    stamp_match = re.search(r'<!-- keel kit ([0-9]+\.[0-9]+\.[0-9]+) -->', template_src)
+    skill_src = (ROOT / 'skills' / 'apply-method' / 'SKILL.md').read_text(encoding='utf-8')
+    skill_match = re.search(r'ships with keel ([0-9]+\.[0-9]+\.[0-9]+)', skill_src)
     assert init_match is not None and changelog_match is not None
     assert agent_match is not None, 'agent identity line missing (0.12.0 §2 fifth version site)'
+    assert stamp_match is not None, 'kit stamp missing from spec-template (0.12.0 §9 sixth site)'
+    assert skill_match is not None, 'apply-method version line missing (0.12.0 §9 seventh site)'
     versions = {
         'plugin.json': plugin['version'],
         'pyproject.toml': pyproject['project']['version'],
         '__init__.py': init_match.group(1),
         'CHANGELOG.md (newest)': changelog_match.group(1),
         'agents/pre-mortem-review.md': agent_match.group(1),
+        'spec-template.md (kit stamp)': stamp_match.group(1),
+        'skills/apply-method/SKILL.md': skill_match.group(1),
     }
     assert len(set(versions.values())) == 1, f'version sites disagree: {versions}'
 

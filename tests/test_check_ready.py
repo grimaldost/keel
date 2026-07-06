@@ -918,6 +918,31 @@ def test_artifact_column_zero_schema_quote_does_not_shadow_b2(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
+def test_kit_stamp_minor_skew_warns_even_structure_only(tmp_path):
+    # 0.12.0 §9: a spec stamped from an older kit self-announces — and the author loop
+    # (--structure-only) is where skew bites first, so the WARN reaches it.
+    spec = READY_SPEC + '\n<!-- keel kit 0.10.0 -->\n'
+    result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
+    assert result.passed, [v.message for v in result.violations]
+    assert any('kit' in w.lower() for w in result.warnings)
+
+
+def test_kit_stamp_current_version_is_silent(tmp_path):
+    from keel import __version__
+
+    spec = READY_SPEC + f'\n<!-- keel kit {__version__} -->\n'
+    result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
+    assert result.passed
+    assert not any('kit' in w.lower() for w in result.warnings)
+
+
+def test_no_kit_stamp_is_silent(tmp_path):
+    # Every pre-0.12.0 spec lacks the stamp; absence stays quiet (verify-when-present).
+    result = check_spec_ready(_write(tmp_path, READY_SPEC), structure_only=True)
+    assert result.passed
+    assert result.warnings == ()
+
+
 def test_structure_only_skips_b2(tmp_path):
     result = check_spec_ready(
         _write(tmp_path, _with_artifact_field('ghost.premortem.md')), structure_only=True
