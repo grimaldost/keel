@@ -8,6 +8,15 @@ RETURNS its findings. Then YOU, the caller, fold its top failure modes back into
 (re-grounding each `smallest_fix` first — it is a hypothesis, not an instruction) as the closing
 step of the Definition-of-Ready gate.
 
+**Size the arc** (the doctrine's round economy, ADR-0014): two rounds — fresh pass → fold →
+re-gate under the rising bar — when round 1 found a BLOCKER, the spec touches an
+irreversible/shared-contract surface, or the spec set is fresh-drafted from an adjudicated
+catalog/triage; one pass with executor-verified folds for a LOW-stakes reversible round; one
+**targeted confirmatory pass** (scoped to what the merge could have invalidated) to re-check an
+already-certified spec after an upstream dependency lands. Whatever the shape, the final pass
+re-reads the FOLDED spec — fold edits move lines and can introduce their own errors, and the saved
+artifact's `Spec-hash` (B2) then matches what ships.
+
 **Save the pass's artifact (B2).** Save the agent's returned output verbatim to the spec's sibling
 `<spec-stem>.premortem.md`, prepending a short header: the spec path, the date, the reviewer, and
 `Spec-hash:` from `keel spec-hash <spec>` (run it AFTER the final fold — the final pass re-reads
