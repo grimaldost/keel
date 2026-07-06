@@ -79,6 +79,8 @@ unstable under fold-ledger growth — caught before any code).
   caught before any code. 38 new regression tests (124 → 162); every gate-behavior section ships
   at least one.
 
+## [0.11.1] - 2026-07-06
+
 Docs-only patch (the panel-tail triage's docs lane; no gate-behavior change). Sub-threshold round
 per doctrine §6 — the 0.6.1 precedent.
 

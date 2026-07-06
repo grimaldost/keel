@@ -53,6 +53,10 @@ def test_version_is_consistent_across_all_sites():
 def test_referenced_assets_exist():
     assert (ROOT / 'skills' / 'apply-method' / 'SKILL.md').exists()
     assert (ROOT / 'agents' / 'pre-mortem-review.md').exists()
+    # hooks.json is an empty placeholder kept deliberately: it reserves the edit-time-hook slot
+    # (doctrine's "invariants → machines" face) and whether the plugin loader tolerates its
+    # absence is unverifiable offline — decision recorded in the 0.12.0 spec (T2g); revisit if
+    # the plugin API documents optionality.
     assert (ROOT / 'hooks' / 'hooks.json').exists()
     for command in ('keel-apply', 'keel-check-ready', 'keel-premortem', 'keel-triage'):
         assert (ROOT / 'commands' / f'{command}.md').exists()
