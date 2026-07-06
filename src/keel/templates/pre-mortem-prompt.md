@@ -98,14 +98,19 @@ Emit findings as a YAML list, one entry per failure mode, then the prose. Each m
     severity: BLOCKER      # BLOCKER | MAJOR | MINOR
     evidence: path/to/file.py:line
     smallest_fix: "<one-line spec/prompt edit>"
+    blast_radius: "<required when the smallest_fix touches shared/global config (an addopts line, a repo-wide marker, a schema default): one line naming what else the fix reaches>"
     disconfirming_test: "<the cheapest observation that would confirm or refute this mode>"
     target_section: "section N"
+
+Also return, when applicable: an optional `cleared:` list — claims you verified and found CORRECT, each with its cite — so a cleared risk is recorded as a confirmation rather than prose that reads as an unapplied fix; on CONDITIONAL-CERTIFY, a structured `conditions:` list (each condition a named fix of at most two lines), so multi-spec synthesis is collation, not interpretation; and an `Unverified-offline: <N>` count on the line immediately preceding the terminal verdict line — every directive that requires EXECUTION (the autofixer simulation, post-parametrize collection counting, AST enumeration) that your runner cannot execute leaves its claim tagged unverified-offline, and N is that count.
 
 Convergence (so hardened verification stays bounded): a pass STOPS when it surfaces zero new
 BLOCKER/MAJOR findings; emit CONDITIONAL-CERTIFY when only named MINOR fixes remain (ready modulo a
 listed <=N-line fix), rather than forcing another full round.
 
 Rising bar (round >=2): on a re-review the bar for BLOCKER/MAJOR rises — a finding is blocking only if it plausibly corrupts the decision the spec gates, not merely improves the spec. A round that surfaces only nice-to-haves is CERTIFY-with-advisories (fold them as advisories), not another full round; do not manufacture a blocker to justify a pass.
+
+Re-gate posture (round >=2, the resolution audit): inputs are the revised spec plus the prior round's verdict record; FIRST audit each prior finding to RESOLVED / PARTIALLY-RESOLVED / UNRESOLVED with current-text evidence, THEN hunt fold-introduced defects (the second-pass rule above) under the rising bar; a fold that silently narrowed a promoted item is UNRESOLVED, not resolved.
 
 SERIES-pass checklist (when this is the SERIES pass over a decomposed PR set, attacking execution reality a DESIGN pass cannot see): base-branch content reality — confirm the base branch actually CONTAINS the infra/symbols the series consumes, not merely that a base exists (a series on the wrong base reads green and builds nothing); per-PR gate x contract-test interactions — a gate or contract test one PR adds may trip every later PR, so simulate it across the series, not just its own PR; cross-prompt contract drift — when PR prompts are multi-authored, diff the contract one prompt emits against what the next consumes.
 
@@ -116,7 +121,12 @@ SERIES-pass checklist (when this is the SERIES pass over a decomposed PR set, at
 
 You are read-only: RETURN your findings, ending with a machine-greppable last line
 `PREMORTEM-VERDICT: <CERTIFIED | CONDITIONAL-CERTIFY | NEEDS-REVISION>` so a caller can gate without
-parsing prose — do not write the spec yourself. The caller folds and records: fold the proposed
+parsing prose — do not write the spec yourself. State your reviewer identity after the verdict
+token on that same line (the bundled agent states `pre-mortem-review@<keel version>` from its
+identity line), so a cached or stale copy self-announces on every verdict it returns. Your final
+message is the artifact the caller saves verbatim (`<spec-stem>.premortem.md`, B2); recording the
+`## Pre-mortem certification` block is the caller's step — do not report your own read-only-ness
+as a deviation. The caller folds and records: fold the proposed
 changes back in **from the structured findings list** — apply each `smallest_fix` to its
 `target_section` mechanically. Re-ground each proposed fix first: a `smallest_fix` is a hypothesis, not an instruction — verify it against the code before folding, since folding a wrong fix verbatim ships the bug it named. Then run a **post-fold coherence
 re-read**: read each edited artifact end to end and confirm every finding was applied

@@ -14,20 +14,28 @@ def test_manifests_parse_and_name_keel():
 
 
 def test_version_is_consistent_across_all_sites():
-    # F8: the four version sites and the newest CHANGELOG heading must agree, so a partial bump
+    # F8: the version sites and the newest CHANGELOG heading must agree, so a partial bump
     # (pyproject bumped, plugin.json forgotten) fails CI instead of shipping a mislabelled build.
+    # 0.12.0 §2 adds the bundled agent's identity line as a fifth site: a stale plugin-cache copy
+    # then self-announces its lag on every verdict it returns.
     plugin = json.loads((ROOT / '.claude-plugin' / 'plugin.json').read_text(encoding='utf-8'))
     pyproject = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
     init_src = (ROOT / 'src' / 'keel' / '__init__.py').read_text(encoding='utf-8')
     init_match = re.search(r"__version__\s*=\s*'([^']+)'", init_src)
     changelog = (ROOT / 'CHANGELOG.md').read_text(encoding='utf-8')
     changelog_match = re.search(r'^##\s*\[([0-9]+\.[0-9]+\.[0-9]+)\]', changelog, re.MULTILINE)
+    agent_src = (ROOT / 'agents' / 'pre-mortem-review.md').read_text(encoding='utf-8')
+    agent_match = re.search(
+        r'bundled `pre-mortem-review` agent from keel ([0-9]+\.[0-9]+\.[0-9]+)', agent_src
+    )
     assert init_match is not None and changelog_match is not None
+    assert agent_match is not None, 'agent identity line missing (0.12.0 §2 fifth version site)'
     versions = {
         'plugin.json': plugin['version'],
         'pyproject.toml': pyproject['project']['version'],
         '__init__.py': init_match.group(1),
         'CHANGELOG.md (newest)': changelog_match.group(1),
+        'agents/pre-mortem-review.md': agent_match.group(1),
     }
     assert len(set(versions.values())) == 1, f'version sites disagree: {versions}'
 
