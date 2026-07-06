@@ -75,6 +75,7 @@ SHARED_CLAUSES = (
     'a store the measured call recomputes live',
     "recording the `## Pre-mortem certification` block is the caller's step",
     'so a cached or stale copy self-announces on every verdict it returns',
+    'a wave that plans no regeneration can still leave a mirror stale',
 )
 
 

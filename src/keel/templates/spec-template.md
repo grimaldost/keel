@@ -105,6 +105,10 @@ one section. A many-to-one or uncovered section is a DoR failure.*
 
 Concrete, checkable conditions for the whole spec (beyond per-section criteria).
 
+- Generated / mirrored / snapshot artifacts downstream of touched surfaces
+  (consumer-reference mirrors, golden fixtures, lockfiles), each with its freshness gate —
+  or the word "none": <enumerate them here; the pre-mortem challenges this declaration>
+
 *Release-notes-in-wave: any section that adds public surface or changes behaviour carries its
 CHANGELOG entry (and a migration-guide section, if consumer-facing) in the SAME wave — release-notes
 completeness is a per-wave exit condition, not a terminal-audit cleanup; a consistency gate (e.g. a

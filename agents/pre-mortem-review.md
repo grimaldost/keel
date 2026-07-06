@@ -58,7 +58,7 @@ Mechanical consumers (DC2):
 - Cross-PR generated artifacts: if a PR regenerates a derived artifact (a generated API-doc mirror,
   an exported-symbol snapshot) from a source surface, check whether a LATER PR mutates that surface —
   if so the regenerator must re-run in/after the last mutating PR, and its freshness test runs on the
-  FULL tree, not a per-domain subset. And if a freshness gate asserts that artifact in sync on EVERY change to its source (a committed mirror/lockfile/golden with a per-change test), the regenerate-after-the-last-mutating-PR option does not apply — it is not deferrable: each PR that perturbs the source regenerates its slice in that same PR.
+  FULL tree, not a per-domain subset. And if a freshness gate asserts that artifact in sync on EVERY change to its source (a committed mirror/lockfile/golden with a per-change test), the regenerate-after-the-last-mutating-PR option does not apply — it is not deferrable: each PR that perturbs the source regenerates its slice in that same PR. And the trigger runs BOTH directions: whenever the series TOUCHES a source surface, enumerate that surface's downstream generated/mirrored/golden artifacts and their freshness gates — a wave that plans no regeneration can still leave a mirror stale, and its freshness gate then fails at execution on a spec every pass certified.
 
 Cross-artifact consistency (DC4-B) — artifacts that must agree (design, REVIEW command, CHANGELOG):
 - Intent vs. executable: every test or gate the DESIGN names for the reviewer subset must appear in
