@@ -58,7 +58,7 @@ MARKERS = (
     'enforcement mechanism',  # 0.10.0 §1: each isolation invariant names a buildable mechanism
     'newly-introduced',  # 0.10.0 §2: re-cert hunts the fold's own newly-introduced errors
     'resolution audit',  # 0.12.0 §2: re-gate posture (round >=2 audits prior findings first)
-    'cleared:',  # 0.12.0 §2: verified-correct claims recorded as confirmations (colon: bare word pre-exists)
+    'cleared:',  # 0.12.0 §2: verified-correct claims as confirmations (colon: bare word pre-exists)
     'conditions:',  # 0.12.0 §2: CONDITIONAL-CERTIFY carries a structured conditions list
     'blast_radius',  # 0.12.0 §2: shared/global-config fixes state their spread in-schema
     'decomposition completeness',  # 0.12.0 §6: every asserted property is built by a named PR
