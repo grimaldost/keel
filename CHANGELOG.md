@@ -22,6 +22,62 @@ unstable under fold-ledger growth — caught before any code).
   growth and CRLF/LF. Warnings now print on **both** CLI exit paths (a failing spec no longer
   hides its WARNs). `keel-premortem.md` carries the save-the-artifact protocol; honest framing
   everywhere: B2 raises forgery cost, it does not prove blindness (ADR-0002/ADR-0014).
+- **The pre-mortem output contract v2** (prompt ⊕ agent, byte-identical; MARKERS 28 → 33): a
+  re-gate posture for round ≥2 (audit each prior finding RESOLVED / PARTIALLY-RESOLVED /
+  UNRESOLVED before hunting new ones); an optional `cleared:` list (verified-correct claims
+  recorded as confirmations); a structured `conditions:` list on CONDITIONAL-CERTIFY;
+  `blast_radius:` in the finding YAML when a fix touches shared/global config;
+  `unverified-offline` generalized to every execution-requiring directive with an
+  `Unverified-offline:` count; reviewer identity stated after the verdict token (the bundled
+  agent's identity line is a version-consistency site, so a stale plugin cache self-announces);
+  and the caller-records clarification — the agent stops reporting its read-only-ness as a
+  deviation.
+- **The round economy** (doctrine + `keel-premortem.md`, ADR-0014): two rounds when round 1 found
+  a BLOCKER, the spec touches an irreversible/shared-contract surface, or the set is
+  fresh-drafted from an adjudicated catalog; one pass with executor-verified folds for LOW-stakes
+  reversible rounds; one targeted confirmatory pass after an upstream merge. The final pass
+  always re-reads the folded spec.
+- **SERIES-pass decomposition completeness** (prompt ⊕ agent): every headline property and
+  referenced asset is BUILT by a named PR, and each acceptance test is ABLE to prove its
+  invariant (stub vs real-process).
+- **Generated-artifact freshness, both directions** (prompt ⊕ agent + spec-template): touching a
+  source surface enumerates its downstream generated/mirrored/golden artifacts even when no PR
+  plans regeneration; the template's DoD carries the declaration line the pre-mortem challenges.
+- **Reflection-triage grounds its promotions**: a new procedure step verifies the mechanism a
+  candidate promotion names against current source before it is written; emitted triage docs
+  open with a `# Triage —` H1.
+- **The Phases header convention** (A4, ADR-0014): `- **Phases:** Decide+Specify (Decompose:
+  skipped)` relaxes the manifest requirement to absent-ok for a declared non-series round — a
+  present manifest is still fully checked; nothing else relaxes.
+- `docs/method-bindings.md` (keel's own filled sheet — the real worked example),
+  `docs/getting-started.md` (the first full loop, exact commands), `docs/glossary.md`.
+- `ADR-0014`: the certification artifact and the round economy (resolves ADR-0013 items 1–3).
+
+### Changed
+
+- `check-ready` fold-ledger rows may carry a verified snippet (`` `path:line` `snippet` `` — A12
+  matches it against the anchored line, so in-range drift no longer decays silently), and
+  non-resolving anchors with a unique repo basename get a "did you mean `<relpath>:<line>`?" hint
+  (vendor/VCS trees excluded); A5 "to be created" paths are claimable by a unique basename named
+  in a section body.
+- `spec-template.md` ends with a kit stamp (`<!-- keel kit X.Y.Z -->`); `check-ready` WARNs on a
+  kit↔gate MAJOR.MINOR mismatch — including under `--structure-only` — and stays silent on absent
+  stamps; `check-ready` also WARNs when a certification is recorded while the header Status still
+  says draft. `skills/apply-method/SKILL.md` states the keel version it ships with. The
+  version-consistency test now reads **seven** sites.
+- `CONTRIBUTING.md`: a post-certification change to an open release lands as a spec amendment
+  section (panel ARCH-8); window/neighbourhood check logic is tested against the shipped
+  template's own artifacts (gate-health).
+
+### Origin
+
+- The 2026-07-06 post-0.11.0 field triage (8 reports: two six-spec two-round gate arcs, two
+  consumer waves, a greenfield build, a controlled single-round data point; maintainer-local —
+  see `docs/evidence.md`) + ADR-0013's scheduled 0.12.0 items. Spec:
+  `docs/design/2026-07-06-keel-0.12.0-spec.md` (maintainer-local), gated by a three-round blind
+  pre-mortem arc — 22 findings folded, including a BLOCKER in the certification-hash design
+  caught before any code. 38 new regression tests (124 → 162); every gate-behavior section ships
+  at least one.
 
 Docs-only patch (the panel-tail triage's docs lane; no gate-behavior change). Sub-threshold round
 per doctrine §6 — the 0.6.1 precedent.
