@@ -721,6 +721,57 @@ def test_concept_to_be_created_error_teaches_body_mention_a5(tmp_path):
     assert nv and 'body' in nv[0].message.lower()
 
 
+# --- §11 (0.12.0): the Phases header convention (A4 relaxation) --------------
+
+_NO_MANIFEST = READY_SPEC.replace(
+    """## PR ↔ section manifest
+
+| PR | Implements section | One concern? |
+|---|---|---|
+| PR01 | §1 | yes |
+| PR02 | §2 | yes |
+
+""",
+    '',
+)
+
+
+def test_phases_decompose_skipped_relaxes_manifest_a4(tmp_path):
+    spec = _NO_MANIFEST.replace(
+        '- **Status:** ready (DoR passed)',
+        '- **Status:** ready (DoR passed)\n- **Phases:** Decide+Specify (Decompose: skipped)',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_missing_manifest_without_declaration_still_fails_a4(tmp_path):
+    result = check_spec_ready(_write(tmp_path, _NO_MANIFEST))
+    assert not result.passed
+    assert any('manifest' in v.message.lower() for v in result.violations)
+
+
+def test_phases_without_skip_does_not_relax_a4(tmp_path):
+    spec = _NO_MANIFEST.replace(
+        '- **Status:** ready (DoR passed)',
+        '- **Status:** ready (DoR passed)\n- **Phases:** all 8',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('manifest' in v.message.lower() for v in result.violations)
+
+
+def test_declared_skip_with_present_manifest_still_checked_a4(tmp_path):
+    # The declaration is not a blanket escape: a manifest that IS present gets the full bijection.
+    spec = READY_SPEC.replace(
+        '- **Status:** ready (DoR passed)',
+        '- **Status:** ready (DoR passed)\n- **Phases:** Decide+Specify (Decompose: skipped)',
+    ).replace('| PR02 | §2 | yes |\n', '')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('§2' in v.message and 'cover' in v.message.lower() for v in result.violations)
+
+
 # --- §10 (0.12.0): Status x Verdict currency ---------------------------------
 
 

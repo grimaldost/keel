@@ -5,6 +5,12 @@
 - **Audience:** <who/what reads this>
 - **Output artifact(s):** <paths>
 
+*Optional header field for a declared non-series round: `- **Phases:** Decide+Specify
+(Decompose: skipped)` — when Decompose is explicitly named as skipped, `check-ready` (A4) relaxes
+the PR↔section manifest requirement to absent-ok. A manifest that IS present is still fully
+checked, everything else in Part A applies regardless, and the declaration is content the
+pre-mortem can challenge — not an escape hatch (ADR-0014).*
+
 ## Context
 
 Why this work, and what it builds on (link the relevant ADRs).

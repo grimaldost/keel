@@ -211,13 +211,25 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     subsections = _subsections(_find_section(sections, 'numbered', 'sections') or '')
     section_ids = [m.group(1) for title, _ in subsections if (m := re.match(r'(§\d+)\b', title))]
 
+    first_heading = re.search(r'^##[ \t]+', text, re.MULTILINE)
+    header = text[: first_heading.start()] if first_heading else text
+
     violations: list[Violation] = []
     warnings: list[str] = []
     warnings += _kit_skew_warning(text)
     violations += _check_numbered(subsections)
     violations += _check_acceptance(subsections)
     violations += _check_placeholders(text)
-    violations += _check_manifest(_find_section(sections, 'section', 'manifest'), section_ids)
+    # §11 (0.12.0): a header `Phases:` declaration that explicitly names Decompose as skipped
+    # relaxes the manifest requirement to absent-ok — a declared Decide+Specify round no longer
+    # invents a manifest to pass its own gate (ADR-0014). A manifest that IS present is still
+    # checked in full, and nothing else in Part A is relaxed; the declaration is content the
+    # pre-mortem can challenge.
+    phases = _field(header, 'phases').lower()
+    decompose_skipped = 'decompose' in phases and 'skipped' in phases
+    manifest_body = _find_section(sections, 'section', 'manifest')
+    if manifest_body is not None or not decompose_skipped:
+        violations += _check_manifest(manifest_body, section_ids)
     violations += _check_paths(_find_section(sections, 'concept', 'module'), subsections, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
     violations += _check_anchors(text, spec_path)
@@ -235,8 +247,6 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
             artifact_violations, artifact_warnings = _check_certification_artifact(cert, spec_path)
             violations += artifact_violations
             warnings += artifact_warnings
-        first_heading = re.search(r'^##[ \t]+', text, re.MULTILINE)
-        header = text[: first_heading.start()] if first_heading else text
         warnings += _status_currency_warning(header, cert)
 
     return GateResult(passed=not violations, violations=tuple(violations), warnings=tuple(warnings))
