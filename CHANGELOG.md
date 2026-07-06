@@ -2,6 +2,39 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.11.1] - 2026-07-06
+
+Docs-only patch (the panel-tail triage's docs lane; no gate-behavior change). Sub-threshold round
+per doctrine §6 — the 0.6.1 precedent.
+
+### Changed
+
+- Pre-ADR-0002 "signed" wording retired everywhere it survived: the DoR's Part B is "certified by a
+  non-author reviewer" (`skills/apply-method/SKILL.md`, `docs/templates-reference.md`,
+  `spec-template.md`).
+- Private working vocabulary removed from public docs: SP2/SP3 are now "the template kit" and "the
+  upgrade set" (`docs/doctrine.md` §7, `src/keel/templates/README.md`); "the FIRE step" is "the
+  orchestrator's file-staging step" in `pre-mortem-prompt.md` ⊕ `agents/pre-mortem-review.md`
+  (byte-identical, drift-guard markers intact); DC4-B, used by the prompt/agent, is now defined in
+  doctrine sharpening 5 (standing cross-artifact consistency) — and the stale "three axes" cardinal
+  was dropped rather than re-counted.
+- The 30× cost-of-defect note is qualified as what it is: one program's observational retro, two
+  design-time catches, no counterfactual arm, maintainer-local corpus (`docs/doctrine.md`,
+  cross-referencing `docs/evidence.md`).
+- `series-toml-skeleton.md` no longer points at another tool's unreachable doc; it states the
+  minimal `[[pr]]` contract the method reads (`id`/`prompt`/`section`/`tier` + `[budget]`).
+- `docs/installation.md` + `docs/cli-reference.md` document the `python -m keel` module entry point
+  (shipped since 0.4.0) as the fallback where an application-control policy blocks console-script
+  executables — field-hit on a real consumer wave.
+- `spec-template.md` names the gate-adversarial-example rule: quote gate-scanned tokens (a literal
+  `Verdict:` line, a bare to-do marker) only inside code fences, which the gate masks.
+
+### Origin
+
+- The 2026-07-02 panel-tail triage's docs-PR lane (T1a–T1g) + two post-0.11.0 field findings
+  (`2026-07-03-mantis-agent-researcher-pivot`, `2026-07-02-keel-0.11.0-self-build`;
+  maintainer-local corpus — see `docs/evidence.md`).
+
 ## [0.11.0] - 2026-07-01
 
 The enforcement-gap release. A six-lens blind skeptic panel (Fable 5, max effort; two lenses ran the

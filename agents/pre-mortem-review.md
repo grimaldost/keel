@@ -49,7 +49,7 @@ stale, moved, or wrong-shaped:
 
 Mechanical consumers (DC2):
 
-- Staged-files x in-place-gates: for every file the FIRE step STAGES into the worktree, enumerate
+- Staged-files x in-place-gates: for every file the orchestrator's file-staging step STAGES into the worktree, enumerate
   which in-place gates see it (`mypy .`, `ruff .`, repo-wide greps, pytest collection) and simulate
   each.
 - Diff-shape x lint: simulate any diff-SHAPE constraint through the repo's lint+format gate on one

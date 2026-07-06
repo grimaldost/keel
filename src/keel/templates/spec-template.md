@@ -74,6 +74,11 @@ when given — so a spec cannot say "model-on / reuse X" without X actually exis
 opens a bracket/brace/paren it does not close, so a citation cannot silently truncate a collection
 literal mid-structure. Quote a literal complete or not at all.*
 
+*Gate-adversarial examples: when the spec must QUOTE something the gate itself scans for — a
+literal `Verdict:` line, a bare to-do placeholder token, an example `### heading` — put it inside a
+code fence; fenced content is masked before every check, while the same example unfenced can
+false-fail (A3) or shadow the real certification (B1).*
+
 *Out-of-wave consumers: when a section MOVES, RENAMES, or RETYPES a symbol, or strips content from a
 file, list every consumer beyond the import graph — scripts that regex/parse the file's TEXT
 (docs-sync checks, doc anchors, tests reading it as data) and every READER of a retyped symbol — and
@@ -122,7 +127,7 @@ acceptance criterion and carries no anchors.)*
 
 ## Pre-mortem certification
 
-*The externalized correctness pass (`pre-mortem-prompt.md`), signed by a fresh
+*The externalized correctness pass (`pre-mortem-prompt.md`), certified by a fresh
 reviewer who did NOT author this spec. `keel check-ready` does not pass until the
 verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not Ready.*
 

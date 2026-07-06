@@ -41,7 +41,8 @@ imported by ≥~50 modules, additive-on-a-shared-contract, a boundary crossing, 
 Follow the phases; the gates are the load-bearing part:
 
 - **Specify → DoR gate.** The spec is not ready to decompose until
-  `definition-of-ready.md` passes (Part A deterministic + Part B signed). Then run
+  `definition-of-ready.md` passes (Part A deterministic + Part B certified by a
+  non-author reviewer). Then run
   the `pre-mortem-prompt.md` pass and fold findings back in.
 - **Decompose.** One PR per spec section (`spec-template.md` has the PR↔section
   manifest). Score each PR → model tier.

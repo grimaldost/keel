@@ -1,10 +1,12 @@
 # series.toml skeleton (with wave budget)
 
-The full `series.toml` schema is owned by the series orchestrator (e.g.
-pr-pilot's `docs/series-toml-reference.md`) — this skeleton does not restate
-it. What it adds is the **`[budget]` block** (Upgrade 4): a wave-level forecast
-and a drift gate, extending per-PR scoring to the whole wave. Without an
-orchestrator, the skeleton still serves as the series' manual checklist.
+The full `series.toml` schema is owned by the series orchestrator — see your
+orchestrator's schema reference; this skeleton does not restate it. The minimal
+contract the method reads is what the skeleton shows: each `[[pr]]` carries
+`id`, `prompt`, `section` (the spec section it implements), and `tier`, plus the
+**`[budget]` block** (Upgrade 4): a wave-level forecast and a drift gate,
+extending per-PR scoring to the whole wave. Without an orchestrator, the
+skeleton still serves as the series' manual checklist.
 
 ```toml
 [series]

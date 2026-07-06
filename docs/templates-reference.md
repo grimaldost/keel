@@ -6,7 +6,7 @@ The portable kit (`src/keel/templates/`, emitted by `keel init`):
 |---|---|
 | `adr-template.md` | One numbered decision; names the invariant it creates. |
 | `spec-template.md` | DoR-ready-by-construction spec (Non-goals, Invariants touched, concept→module map, PR↔section manifest). |
-| `definition-of-ready.md` | Exit gate of Specify: Part A (deterministic) + Part B (signed). |
+| `definition-of-ready.md` | Exit gate of Specify: Part A (deterministic) + Part B (certified by a non-author reviewer). |
 | `definition-of-done.md` | Exit gate of Review / pre-merge; fail-closed. |
 | `review-checklist.md` | Blocking reviewer checklist; the promotion target for reflections. |
 | `reflection-triage.md` | Cluster reflections; promote recurring traps to checklist/gate/spec. |

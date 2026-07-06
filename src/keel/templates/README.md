@@ -2,7 +2,7 @@
 
 The portable kit that operationalizes the method (see the keel doctrine). Copy these
 into a new project and fill `method-bindings.md`. The kit embodies the method
-*and* the SP3 upgrades.
+*and* its upgrade set.
 
 ## Portability slots → files
 
@@ -16,7 +16,7 @@ The method (§7) needs five slots filled in any project. Each maps to a template
 | Review checklist | `review-checklist.md` | also the promotion target for reflection triage |
 | Reflection sink | `reflection-triage.md` | closes the loop (Upgrade 3) |
 
-## Upgrade artifacts (SP3)
+## Upgrade artifacts (the upgrade set)
 
 | Upgrade | Template |
 |---|---|
