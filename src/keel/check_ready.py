@@ -1099,11 +1099,21 @@ def _check_certification_artifact(
     if recorded_hash:
         first = recorded_hash.split()[0].strip('`').lower() if recorded_hash.split() else ''
         if first != spec_hash(spec_path):
-            warnings.append(
+            warning = (
                 'WARN: the artifact was certified against an earlier revision of this spec '
                 '(Spec-hash mismatch) — re-run the pass on the current spec, or accept knowingly '
                 '(B2).'
             )
+            # On an operator close (an operator-accepted CONDITIONAL-CERTIFY), a condition
+            # discharged after the pass moves the hash by design, so this mismatch is expected —
+            # name it, but only there (a blanket clause would bless arbitrary post-cert edits).
+            if cert_head == 'CONDITIONAL-CERTIFY' and _field(cert_body, 'operator'):
+                warning += (
+                    ' On an operator-accepted CONDITIONAL-CERTIFY this mismatch is the expected '
+                    'state — a condition discharged after the pass (the operator close, '
+                    'definition-of-ready.md Part B).'
+                )
+            warnings.append(warning)
     return violations, warnings
 
 

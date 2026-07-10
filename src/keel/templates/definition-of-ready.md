@@ -57,7 +57,7 @@ A11 each `path:lo-hi` range anchor: fail unless it closes (string/comment-aware)
 A12 when a `### Fold ledger` sub-table is present: fail unless each row's `artifact:line` confirmation anchor resolves
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
-B2 when the certification names a `Certification artifact:`: fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision") and when no artifact is named (adoption nudge)
+B2 when the certification names a `Certification artifact:`: fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision" — suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY) and when no artifact is named (adoption nudge)
 ```
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*
@@ -113,6 +113,30 @@ are stateless.
       that tests a jail no PR creates.
 - [ ] *(eval/experiment specs)* the analysis plan is pre-registered — fixed before results are seen, not
       chosen after (the spec-template advertises this axis as DoR-gated; this is that gate).
+
+### The operator close (discharging a CONDITIONAL-CERTIFY)
+
+When the final pass returns `CONDITIONAL-CERTIFY` and the named Operator applies the bounded
+`conditions:` themselves, the sanctioned close is:
+
+- **The recorded `Verdict:` stays `CONDITIONAL-CERTIFY`**, with the named `Operator:` and a discharge
+  note on the verdict line (e.g. `CONDITIONAL-CERTIFY — COND-1 discharged by the Operator, <date>`);
+  record each discharged condition as a fold-ledger row so A12 anchors the fix to a real line. Do not
+  rewrite the verdict to `CERTIFIED`: no pass returned that token, and B2 fails a recorded Verdict
+  that disagrees with the saved artifact's.
+- **The artifact's `Spec-hash:` stays the hash of the spec the final pass read.** The close's own
+  recording never moves the hash — a certification-block edit (the discharge note, a fold-ledger row)
+  is masked from the hash by design. But if discharging a condition edits the **spec body**, the
+  saved hash no longer matches, and B2's "certified against an earlier revision" WARN is then the
+  *expected honest state* of this close, not a defect to silence (ADR-0002) — never recompute the
+  hash after discharge to quiet it, which would record a revision the reviewer never read. The B1
+  operator-accepted WARN stands the same way.
+- **A confirm re-gate is optional**, priced by the round economy (ADR-0014): take one only when a
+  condition outgrew its named ≤2-line bound, or the fix touches an irreversible / shared-contract
+  surface. A confirm round bought only to flip the token to `CERTIFIED` is over-process — the close
+  already records who accepted what, and the gate passes with its WARNs standing. When a confirm
+  re-gate IS taken and returns `CERTIFIED`, its saved output becomes the certification artifact
+  (latest-wins) and the recorded verdict flips with it — the ordinary close, not this one.
 
 **Gate result:** Ready ✅ only when Part A is well-formed **and** the Part B
 pre-mortem certification is recorded. `keel check-ready` enforces both halves; the

@@ -940,6 +940,17 @@ def _artifact_text(verdict_line: str, hash_value: str = '') -> str:
     )
 
 
+def _operator_close_spec(ref: str) -> str:
+    # An operator-accepted CONDITIONAL-CERTIFY + a named Operator + the artifact field.
+    return READY_SPEC.replace(
+        '- **Reviewer:** review-panel (non-author)\n- **Verdict:** CERTIFIED',
+        '- **Reviewer:** review-panel (non-author)\n'
+        f'- **Certification artifact:** {ref}\n'
+        '- **Verdict:** CONDITIONAL-CERTIFY — COND-1 discharged by the Operator\n'
+        '- **Operator:** grimaldo',
+    )
+
+
 def test_absent_artifact_field_warns_b2(tmp_path):
     result = check_spec_ready(_write(tmp_path, READY_SPEC))
     assert result.passed
@@ -993,6 +1004,42 @@ def test_artifact_hash_mismatch_warns_b2(tmp_path):
     result = check_spec_ready(spec)
     assert result.passed, [v.message for v in result.violations]
     assert any('earlier revision' in w.lower() for w in result.warnings)
+
+
+def test_operator_close_hash_warn_names_the_close_b2(tmp_path):
+    # §4: an operator-accepted CONDITIONAL-CERTIFY with a stale artifact hash passes with the B1
+    # WARN and a B2 hash WARN that names the operator close (the expected honest state).
+    spec = _write(tmp_path, _operator_close_spec('premortem.md'))
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CONDITIONAL-CERTIFY', 'deadbeef' * 8), encoding='utf-8'
+    )
+    result = check_spec_ready(spec)
+    assert result.passed, [v.message for v in result.violations]
+    assert any('operator close' in w.lower() for w in result.warnings)
+
+
+def test_certified_hash_warn_omits_operator_close_b2(tmp_path):
+    # §4: a plain CERTIFIED verdict's hash WARN must NOT carry the operator-close pointer — it
+    # would bless arbitrary post-certification edits.
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CERTIFIED', 'deadbeef' * 8), encoding='utf-8'
+    )
+    result = check_spec_ready(spec)
+    assert any('earlier revision' in w.lower() for w in result.warnings)
+    assert not any('operator close' in w.lower() for w in result.warnings)
+
+
+def test_recorded_certified_versus_conditional_artifact_still_fails_b2(tmp_path):
+    # §4: the close's 'do not rewrite to CERTIFIED' rule stays gate-enforced — a recorded CERTIFIED
+    # against an artifact whose token is CONDITIONAL-CERTIFY fails B2.
+    spec = _write(tmp_path, _with_artifact_field('premortem.md'))
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CONDITIONAL-CERTIFY', spec_hash(spec)), encoding='utf-8'
+    )
+    result = check_spec_ready(spec)
+    assert not result.passed
+    assert any('disagrees' in v.message for v in result.violations)
 
 
 def test_artifact_identity_suffixed_verdict_passes_b2(tmp_path):

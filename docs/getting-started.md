@@ -60,7 +60,9 @@ keel spec-hash docs/design/my-feature-spec.md
 ## 6. Certify and gate
 
 Record the certification block (Reviewer, Verdict, the artifact reference; an operator-accepted
-`CONDITIONAL-CERTIFY` needs an `Operator:`), update the header `Status:`, then:
+`CONDITIONAL-CERTIFY` needs an `Operator:`, and an Operator who applies the conditions closes per
+the operator close, `definition-of-ready.md` Part B — the verdict stays `CONDITIONAL-CERTIFY`),
+update the header `Status:`, then:
 
 ```
 keel check-ready docs/design/my-feature-spec.md

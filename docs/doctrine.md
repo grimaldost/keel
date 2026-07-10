@@ -154,12 +154,16 @@ These operating notes carry sharpening 5 into practice:
   round ≥2 a finding is blocking only if it plausibly corrupts the decision the spec gates, not merely
   improves the spec — a round of only nice-to-haves is CERTIFY-with-advisories, and an operator may
   record a `CONDITIONAL-CERTIFY` with a named `Operator:` that `check-ready` passes with a WARN (B1),
-  so a consciously-accepted spec is not blocked forever. Unbounded verification is the cost centre the
+  so a consciously-accepted spec is not blocked forever. The close of that state is prescribed once —
+  the operator close (`definition-of-ready.md` Part B): the verdict stays conditional with a discharge
+  note, the B1/B2 WARNs stand as the honest record, and a confirm re-gate is optional per this round
+  economy. Unbounded verification is the cost centre the
   spine would otherwise create. For an eval/experiment spec, a feasibility check — can the empirical
   record support the headline being measured at all? — runs FIRST and can short-circuit the whole
   review, the cheapest convergence there is (0.8.0). And the final pass always re-reads the
   *folded* spec: fold edits move lines and can introduce their own errors — which also makes the
-  saved artifact's spec-hash (B2) match the spec that ships.
+  saved artifact's spec-hash (B2) match the spec that ships on the ordinary arc (on an operator
+  close a condition discharged after the pass keeps the as-reviewed hash, so B2 WARNs by design).
 - **Cost-of-defect (why the left-shift pays).** One program's observational retro — two design-time
   catches, no counterfactual arm; maintainer-local corpus, see `docs/evidence.md` — priced a
   correctness defect caught late at roughly 30× its design-time cost (~$347, 41% of one $853
