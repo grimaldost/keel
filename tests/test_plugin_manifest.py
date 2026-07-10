@@ -103,3 +103,10 @@ def test_referenced_assets_exist():
     assert (ROOT / 'hooks' / 'hooks.json').exists()
     for command in ('keel-apply', 'keel-check-ready', 'keel-premortem', 'keel-triage'):
         assert (ROOT / 'commands' / f'{command}.md').exists()
+
+
+def test_apply_method_routes_through_bindings():
+    # §8 (c1-T4): the router consumes the project's bindings record on the already-established
+    # path instead of pointing every entry at the packaged templates.
+    skill = (ROOT / 'skills' / 'apply-method' / 'SKILL.md').read_text(encoding='utf-8')
+    assert 'established format IS the binding' in skill

@@ -42,6 +42,13 @@ imported by ≥~50 modules, additive-on-a-shared-contract, a boundary crossing, 
 
 ## Running a change under the method
 
+**Entry: read the bindings first.** The project's `method-bindings.md` names its established
+formats — spec format, ADR home, gate commands, review checklist; match those, not the packaged
+templates. If the file is absent but prior method artifacts exist (earlier specs, an ADR log), the
+established format IS the binding: locate a prior spec (glob for it, e.g. `docs/**/spec*.md`), bind
+the slots from what you find, and write the missing `method-bindings.md` so the next round reads a
+record instead of re-globbing. Run `keel init` only when the kit itself is absent.
+
 Follow the phases; the gates are the load-bearing part:
 
 - **Specify → DoR gate.** The spec is not ready to decompose until
