@@ -49,6 +49,14 @@ The release pre-mortem's record states whether the cross-vendor enrichment panel
 non-blocking practice since 0.9.0) ran; skipping it stays legal but is a recorded decision, not an
 omission — the 0.12.0 release skipped it silently and nothing flagged the empty slot.
 
+A release bumps **eight version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
+(inserted above the previous one, never replacing it): `.claude-plugin/plugin.json`,
+`pyproject.toml`, `src/keel/__init__.py`, the newest `CHANGELOG.md` heading,
+`agents/pre-mortem-review.md` (the agent identity line), `src/keel/templates/spec-template.md`
+(the kit stamp), and `skills/apply-method/SKILL.md` are the seven the version-consistency test
+asserts; `uv.lock` is the eighth — bump it with `uv lock` after `pyproject.toml`, and CI's
+`uv lock --check` reds a stale committed lock.
+
 ## Quality gates (Definition of Done)
 
 ```bash

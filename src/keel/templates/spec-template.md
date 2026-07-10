@@ -181,4 +181,4 @@ manifest are all required fields. The one field NOT satisfied by construction is
 pre-mortem certification — a non-author reviewer must sign it, which is the point
 (ADR-0002).*
 
-<!-- keel kit 0.12.0 -->
+<!-- keel kit 0.13.0 -->

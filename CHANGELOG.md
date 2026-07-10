@@ -2,6 +2,66 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.13.0] - 2026-07-10
+
+The field-hardening release: five recurring field gaps moved to their enforcing layer (ADR-0016),
+and the headline comparative claim retired at ADR-0013's run-or-retire deadline (ADR-0015). Design
+registers: ADR-0015, ADR-0016.
+
+### Added
+
+- **The shared text-segmentation layer** (`check_ready.py`, §1): `_mask_inline_spans` (a prose view
+  that space-fills inline-code spans, wrapped-across-a-line-break included) and `_split_cells` (a
+  backtick- and `\|`-aware table-row splitter) replace five divergent per-check masking idioms. A3's
+  angle idiom and A8's `§N` detection read the prose view; both table parsers read `_split_cells`.
+- **A CHANGELOG heading-chain test** (`tests/test_plugin_manifest.py`, §2): shape (no
+  `## [Unreleased]`; releases cut directly), strict descending SemVer by parsed integer tuple, and —
+  the layer that bites the 0.12.0 F1 defect — no `### kind` repeating inside one release section.
+- **The operator close** (`definition-of-ready.md` Part B, §4): the sanctioned discharge of an
+  operator-accepted CONDITIONAL-CERTIFY — the verdict stays CONDITIONAL-CERTIFY + named Operator + a
+  discharge note; the B1 WARN and (when a discharge edits the spec body) B2's earlier-revision WARN
+  are the expected honest state, never silenced by recomputing the hash; a confirm re-gate is
+  optional per the round economy. B2's hash-mismatch WARN gains an operator-close pointer on that path.
+- **A `consumed_input` findings-schema field** (prompt ⊕ agent, drift markers 33 → 34, §6): a
+  predicted cross-artifact coupling names the concrete input the dependent consumes, or downgrades to
+  a hypothesis with a disconfirming test rather than an asserted MUST.
+- **A VCS-tracking Definition-of-Done line** (§7): every ADR/spec-referenced durable artifact is
+  `git ls-files`-tracked, so a stray ignore rule cannot drop a referenced file from the merge.
+
+### Changed
+
+- **Part-A behaviour flips at syntax edges the fence doctrine could not reach** (§1): an angle
+  placeholder inside a line-wrapped inline-code span no longer false-fires A3; a backticked `§N`
+  glyph mention no longer fires A8; a slash- or en-dash-joined section range keeps its doc cue (A8) —
+  with a named lenient direction (an intra-spec dangler immediately after a comma/dash-joined
+  cross-doc run reads as part of the range); a fold-ledger, manifest, or concept cell carrying a
+  backticked pipe parses correctly (A12/A4/A5); a genuinely bare pipe in a ledger cell now names the
+  column break. A backticked legacy token (`` `TODO` ``) still fires, per the fence-only doctrine.
+- **The A6 anchor-snippet mismatch message states its parse** (§3) — it read the backticked token
+  after the anchor as a snippet; a guard test keeps the spec-template free of gate-parseable anchors.
+- **`reflection-triage.md` lands and sweeps** (§5): a sweep-the-sink first step (open rows of every
+  prior triage doc are input) and a two-branch "land" terminal step (apply in-context, or hand off to
+  the method's feedback intake), with a row-closure rule and the CHANGELOG-owner disambiguation.
+- **`apply-method` reads the project's bindings first** (§8); `keel init` runs only when the kit is
+  absent.
+- **The spec-template states the anchor authoring contract** (§9): repo-root-relative form, the
+  adjacency rule, the claim-anchor snippet rider, and the A5 body-claim requirement — pinned by needles.
+- **Release-flow guards** (§10): CONTRIBUTING + AGENTS record that gates run unpiped and that the
+  release pre-mortem states whether the cross-vendor panel ran; CI gains `uv lock --check` for the
+  eighth version site (`uv.lock`). The version-consistency test reads seven text sites; the release
+  bumps eight (uv.lock via `uv lock`).
+- **The comparative claim is retired, unmeasured** (ADR-0015, §12): doctrine §1, `docs/evidence.md`,
+  and `docs/concepts.md` drop the "pending" qualifier; README's wager line points at `docs/evidence.md`;
+  the fathom instrument evidence is cited by its public repository; the priced reopening path is
+  recorded (maintainer-local, no date). `tests/test_claim_currency.py` pins it.
+
+### Origin
+
+- The 2026-07-09 post-0.12.0 field triage (maintainer-local — see `docs/evidence.md`) → ADR-0015/0016
+  → the 0.13.0 spec (`docs/design/2026-07-10-keel-0.13.0-spec.md`, maintainer-local), gated by a
+  two-round blind pre-mortem arc (1 BLOCKER + 2 MAJOR + 6 MINOR folded, then an operator close).
+  Regression tests per behaviour-changing section (162 → 184).
+
 ## [0.12.0] - 2026-07-06
 
 The certification-artifact release: closes ADR-0013's deferred design calls (B2, the read-only
