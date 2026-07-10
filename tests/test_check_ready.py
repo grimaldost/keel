@@ -286,6 +286,19 @@ def test_anchor_snippet_mismatch_fails(tmp_path):
     assert any('snippet' in v.message.lower() for v in result.violations)
 
 
+def test_anchor_snippet_mismatch_names_the_parse_a6(tmp_path):
+    # §3 (P4a): the A6 failure states the parse it made — the adjacent backticked token was read
+    # as a snippet — so an author who meant prose emphasis or `...` elision sees why it fired.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text(_MOD, encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2` `return 42`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('as a snippet to match against line 2' in v.message for v in result.violations)
+
+
 def test_dotfile_anchor_resolves_passes_a6(tmp_path):
     # A dotfile anchor (leading dot, no extension) is path-like and must resolve like any path.
     (tmp_path / '.git').mkdir()

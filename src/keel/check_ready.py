@@ -706,7 +706,12 @@ def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
             actual = ' '.join(lines[line_no - 1].split())
             if ' '.join(snippet.split()) not in actual:
                 violations.append(
-                    Violation(where, f'anchor snippet {snippet!r} does not match line {line_no}.')
+                    Violation(
+                        where,
+                        f'interpreted {snippet!r} (the backticked token after the anchor) as a '
+                        f'snippet to match against line {line_no}; remove it or make it an exact '
+                        'substring of that line.',
+                    )
                 )
     return violations
 
