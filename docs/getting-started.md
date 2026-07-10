@@ -60,7 +60,9 @@ keel spec-hash docs/design/my-feature-spec.md
 ## 6. Certify and gate
 
 Record the certification block (Reviewer, Verdict, the artifact reference; an operator-accepted
-`CONDITIONAL-CERTIFY` needs an `Operator:`), update the header `Status:`, then:
+`CONDITIONAL-CERTIFY` needs an `Operator:`, and an Operator who applies the conditions closes per
+the operator close, `definition-of-ready.md` Part B — the verdict stays `CONDITIONAL-CERTIFY`),
+update the header `Status:`, then:
 
 ```
 keel check-ready docs/design/my-feature-spec.md
@@ -71,6 +73,9 @@ section, per the manifest) and implement — each PR cites its section, gates ru
 
 ## 7. Close the loop
 
-After the wave, run the reflection triage (`reflection-triage.md`): cluster what the round taught,
-ground each candidate promotion against current source, and promote the recurring traps into a
-checklist item, a gate, or a template change — so the next round starts sharper than this one.
+After the wave, run the reflection triage (`reflection-triage.md`): sweep the sink's open rows,
+cluster what the round taught, ground each candidate promotion against current source, and promote
+the recurring traps into a checklist item, a gate, or a template change — so the next round starts
+sharper than this one. A promotion you cannot apply in-context (you ran the method from the installed
+plugin) rides a method-promotions handoff into the method's feedback intake, per the template's
+landing rule — never left recorded only where the method cannot read it.

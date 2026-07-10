@@ -33,6 +33,9 @@ uv run ty check src
 uv run pytest
 ```
 
+Run them unpiped — a pipe (`| tail -1`) substitutes the filter's exit status for the gate's, so a
+red gate reads green.
+
 ## How to change keel
 
 Each recurring lesson becomes exactly one of: a template/doctrine edit, a new gate in

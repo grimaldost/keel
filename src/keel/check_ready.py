@@ -13,9 +13,10 @@ from keel.errors import format_error
 from keel.models import GateResult, Violation
 
 # A3 placeholders: the four legacy tokens, plus the spec-template's angle-bracket idiom
-# (`<title>`, `<the observable condition ...>`). The angle-bracket form is matched only OUTSIDE
-# inline code (callers strip backtick spans first), so documented CLI syntax like `keel init
-# <target>` in backticks is fine while a leftover bare `<title>` heading placeholder fails (A3).
+# (`<title>`, `<the observable condition ...>`). The angle-bracket form is matched on the shared
+# prose view (`_mask_inline_spans` space-fills inline-code spans, including a span hard-wrapped
+# across a line break), so documented CLI syntax like `keel init <target>` in backticks is fine —
+# even wrapped mid-span — while a leftover bare `<title>` heading placeholder fails (A3).
 _PLACEHOLDER_RE = re.compile(r'\b(?:TBD|TODO|FIXME)\b|\?\?\?')
 _ANGLE_PLACEHOLDER_RE = re.compile(r'<[a-z][^>\n]{2,}>')
 _SECTION_ID_RE = re.compile(r'§\d+')
@@ -44,6 +45,9 @@ _ADR_REF_RE = re.compile(r'`(docs/adr/(\d+)-[^`]+\.md)`')
 _MODEL_ON_RE = re.compile(r'\*\*Model-on:\*\*\s*`([^`]+)`')
 _REUSE_RE = re.compile(r'\*\*Reuse:\*\*\s*`([^`]+)`')
 _SECTION_REF_RE = re.compile(r'§(\d+)(?![.\d])')  # a bare §N, not a sub-decimal §N.M
+# A trailing run of §N refs joined by whitespace/slash/dash/comma, stripped before the A8 cue
+# lookback so a joined section range (a slash range, or an en-dash range) keeps its preceding cue.
+_TRAILING_SECREFS_RE = re.compile(r'(?:§\d+[ \t/,–—-]*)+$')  # noqa: RUF001 (en/em dash joiners)
 _DOC_CUES = frozenset({'doctrine', 'concepts', 'readme', 'adr', 'contributing'})
 # A preceding token that names an external document, so its `§N` is a cross-document ref, not an
 # intra-spec one: a *.md file, a listed cue word, or a standards identifier (ADR-12, RFC-9110,
@@ -98,6 +102,39 @@ def _mask_fenced(text: str) -> str:
         ):
             fence = None
     return '\n'.join(out)
+
+
+_INLINE_SPAN_RE = re.compile(r'(?<!`)(`+)(?!`)((?:[^`\n]|\n(?![ \t]*\n))+?)\1(?!`)')
+
+
+def _mask_inline_spans(text: str) -> str:
+    """Space-fill inline-code spans — including a span hard-wrapped across a line break.
+
+    The shared *prose* view: callers pass `_mask_fenced` output (fenced blocks already blank), and
+    this pass blanks `inline code` the way a renderer treats it — a span may cross line breaks
+    within a paragraph but never a blank line, so a stray unpaired backtick cannot eat the rest of
+    the document. Spaces, never deletion: every line keeps its exact length, so a later violation's
+    line number stays true. Consumed by the prose scanners (A3's angle idiom, A8's `§N` detection);
+    the anchor scanners (A6/A9/A11, ADR refs) keep the unmasked view — their tokens are backticked.
+    """
+    return _INLINE_SPAN_RE.sub(lambda m: re.sub(r'[^\n]', ' ', m.group(0)), text)
+
+
+def _split_cells(line: str) -> list[str]:
+    r"""Split a markdown table row on `|`, keeping a pipe inside a backtick span (or escaped `\|`).
+
+    A table cell cannot be fenced, so the fence doctrine cannot protect a required cell that carries
+    a backticked type union (`` `-> pl.DataFrame | None` ``); this splitter is the one place a
+    cell's own pipes are masked, feeding every table parser (A4/A5/A10/A12). An unclosed backtick
+    leaves its pipes as delimiters (fails toward today's behaviour).
+    """
+    protected = re.sub(
+        r'`[^`]*`', lambda m: m.group(0).replace('|', '\x00'), line.replace('\\|', '\x01')
+    )
+    return [
+        cell.replace('\x00', '|').replace('\x01', '\\|').strip()
+        for cell in protected.strip().strip('|').split('|')
+    ]
 
 
 def _anchor_shaped(path: str) -> bool:
@@ -207,6 +244,9 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     raw = _read_spec_text(spec_path, purpose='check-ready')
     # Fenced code blocks are illustrative, not live structure: mask them before any parse or scan.
     text = _mask_fenced(raw)
+    # The prose view additionally space-fills inline-code spans (wrapped ones included), for the
+    # scanners that must not read code (A3 angle idiom, A8 `§N` detection); offsets stay true.
+    prose = _mask_inline_spans(text)
     sections = _split_top_sections(text)
     subsections = _subsections(_find_section(sections, 'numbered', 'sections') or '')
     section_ids = [m.group(1) for title, _ in subsections if (m := re.match(r'(§\d+)\b', title))]
@@ -219,7 +259,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     warnings += _kit_skew_warning(text)
     violations += _check_numbered(subsections)
     violations += _check_acceptance(subsections)
-    violations += _check_placeholders(text)
+    violations += _check_placeholders(text, prose)
     # §11 (0.12.0): a header `Phases:` declaration that explicitly names Decompose as skipped
     # relaxes the manifest requirement to absent-ok — a declared Decide+Specify round no longer
     # invents a manifest to pass its own gate (ADR-0014). A manifest that IS present is still
@@ -236,7 +276,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     violations += _check_anchor_ranges(text, spec_path)
     violations += _check_adr_numbers(text, spec_path)
     violations += _check_references(text, spec_path)
-    violations += _check_section_refs(text, section_ids)
+    violations += _check_section_refs(text, prose, section_ids)
     violations += _check_enforcement_claims(sections, text)
     violations += _check_fold_ledger(cert, spec_path)
     if not structure_only:
@@ -293,7 +333,7 @@ def _table_rows(body: str) -> list[list[str]]:
         line = raw.strip()
         if not line.startswith('|'):
             continue
-        cells = [cell.strip() for cell in line.strip('|').split('|')]
+        cells = _split_cells(line)
         if all(set(cell) <= set('-: ') for cell in cells):
             continue
         rows.append(cells)
@@ -314,7 +354,7 @@ def _first_table_rows(body: str) -> list[list[str]]:
         line = raw.strip()
         if line.startswith('|'):
             started = True
-            cells = [cell.strip() for cell in line.strip('|').split('|')]
+            cells = _split_cells(line)
             if all(set(cell) <= set('-: ') for cell in cells):
                 continue
             rows.append(cells)
@@ -504,22 +544,24 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
     return violations
 
 
-def _check_placeholders(text: str) -> list[Violation]:
+def _check_placeholders(text: str, prose: str) -> list[Violation]:
     """A3: no TBD/TODO/FIXME/??? token, and no leftover `<...>` template placeholder, in the spec.
 
-    The angle-bracket idiom is matched only OUTSIDE inline code (backtick spans dropped first), so a
-    documented `keel init <target>` stays legal while a stamped `### §1 <title>` heading or an
-    unfilled `<the observable condition ...>` acceptance criterion is caught — closing the "a
-    minimally-edited new-spec stamp passes the whole gate" hole.
+    The angle-bracket idiom is matched on the shared prose view (`_mask_inline_spans`, wrapped spans
+    included), so a documented `keel init <target>` stays legal — even wrapped mid-span — while a
+    stamped `### §1 <title>` heading or an unfilled `<the observable condition ...>` acceptance
+    criterion is caught. The legacy tokens keep scanning the fence-masked line: a backticked `TODO`
+    still fires, matching the spec-template's fence-only quoting doctrine.
     """
     violations: list[Violation] = []
-    for lineno, line in enumerate(text.splitlines(), 1):
+    for lineno, (line, masked) in enumerate(
+        zip(text.splitlines(), prose.splitlines(), strict=True), 1
+    ):
         for match in _PLACEHOLDER_RE.finditer(line):
             violations.append(
                 Violation(f'line {lineno}', f'placeholder token {match.group(0)!r} not allowed.')
             )
-        bare = re.sub(r'`[^`]*`', '', line)
-        for match in _ANGLE_PLACEHOLDER_RE.finditer(bare):
+        for match in _ANGLE_PLACEHOLDER_RE.finditer(masked):
             if '://' in match.group(0):  # an autolink <https://...>, not a placeholder
                 continue
             violations.append(
@@ -664,7 +706,12 @@ def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
             actual = ' '.join(lines[line_no - 1].split())
             if ' '.join(snippet.split()) not in actual:
                 violations.append(
-                    Violation(where, f'anchor snippet {snippet!r} does not match line {line_no}.')
+                    Violation(
+                        where,
+                        f'interpreted {snippet!r} (the backticked token after the anchor) as a '
+                        f'snippet to match against line {line_no}; remove it or make it an exact '
+                        'substring of that line.',
+                    )
                 )
     return violations
 
@@ -745,7 +792,8 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
     ledger = next(
         (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
     )
-    rows = [cells for i, cells in enumerate(_first_table_rows(ledger)) if i > 0] if ledger else []
+    table = _first_table_rows(ledger) if ledger else []
+    header, rows = (table[0] if table else []), table[1:]
     if not rows:
         if _fold_claimed(cert_body):
             return [
@@ -775,12 +823,19 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
         # moves content within range; the snippet does not.
         match = re.match(r'`?([^`\s]*[./][^`\s]*):(\d+)`?(?:[ \t]+`([^`]+)`)?$', cell)
         if match is None:
+            hint = ''
+            if header and len(cells) > len(header):
+                hint = (
+                    f' This row split into {len(cells)} cells where the header has {len(header)} — '
+                    'a bare `|` inside a cell is a column break; backtick the cell content or '
+                    'escape it as `\\|`.'
+                )
             violations.append(
                 Violation(
                     where,
                     'fold-ledger row has no resolving `artifact:line` confirmation '
                     '(anchor each row to `path:line`, e.g. `docs/design/your-spec.md:142`; an '
-                    'optional backticked snippet after it is verified against that line).',
+                    'optional backticked snippet after it is verified against that line).' + hint,
                 )
             )
             continue
@@ -853,20 +908,27 @@ def _check_references(text: str, spec_path: Path) -> list[Violation]:
     return violations
 
 
-def _check_section_refs(text: str, section_ids: list[str]) -> list[Violation]:
+def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[Violation]:
     """A8: every bare intra-spec §N reference resolves to a numbered section.
 
-    The `§` glyph is reserved for the spec's own sections; a `§N` that is part of a
-    sub-decimal (`§4.5`), on a `###` heading line (a definition, not a reference), or
-    preceded by a document/file cue (`doctrine §6`) is left alone.
+    The `§` glyph is reserved for the spec's own sections; a `§N` that is part of a sub-decimal
+    (`§4.5`), on a `###` heading line (a definition, not a reference), backticked (a `§9`-glyph
+    mention, masked on the prose view), or preceded by a document/file cue (`doctrine §6`, or the
+    trailing ref of a joined range like `ADR-0103 §3/§4`) is left alone. Detection runs on the prose
+    view, so a backticked mention no longer fires; the cross-document cue lookback reads the raw
+    line at the same offset (offsets are preserved), so a backticked `` `docs/doctrine.md` §6 `` cue
+    still suppresses, and a trailing §-ref run is stripped first so a joined range keeps its cue.
     """
     known = set(section_ids)
     violations: list[Violation] = []
-    for lineno, line in enumerate(text.splitlines(), 1):
+    for lineno, (line, masked) in enumerate(
+        zip(text.splitlines(), prose.splitlines(), strict=True), 1
+    ):
         if line.lstrip().startswith('#'):  # a heading defines a section, it is not a ref
             continue
-        for match in _SECTION_REF_RE.finditer(line):
-            toks = re.findall(r'\S+', line[: match.start()])
+        for match in _SECTION_REF_RE.finditer(masked):
+            before = _TRAILING_SECREFS_RE.sub('', line[: match.start()])
+            toks = re.findall(r'\S+', before)
             last = toks[-1].lower().strip(_CUE_STRIP) if toks else ''
             prev = toks[-2].lower().strip(_CUE_STRIP) if len(toks) >= 2 else ''
             # cross-document: a *.md file, a listed cue word, a standards id (ADR-0002, PEP8), or a
@@ -1037,11 +1099,21 @@ def _check_certification_artifact(
     if recorded_hash:
         first = recorded_hash.split()[0].strip('`').lower() if recorded_hash.split() else ''
         if first != spec_hash(spec_path):
-            warnings.append(
+            warning = (
                 'WARN: the artifact was certified against an earlier revision of this spec '
                 '(Spec-hash mismatch) — re-run the pass on the current spec, or accept knowingly '
                 '(B2).'
             )
+            # On an operator close (an operator-accepted CONDITIONAL-CERTIFY), a condition
+            # discharged after the pass moves the hash by design, so this mismatch is expected —
+            # name it, but only there (a blanket clause would bless arbitrary post-cert edits).
+            if cert_head == 'CONDITIONAL-CERTIFY' and _field(cert_body, 'operator'):
+                warning += (
+                    ' On an operator-accepted CONDITIONAL-CERTIFY this mismatch is the expected '
+                    'state — a condition discharged after the pass (the operator close, '
+                    'definition-of-ready.md Part B).'
+                )
+            warnings.append(warning)
     return violations, warnings
 
 

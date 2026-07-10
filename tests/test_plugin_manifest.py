@@ -1,6 +1,7 @@
 import json
 import re
 import tomllib
+from itertools import pairwise
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +51,48 @@ def test_version_is_consistent_across_all_sites():
     assert len(set(versions.values())) == 1, f'version sites disagree: {versions}'
 
 
+def test_changelog_heading_chain_is_intact():
+    # F1 (0.12.0 pre-cut audit; repaired in e5ede82): a release edit REPLACED the previous
+    # release's heading instead of inserting above it, so the 0.11.1 entry read as absorbed into
+    # 0.12.0's section — and only the blind audit caught it, because the version-consistency test
+    # reads the NEWEST heading only and the broken chain was still strictly descending. Three
+    # layers, one per failure shape:
+    #   shape — every H2 is a strict `## [x.y.z] - YYYY-MM-DD` heading. This file has never used
+    #     an `## [Unreleased]` heading (a deliberate deviation from Keep a Changelog), and the
+    #     newest-heading version site above assumes the first heading IS the current release, so a
+    #     non-SemVer H2 is a violation, not a form to tolerate.
+    #   order — strict descending SemVer with no duplicates, comparing parsed integer tuples (not
+    #     strings, since '0.10.0' < '0.9.0' lexically) — catches an entry pasted below an older
+    #     release, a double-pasted heading, a typo'd version.
+    #   absorption — no `### kind` repeats inside one release section: replacing a heading merges
+    #     two bodies (`### Changed` twice under one release) — the assertion that actually fails on
+    #     the originating F1 file; the order layer alone passes it.
+    heading = re.compile(r'^## \[([0-9]+\.[0-9]+\.[0-9]+)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$')
+    lines = (ROOT / 'CHANGELOG.md').read_text(encoding='utf-8').splitlines()
+    versions: list[tuple[int, int, int]] = []
+    section = 'preamble'
+    kinds: list[str] = []
+    for line in lines:
+        if line.startswith('## '):
+            match = heading.match(line)
+            assert match is not None, f'malformed release heading: {line!r}'
+            major, minor, patch = match.group(1).split('.')
+            versions.append((int(major), int(minor), int(patch)))
+            section, kinds = match.group(1), []
+        elif line.startswith('### '):
+            kind = line.removeprefix('### ').strip()
+            assert kind not in kinds, (
+                f'`### {kind}` repeats inside the [{section}] section — a release edit likely '
+                'replaced the previous heading and absorbed its entry (the F1 class)'
+            )
+            kinds.append(kind)
+    assert len(versions) >= 2, 'parse rot: fewer than two release headings found'
+    for newer, older in pairwise(versions):
+        assert newer > older, (
+            f'headings not in strict descending SemVer order: {newer} before {older}'
+        )
+
+
 def test_referenced_assets_exist():
     assert (ROOT / 'skills' / 'apply-method' / 'SKILL.md').exists()
     assert (ROOT / 'agents' / 'pre-mortem-review.md').exists()
@@ -60,3 +103,10 @@ def test_referenced_assets_exist():
     assert (ROOT / 'hooks' / 'hooks.json').exists()
     for command in ('keel-apply', 'keel-check-ready', 'keel-premortem', 'keel-triage'):
         assert (ROOT / 'commands' / f'{command}.md').exists()
+
+
+def test_apply_method_routes_through_bindings():
+    # §8 (c1-T4): the router consumes the project's bindings record on the already-established
+    # path instead of pointing every entry at the packaged templates.
+    skill = (ROOT / 'skills' / 'apply-method' / 'SKILL.md').read_text(encoding='utf-8')
+    assert 'established format IS the binding' in skill

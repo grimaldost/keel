@@ -5,7 +5,7 @@ description: Apply the keel method — the author's externalized development met
 
 # Apply the method
 
-This skill ships with keel 0.12.0 — authoritative doctrine is the **installed** keel's
+This skill ships with keel 0.13.0 — authoritative doctrine is the **installed** keel's
 `docs/doctrine.md`; if this copy's version lags `keel --version`, your plugin cache is stale
 (reinstall) and this text may trail the substance it routes to.
 
@@ -42,6 +42,13 @@ imported by ≥~50 modules, additive-on-a-shared-contract, a boundary crossing, 
 
 ## Running a change under the method
 
+**Entry: read the bindings first.** The project's `method-bindings.md` names its established
+formats — spec format, ADR home, gate commands, review checklist; match those, not the packaged
+templates. If the file is absent but prior method artifacts exist (earlier specs, an ADR log), the
+established format IS the binding: locate a prior spec (glob for it, e.g. `docs/**/spec*.md`), bind
+the slots from what you find, and write the missing `method-bindings.md` so the next round reads a
+record instead of re-globbing. Run `keel init` only when the kit itself is absent.
+
 Follow the phases; the gates are the load-bearing part:
 
 - **Specify → DoR gate.** The spec is not ready to decompose until
@@ -54,9 +61,11 @@ Follow the phases; the gates are the load-bearing part:
   the drift gate watches the wave.
 - **Implement → Gate → Review → DoD gate.** Merge only when
   `definition-of-done.md` is fully checked (deterministic gates + blocking review).
-- **Reflect.** Run `reflection-triage.md` — promote recurring traps to a
-  checklist item, a guardrail, or a spec-template/DoR change. The series is not
-  done reflecting until this is done.
+- **Reflect.** Run `reflection-triage.md` — sweep the sink's open rows, then promote
+  recurring traps to a checklist item, a guardrail, or a spec-template/DoR change, and
+  **land** each per the template's landing rule (apply in-context, or hand off to the
+  method's feedback intake when you ran from the installed plugin). The series is not
+  done reflecting until every promotion has landed.
 
 ## Not every round runs all 8 phases
 

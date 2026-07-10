@@ -100,6 +100,7 @@ Emit findings as a YAML list, one entry per failure mode, then the prose. Each m
     smallest_fix: "<one-line spec/prompt edit>"
     blast_radius: "<required when the smallest_fix touches shared/global config (an addopts line, a repo-wide marker, a schema default): one line naming what else the fix reaches>"
     disconfirming_test: "<the cheapest observation that would confirm or refute this mode>"
+    consumed_input: "<required when the mode predicts a cross-artifact coupling (changing X breaks / drifts / regenerates Y): the concrete input the dependent actually consumes (installed symbols / packaging metadata / a generated file / a gate's scan surface), verified by READING that consumer — a coupling that cannot name its consumed input is a hypothesis to close via its disconfirming_test, not a MUST>"
     target_section: "section N"
 
 Also return, when applicable: an optional `cleared:` list — claims you verified and found CORRECT, each with its cite — so a cleared risk is recorded as a confirmation rather than prose that reads as an unapplied fix; on CONDITIONAL-CERTIFY, a structured `conditions:` list (each condition a named fix of at most two lines), so multi-spec synthesis is collation, not interpretation; and an `Unverified-offline: <N>` count on the line immediately preceding the terminal verdict line — every directive that requires EXECUTION (the autofixer simulation, post-parametrize collection counting, AST enumeration) that your runner cannot execute leaves its claim tagged unverified-offline, and N is that count.

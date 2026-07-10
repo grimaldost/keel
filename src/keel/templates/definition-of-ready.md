@@ -26,7 +26,8 @@ is Part B's job).
       and every PR cites **exactly one** section (a bijection).
 - [ ] Every path in the concept→module map exists, or is explicitly marked "to be
       created" **and** claimed by a numbered section.
-- [ ] Every `path:line` anchor resolves (file + line exist) and any quoted snippet matches.
+- [ ] Every `path:line` anchor resolves (file + line exist) and any quoted snippet — the
+      backticked token right after the anchor — matches.
 - [ ] Every cited `docs/adr/NNNN-…` uses a number free on the base (no collision).
 - [ ] Every `**Model-on:**` / `**Reuse:**` reference present resolves — the path exists
       (and the symbol, for `path::symbol`) (A9).
@@ -45,19 +46,19 @@ is Part B's job).
 ```
 A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
 A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words)
-A3 fail if regex (TBD|TODO|FIXME|\?\?\?) matches the spec body
+A3 fail on a TBD/TODO/FIXME/??? token, or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view (inline-code spans space-filled, wrapped spans included), so backticked `<target>` syntax is exempt while a bare `<title>` is caught
 A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage
 A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
-A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet matches
+A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches
 A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR
-A8 each bare intra-spec `§N` reference: fail unless it names a numbered section (skips `§N.M`, headings, doc-cued refs)
+A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
 A10 when an Enforcement-status table is present: fail if prose claims an invariant "enforced"/"guaranteed" whose row is not enforced
 A11 each `path:lo-hi` range anchor: fail unless it closes (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
 A12 when a `### Fold ledger` sub-table is present: fail unless each row's `artifact:line` confirmation anchor resolves
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
-B2 when the certification names a `Certification artifact:`: fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision") and when no artifact is named (adoption nudge)
+B2 when the certification names a `Certification artifact:`: fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision" — suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY) and when no artifact is named (adoption nudge)
 ```
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*
@@ -113,6 +114,30 @@ are stateless.
       that tests a jail no PR creates.
 - [ ] *(eval/experiment specs)* the analysis plan is pre-registered — fixed before results are seen, not
       chosen after (the spec-template advertises this axis as DoR-gated; this is that gate).
+
+### The operator close (discharging a CONDITIONAL-CERTIFY)
+
+When the final pass returns `CONDITIONAL-CERTIFY` and the named Operator applies the bounded
+`conditions:` themselves, the sanctioned close is:
+
+- **The recorded `Verdict:` stays `CONDITIONAL-CERTIFY`**, with the named `Operator:` and a discharge
+  note on the verdict line (e.g. `CONDITIONAL-CERTIFY — COND-1 discharged by the Operator, <date>`);
+  record each discharged condition as a fold-ledger row so A12 anchors the fix to a real line. Do not
+  rewrite the verdict to `CERTIFIED`: no pass returned that token, and B2 fails a recorded Verdict
+  that disagrees with the saved artifact's.
+- **The artifact's `Spec-hash:` stays the hash of the spec the final pass read.** The close's own
+  recording never moves the hash — a certification-block edit (the discharge note, a fold-ledger row)
+  is masked from the hash by design. But if discharging a condition edits the **spec body**, the
+  saved hash no longer matches, and B2's "certified against an earlier revision" WARN is then the
+  *expected honest state* of this close, not a defect to silence (ADR-0002) — never recompute the
+  hash after discharge to quiet it, which would record a revision the reviewer never read. The B1
+  operator-accepted WARN stands the same way.
+- **A confirm re-gate is optional**, priced by the round economy (ADR-0014): take one only when a
+  condition outgrew its named ≤2-line bound, or the fix touches an irreversible / shared-contract
+  surface. A confirm round bought only to flip the token to `CERTIFIED` is over-process — the close
+  already records who accepted what, and the gate passes with its WARNs standing. When a confirm
+  re-gate IS taken and returns `CERTIFIED`, its saved output becomes the certification artifact
+  (latest-wins) and the recorded verdict flips with it — the ordinary close, not this one.
 
 **Gate result:** Ready ✅ only when Part A is well-formed **and** the Part B
 pre-mortem certification is recorded. `keel check-ready` enforces both halves; the

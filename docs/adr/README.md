@@ -15,6 +15,9 @@
 | [0011](0011-the-enforcement-gap.md) | the enforcement gap — the gate must enforce what it documents | Accepted |
 | [0012](0012-the-publication-boundary.md) | the publication boundary — public claims must not cite private evidence | Accepted |
 | [0013](0013-deferred-design-calls.md) | deferred design calls from the 2026-07-01 panel | Accepted |
+| [0014](0014-certification-artifact-and-round-economy.md) | the certification artifact & the round economy | Accepted |
+| [0015](0015-retiring-the-comparative-claim.md) | retiring the headline comparative claim (discharges ADR-0013 §4) | Accepted |
+| [0016](0016-field-hardening-enforcing-layers.md) | field-hardening — moving recurring gaps to their enforcing layer | Accepted |
 
 Status: Proposed | Accepted | Superseded by ADR-NNNN. Never edit an Accepted decision —
 supersede it.

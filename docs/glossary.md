@@ -14,7 +14,9 @@ stay the source of truth.
   that fires only when its structure exists (B2, A10) vs. one that newly requires structure
   (R1's ledger-on-claimed-fold) and says so.
 - **verdict tokens** — `CERTIFIED` · `CONDITIONAL-CERTIFY` (requires a named `Operator:`) ·
-  `NEEDS-REVISION`; parsed leading-token, so trailing prose or an identity suffix is inert.
+  `NEEDS-REVISION`; parsed leading-token, so trailing prose or an identity suffix is inert. An
+  Operator-discharged conditional stays `CONDITIONAL-CERTIFY` (the *operator close*,
+  `definition-of-ready.md` Part B).
 - **fold** — applying a pre-mortem finding's `smallest_fix` back into the spec; a *verified hop*:
   each fix is re-grounded first, and the post-fold re-read hunts the fold's own errors.
 - **fold ledger** — one row per folded finding (`finding · target · path:line · confirmed`,

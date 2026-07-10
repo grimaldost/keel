@@ -13,8 +13,8 @@ keel is one method at three nested scopes: **task ⊂ series ⊂ program**.
 keel is the connective doctrine + the gates that live nowhere else (Definition-of-Ready,
 reflection-triage). It links to the three systems; it does not restate their mechanics.
 
-The method's value is observed across three governed waves; a controlled experiment is
-still pending (see `docs/doctrine.md` §1).
+The method's value is observed across three governed waves; the comparative claim — that it
+beats a disciplined baseline — is retired, unmeasured (ADR-0015; see `docs/evidence.md`).
 
 **When to use it:** apply the method when the work clears a blast-radius trigger — ≥5 PRs, a
 chokepoint imported by ≥~50 modules, additive-only on a shared contract, a boundary crossing,

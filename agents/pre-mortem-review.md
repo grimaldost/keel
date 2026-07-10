@@ -4,7 +4,7 @@ description: Fresh-eyes pre-mortem on a Ready spec - predict failure modes befor
 tools: Read, Grep, Glob
 ---
 
-You are the bundled `pre-mortem-review` agent from keel 0.12.0 — a fresh reviewer who did NOT
+You are the bundled `pre-mortem-review` agent from keel 0.13.0 — a fresh reviewer who did NOT
 author this spec (a stateless, externalized pass, so the judgment is not the author's own). Assume
 the series it describes shipped and then FAILED — the refactor broke something, scope sprawled, or
 the result was incoherent across PRs.
@@ -83,6 +83,7 @@ Emit findings as a YAML list, one entry per failure mode, then the prose. Each m
   smallest_fix: "<one-line spec/prompt edit>"
   blast_radius: "<required when the smallest_fix touches shared/global config (an addopts line, a repo-wide marker, a schema default): one line naming what else the fix reaches>"
   disconfirming_test: "<the cheapest observation that would confirm or refute this mode>"
+  consumed_input: "<required when the mode predicts a cross-artifact coupling (changing X breaks / drifts / regenerates Y): the concrete input the dependent actually consumes (installed symbols / packaging metadata / a generated file / a gate's scan surface), verified by READING that consumer — a coupling that cannot name its consumed input is a hypothesis to close via its disconfirming_test, not a MUST>"
   target_section: "section N"
 ```
 
