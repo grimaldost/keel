@@ -26,7 +26,8 @@ is Part B's job).
       and every PR cites **exactly one** section (a bijection).
 - [ ] Every path in the concept→module map exists, or is explicitly marked "to be
       created" **and** claimed by a numbered section.
-- [ ] Every `path:line` anchor resolves (file + line exist) and any quoted snippet matches.
+- [ ] Every `path:line` anchor resolves (file + line exist) and any quoted snippet — the
+      backticked token right after the anchor — matches.
 - [ ] Every cited `docs/adr/NNNN-…` uses a number free on the base (no collision).
 - [ ] Every `**Model-on:**` / `**Reuse:**` reference present resolves — the path exists
       (and the symbol, for `path::symbol`) (A9).
@@ -48,7 +49,7 @@ A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 w
 A3 fail on a TBD/TODO/FIXME/??? token, or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view (inline-code spans space-filled, wrapped spans included), so backticked `<target>` syntax is exempt while a bare `<title>` is caught
 A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage
 A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
-A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet matches
+A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches
 A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)

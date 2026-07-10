@@ -12,7 +12,15 @@ REQUIRED_SECTIONS = {
         'sweep the sink',
         'lists its doc as input',
     ],
-    'spec-template.md': ['Non-goals', 'Acceptance', 'Pre-mortem certification', 'Gate commands'],
+    'spec-template.md': [
+        'Non-goals',
+        'Acceptance',
+        'Pre-mortem certification',
+        'Gate commands',
+        'IS its snippet',
+        '§ that creates it',
+        'not just the address',
+    ],
 }
 
 

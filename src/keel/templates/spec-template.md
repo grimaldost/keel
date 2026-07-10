@@ -51,7 +51,9 @@ one negated ("not enforced", "to be enforced later"), does not fire.*
 |---|---|
 | <concept> | `path/to/module` |
 
-*Every concept must map to a home. A concept with no module is a DoR failure.*
+*Every concept must map to a home. A concept with no module is a DoR failure. Mark a new path
+"(to be created)" and name it — full path, or bare basename when unique — in the body of the
+§ that creates it (`check-ready` A5); in a greenfield spec that is every row.*
 
 ## Numbered sections
 
@@ -68,8 +70,11 @@ What changes. **Acceptance criterion:** <...>.
 *(Add sections as needed. Every section needs an acceptance criterion — this is
 both a DoR check and each PR's exit gate.)*
 
-*Ground factual claims with `path:line` anchors (optionally followed by a quoted line in
-backticks) — `check-ready` verifies they resolve and match. Cite a new ADR as
+*Ground factual claims with `path:line` anchors, repo-root-relative (`src/pkg/mod.py:NN`). A
+backticked token on the same line right after an anchor IS its snippet: `check-ready` (A6)
+requires it be an exact substring of that line — don't backtick prose emphasis or `...` elision
+there. A bare anchor verifies only that the file and line exist; a claim-supporting anchor SHOULD
+carry its snippet, so the gate verifies the evidence, not just the address. Cite a new ADR as
 `docs/adr/NNNN-slug.md` using the next free number on your base, never a hardcoded guess.*
 
 *Reuse notation: pin a reuse target as `**Model-on:** <backticked path>` or
