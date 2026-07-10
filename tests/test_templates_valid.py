@@ -5,7 +5,13 @@ REQUIRED_SECTIONS = {
     'definition-of-ready.md': ['Part A', 'Part B'],
     'definition-of-done.md': ['Deterministic gates', 'Review gate'],
     'review-checklist.md': ['Scope', 'Correctness'],
-    'reflection-triage.md': ['Procedure', 'Exit gate'],
+    'reflection-triage.md': [
+        'Procedure',
+        'Exit gate',
+        'method-promotions',
+        'sweep the sink',
+        'lists its doc as input',
+    ],
     'spec-template.md': ['Non-goals', 'Acceptance', 'Pre-mortem certification', 'Gate commands'],
 }
 

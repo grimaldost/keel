@@ -54,9 +54,11 @@ Follow the phases; the gates are the load-bearing part:
   the drift gate watches the wave.
 - **Implement → Gate → Review → DoD gate.** Merge only when
   `definition-of-done.md` is fully checked (deterministic gates + blocking review).
-- **Reflect.** Run `reflection-triage.md` — promote recurring traps to a
-  checklist item, a guardrail, or a spec-template/DoR change. The series is not
-  done reflecting until this is done.
+- **Reflect.** Run `reflection-triage.md` — sweep the sink's open rows, then promote
+  recurring traps to a checklist item, a guardrail, or a spec-template/DoR change, and
+  **land** each per the template's landing rule (apply in-context, or hand off to the
+  method's feedback intake when you ran from the installed plugin). The series is not
+  done reflecting until every promotion has landed.
 
 ## Not every round runs all 8 phases
 

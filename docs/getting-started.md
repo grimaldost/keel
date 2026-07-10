@@ -73,6 +73,9 @@ section, per the manifest) and implement — each PR cites its section, gates ru
 
 ## 7. Close the loop
 
-After the wave, run the reflection triage (`reflection-triage.md`): cluster what the round taught,
-ground each candidate promotion against current source, and promote the recurring traps into a
-checklist item, a gate, or a template change — so the next round starts sharper than this one.
+After the wave, run the reflection triage (`reflection-triage.md`): sweep the sink's open rows,
+cluster what the round taught, ground each candidate promotion against current source, and promote
+the recurring traps into a checklist item, a gate, or a template change — so the next round starts
+sharper than this one. A promotion you cannot apply in-context (you ran the method from the installed
+plugin) rides a method-promotions handoff into the method's feedback intake, per the template's
+landing rule — never left recorded only where the method cannot read it.

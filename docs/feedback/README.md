@@ -26,3 +26,10 @@ Reports are inputs to `src/keel/templates/reflection-triage.md` — triage promo
 traps into durable checks and records them in `CHANGELOG.md` (see `CONTRIBUTING.md`). The
 `session-workflow:feedback-triage` skill defers to that registered template when triaging this
 directory.
+
+Two other shapes are sanctioned intake here, both distinguished by an H1 that does **not** begin
+`# Triage —` so the sweep reads them as input, not as a triage pass: a `<date>-new-findings-digest.md`
+(a reconciled, owner-tagged digest handed to keel's flow) and a `<date>-<source>-method-promotions.md`
+(the handoff a consuming project emits when it ran the method from the installed plugin and could not
+apply its promotions in-context — reflection-triage.md's landing rule). A triage doc's own open
+`proposed` / `watch` rows stay in the backlog until a later doc lists it as input (the sweep rule).
