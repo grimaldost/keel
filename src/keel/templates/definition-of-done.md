@@ -13,6 +13,12 @@ externalized into a blocking checklist. Fail closed — nothing green-lights its
 - [ ] Each tool-wrapping gate asserts the tool **ran to completion** (exit status / no fatal
       halt), not just that error count ≤ baseline — a tool that bails early emits *fewer*
       errors than baseline and would otherwise pass green while checking nothing.
+- [ ] Every durable artifact the spec / its ADRs reference is **tracked in version control** —
+      `git ls-files --error-unmatch <path>` succeeds for each referenced path. A file can exist
+      on disk and pass every content gate while a stray `.gitignore` rule silently drops it from
+      the merge; no content check sees tracking. (A project MAY harden this into a guardrail
+      script; this line is the project-agnostic floor. A design-only round that names the DoD
+      phase skipped defers this predicate to the next execution round's gate.)
 
 *(Bind the concrete commands per project in `method-bindings.md`.)*
 

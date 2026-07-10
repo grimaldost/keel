@@ -3,7 +3,7 @@ from keel.templates import list_templates, templates_root
 
 REQUIRED_SECTIONS = {
     'definition-of-ready.md': ['Part A', 'Part B'],
-    'definition-of-done.md': ['Deterministic gates', 'Review gate'],
+    'definition-of-done.md': ['Deterministic gates', 'Review gate', 'git ls-files'],
     'review-checklist.md': ['Scope', 'Correctness'],
     'reflection-triage.md': [
         'Procedure',
