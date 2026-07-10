@@ -10,7 +10,7 @@ asks every consumer to fill — a real one, not the fictional `acme-ledger`.
 |---|---|
 | **ADR home** — a numbered decision log | `docs/adr/` (ADR-0001…, one file per decision) |
 | **Spec format** — numberable sections, acceptance criteria | `docs/design/<date>-<name>-spec.md` from `spec-template.md`. Honest note: `docs/design/` is maintainer-local and not published (ADR-0012) — the public record of each round is the CHANGELOG entry, the ADRs, and the tests it lands |
-| **Guardrails + gate commands** — deterministic pass/fail | `uv run ruff format --check .` · `uv run ruff check .` · `uv run ty check src` · `uv run pytest` (CONTRIBUTING.md; CI runs the same) |
+| **Guardrails + gate commands** — deterministic pass/fail | `uv run ruff format --check .` · `uv run ruff check .` · `uv run ty check src` · `uv run pytest`, run unpiped (CONTRIBUTING.md; CI runs these plus `uv lock --check` for the committed lock) |
 | **Review checklist** — blocking | the starter `src/keel/templates/review-checklist.md`, applied as-is |
 | **Reflection sink** — feeds the next round | `docs/feedback/` (maintainer-local, ADR-0012) + `src/keel/templates/reflection-triage.md`; triage docs open `# Triage —` |
 
