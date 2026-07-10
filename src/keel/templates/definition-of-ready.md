@@ -45,12 +45,12 @@ is Part B's job).
 ```
 A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
 A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words)
-A3 fail if regex (TBD|TODO|FIXME|\?\?\?) matches the spec body
+A3 fail on a TBD/TODO/FIXME/??? token, or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view (inline-code spans space-filled, wrapped spans included), so backticked `<target>` syntax is exempt while a bare `<title>` is caught
 A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage
 A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
 A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet matches
 A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR
-A8 each bare intra-spec `§N` reference: fail unless it names a numbered section (skips `§N.M`, headings, doc-cued refs)
+A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
 A10 when an Enforcement-status table is present: fail if prose claims an invariant "enforced"/"guaranteed" whose row is not enforced
 A11 each `path:lo-hi` range anchor: fail unless it closes (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)

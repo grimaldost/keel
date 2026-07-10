@@ -1082,3 +1082,109 @@ def test_spec_hash_fenced_cert_heading_does_not_shift_span(tmp_path):
         '- **Failure modes considered & folded in:** none outstanding\n- extra cert line',
     )
     assert spec_hash(_write(tmp_path, grown)) == with_fence
+
+
+# --- §1 (0.13.0): the shared text-segmentation layer ------------------------
+
+
+def test_wrapped_inline_span_angle_passes_a3(tmp_path):
+    # A `<...>`-shaped token inside an inline-code span that wraps a line is masked, not a leftover.
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.',
+        'Introduce `src/widget.py`. It accepts `watermark=\n<info or None>` downstream.',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_wrapped_span_keeps_line_numbers_true_a3(tmp_path):
+    # Space-fill (never deletion): a bare placeholder after a wrapped span reports its true line.
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.',
+        'Introduce `src/widget.py`. A `spanning\nexample` then a bare <leftover thing here>.',
+    )
+    lines = spec.split('\n')
+    expected = next(i for i, ln in enumerate(lines, 1) if '<leftover thing here>' in ln)
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any(
+        v.where == f'line {expected}' and 'placeholder' in v.message.lower()
+        for v in result.violations
+    )
+
+
+def test_fold_ledger_pipe_in_backticked_cell_passes_a12(tmp_path):
+    # A required ledger cell containing a backticked type union (`... | None`) no longer misparses.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | `-> pl.DataFrame | None` | `mod.py:2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_bare_pipe_names_column_break_a12(tmp_path):
+    # A genuinely bare pipe still fails — the message now names the column break, not a lost anchor.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | -> a | b | `mod.py:2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('column break' in v.message.lower() for v in result.violations)
+
+
+def test_slash_joined_docref_passes_a8(tmp_path):
+    good = READY_SPEC.replace(
+        'Expose the widget.', 'Expose the widget. Per ADR-0103 §3/§4 the cutover is staged.'
+    )
+    result = check_spec_ready(_write(tmp_path, good))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_endash_joined_docref_passes_a8(tmp_path):
+    good = READY_SPEC.replace(
+        'Expose the widget.',
+        'Expose the widget. Per ADR-0104 §1–§3 the plan holds.',  # noqa: RUF001 (en-dash under test)
+    )
+    result = check_spec_ready(_write(tmp_path, good))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_intra_spec_joined_dangler_still_fails_a8(tmp_path):
+    bad = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See §1/§9 for the plan.')
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    assert any('§9' in v.message for v in result.violations)
+
+
+def test_backticked_section_glyph_mention_passes_a8(tmp_path):
+    good = READY_SPEC.replace(
+        'Expose the widget.', 'Expose the widget. The `§9` glyph is quoted here.'
+    )
+    result = check_spec_ready(_write(tmp_path, good))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_backticked_md_cue_before_dangling_section_passes_a8(tmp_path):
+    # NF-2 / FM-1 blocker: a backticked `.md` doc-cue before an unbacked §N to a non-existent
+    # section must NOT fire A8 — the cue lookback reads the unmasked line at the same offset.
+    good = READY_SPEC.replace(
+        'Expose the widget.',
+        'Expose the widget. Per `docs/doctrine.md` §9 the rollback is staged.',
+    )
+    result = check_spec_ready(_write(tmp_path, good))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_manifest_pipe_in_backticked_cell_passes_a4(tmp_path):
+    spec = READY_SPEC.replace('| PR01 | §1 | yes |', '| PR01 (`A | B`) | §1 | yes |')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_concept_pipe_in_backticked_cell_passes_a5(tmp_path):
+    spec = READY_SPEC.replace(
+        '| widget | `src/widget.py` (to be created) |',
+        '| widget (`A | B`) | `src/widget.py` (to be created) |',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
