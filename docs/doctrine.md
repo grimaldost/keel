@@ -38,13 +38,13 @@ method makes them mandatory, external, and deterministic. That gap is the point.
 It is validated on **three governed waves** (kernel / authenticator / compute
 rounds on a production consumer, reported through the feedback intake), where a
 blind pre-mortem caught cross-PR
-blockers before code and the §↔PR bijection made salvages tractable. A controlled
-experiment against a disciplined baseline is still pending: until it runs, read the
-claims here as "designed to, and so far observed to," not "measured to beat" a careful
-generic flow. **The waves, the cost figures below, and the CHANGELOG "Origin" citations
+blockers before code and the §↔PR bijection made salvages tractable. The comparative
+headline — that this measurably beats a careful generic flow — is **retired, unmeasured**
+(ADR-0015): no controlled comparison ran, so read every claim here as "designed to, and so
+far observed to," never "measured to beat." **The waves, the cost figures below, and the CHANGELOG "Origin" citations
 draw on a maintainer-local field corpus that is not published** (real-consumer detail,
-ADR-0003); what a public reader can and cannot verify is set out in `docs/evidence.md`,
-and the run-or-retire commitment for the pending experiment is ADR-0013.
+ADR-0003); what a public reader can and cannot verify — and the single named path that would
+reinstate the comparative claim — is set out in `docs/evidence.md`.
 
 | What governs quality | Generic agentic flow | This method |
 |---|---|---|

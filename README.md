@@ -2,7 +2,9 @@
 
 The *method*: push control flow out of an agent's in-session context into durable
 artifacts (numbered ADRs, numbered spec sections, the wave/PR DAG) and deterministic
-machines (gates, hooks). **Enforced discipline beats intended discipline.**
+machines (gates, hooks). **Enforced discipline beats intended discipline** — the method's
+wager, designed to and so far observed to, never measured to beat a disciplined baseline
+(see [`docs/evidence.md`](docs/evidence.md)).
 
 keel ships that method two ways: a **Claude Code plugin** (the `apply-method` skill,
 slash commands, a pre-mortem agent, and the template kit) and a **`keel` CLI** (the

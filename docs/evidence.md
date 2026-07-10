@@ -34,10 +34,21 @@ consumer boundary ADR-0003 keeps keel behind. So a public reader **cannot** inde
 
 Treat these as the maintainer's honest field notes, not as independently checkable public evidence.
 
-## The gap keel owes itself
+## The comparative claim is retired (ADR-0015)
 
-The controlled experiment against a disciplined baseline (`docs/design/2026-06-06-keel-validation-experiment.md`,
-maintainer-local) was designed but has not run. Until it does, the comparative headline is a wager. keel
-has committed to **run a scoped version under its own measurement lane and publish the result, or
-retire the comparative claim by ADR, by 0.13.0** (ADR-0013). This document will be updated with the
-outcome.
+The controlled experiment against a disciplined baseline (designed 2026-06-06, maintainer-local) never
+ran. At the ADR-0013 deadline keel retired the comparative headline instead of running it: the best
+available instrument evidence — the public `fathom` eval harness (`github.com/grimaldost/fathom`, its
+ledgers committed) — shows current strong models at the correctness ceiling on every self-contained task
+bank tried (0/180 correctness failures at n=45 on the two hardest banks), so a matched-pair run at
+authoring-feasible task scale cannot distinguish the method from a disciplined baseline; it would return
+a null by instrument, not a verdict. What stands is observational only: *designed to, and so far observed
+to*. The observational ledger (per wave: failure modes predicted → materialized → catch cost) continues
+in the maintainer-local field corpus.
+
+**Reopening path (named, unscheduled — not a deferral):** a coordination-scale fathom bank — ≥8 matched
+task pairs above the doctrine §6 blast-radius trigger (≈80–100 trials), the keel arm mounted as a plugin,
+blind verifier-first scoring, an estimated $150–400 token-priced matrix on top of an 8–12-unit authoring
+series (priced design: maintainer-local, 2026-07). No date is attached and no run is owed; the comparative
+claim stays retired unless that run happens and favours the method, and this document records the outcome
+either way.
