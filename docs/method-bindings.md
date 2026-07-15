@@ -30,6 +30,7 @@ asks every consumer to fill — a real one, not the fictional `acme-ledger`.
 | Series runner | in-session manual-checklist mode: one commit per spec section, all four gates after each |
 | Single-unit discipline | red→green per section (a failing test precedes each gate-behavior change) |
 | Cross-series memory | `docs/feedback/` reports → periodic triage → promotions into templates/gates/ADRs (CONTRIBUTING.md's loop) |
+| Capacity dispatch | not bound — release waves run in-session at one tier; no per-PR routing |
 
-*Two slots are consciously unbound (wave budget, edit-time hook) — named, not faked, per the
-subset-of-phases doctrine.*
+*Three slots are consciously unbound (wave budget, edit-time hook, capacity dispatch) — named,
+not faked, per the subset-of-phases doctrine.*

@@ -31,6 +31,7 @@ with your project.
 | Series runner | a `series.toml` orchestrator (e.g. pr-pilot) — or the series table as a manual checklist |
 | Single-unit discipline | a process-discipline pack (e.g. humblepowers) |
 | Cross-series memory | a consolidating memory store (journals → distilled guidance) |
+| Capacity dispatch | a task→(model, effort) routing policy (e.g. humblepowers' choosing-models) — otherwise the scorer's tier heuristics |
 
 *A slot left unbound is a method-not-fully-applied warning. Bind every row before
 running a series under the method.*
