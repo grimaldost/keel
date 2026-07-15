@@ -212,7 +212,7 @@ links (this doc lives in a different repo).
 | Decide | ADR log | `docs/adr/` |
 | Specify | Spec + prompt template | committed spec + `docs/llm/TASK_PROMPT_TEMPLATE.md` |
 | Decompose | orchestrated series (e.g. pr-pilot) | `docs/llm/PR_ORCHESTRATION.md`, `pr-series/`, `series.toml` |
-| Route & Budget | scorer + model tiers | the orchestrator's `model-tiers` / `pr-prompt-scorer` skills |
+| Route & Budget | capacity-dispatch policy | bound in `method-bindings.md` — otherwise the scorer's own tier heuristics |
 | Implement | conventions + edit-time hook + TDD | `AGENTS.md`, `plugins/acme-contributor/hooks/pre-edit-boundary.py`, a TDD discipline skill |
 | Gate | guardrails + gate commands | `docs/llm/GUARDRAILS.md`, `scripts/check_*.py`, `docs/llm/DEV_WORKFLOW.md` |
 | Review | reviewer + checklist | `.pr-pilot/injections/review_checklist.md`, the orchestrator's reviewer, `/review-pr` |
