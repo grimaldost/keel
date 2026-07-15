@@ -2,6 +2,29 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.13.1] - 2026-07-15
+
+Capacity-dispatch vocabulary: the Route & Budget map names the role that owns task→model
+routing, and the series skeleton's tiers are labelled in keel's own vocabulary so a reader
+cannot read them as another tool's tier words. Docs and templates only — no gate, CLI, or
+schema change.
+
+### Added
+
+- **The capacity-dispatch role in the Route & Budget map** (`docs/doctrine.md`,
+  `docs/method-bindings.md`, `src/keel/templates/method-bindings.md`): the map now names the
+  role that owns task→(model, effort) routing, so a series author binds it explicitly instead
+  of leaving the slot implicit. Guarded by `tests/test_doctrine_bindings_currency.py`.
+
+### Changed
+
+- **The series skeleton labels its tiers as model-family names**
+  (`src/keel/templates/series-toml-skeleton.md`, `docs/templates-reference.md`): the
+  skeleton's tier pins were already family names (`haiku` / `sonnet`) — keel's own
+  vocabulary, not another tool's `weak`/`mid`/`strong` — and the label now says so, so a
+  reader porting a series between tools does not translate the wrong way. Guarded by
+  `tests/test_templates_valid.py`.
+
 ## [0.13.0] - 2026-07-10
 
 The field-hardening release: five recurring field gaps moved to their enforcing layer (ADR-0016),
