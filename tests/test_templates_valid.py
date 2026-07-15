@@ -21,6 +21,7 @@ REQUIRED_SECTIONS = {
         '§ that creates it',
         'not just the address',
     ],
+    'series-toml-skeleton.md': ['Tier vocabulary', 'model-family names', 'method-bindings.md'],
 }
 
 
@@ -35,6 +36,18 @@ def test_required_sections_present():
         text = (templates_root() / name).read_text(encoding='utf-8')
         for needle in needles:
             assert needle in text, f'{name} missing section marker: {needle!r}'
+
+
+def test_skeleton_keeps_model_family_tier_names():
+    # The skeleton's tiers are model-FAMILY names by decision (haiku / sonnet), the method's own
+    # words — deliberately not any one orchestrator's tier vocabulary. Owned upstream by
+    # choosing-models' models.toml; keel is a downstream mirror, so it must NOT swap these for an
+    # orchestrator's weak/mid/strong/frontier (ADR-0003: the agnostic kit does not import a
+    # consumer's words). Pinning the literals also preserves the grep tripwire a capacity-dispatch
+    # policy relies on when its model lineup changes.
+    text = (templates_root() / 'series-toml-skeleton.md').read_text(encoding='utf-8')
+    assert 'tier = "haiku"' in text, 'skeleton lost the haiku model-family tier example'
+    assert 'tier = "sonnet"' in text, 'skeleton lost the sonnet model-family tier example'
 
 
 def test_spec_template_has_no_gate_parseable_anchor():
