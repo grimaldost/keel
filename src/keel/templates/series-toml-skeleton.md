@@ -14,12 +14,13 @@ id = "<series-name>"
 integration_branch = "refactor/<topic>-consolidation"
 
 # Per-PR definitions: each cites exactly one spec section (see the PR↔section
-# manifest in the spec). Model tier comes from the complexity score.
+# manifest in the spec). Model tier comes from the complexity score — unless a
+# capacity-dispatch policy is bound (method-bindings.md), whose tier rule wins.
 [[pr]]
 id = "PR01"
 prompt = "PR01_task.md"
 section = "§1"          # traceability: spec section this PR implements
-tier = "haiku"          # from the complexity score
+tier = "haiku"          # model-family name — see "Tier vocabulary" below
 
 [[pr]]
 id = "PR02"
@@ -34,6 +35,15 @@ all_opus_baseline_usd = 41.00 # same series if every PR ran on Opus (cost framin
 drift_threshold = 0.25        # flag if cumulative actual exceeds estimate by >25%
 on_breach = "warn"            # "warn" (log + continue) | "block" (stop the wave)
 ```
+
+## Tier vocabulary
+
+Tiers here are **model-family names** (`haiku`, `sonnet`, ...) — the method's own words,
+deliberately not any one orchestrator's. An orchestrator may use a different tier vocabulary,
+and may take a tier per PR or only one per series; translating these names to it, and deciding
+where the tier is set, belongs to the orchestrator binding in `method-bindings.md` — not to this
+skeleton, which does not restate an orchestrator's schema. Keep the family names literal: a bound
+capacity-dispatch policy greps them when its model lineup changes.
 
 ## Drift-check convention
 
