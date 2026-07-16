@@ -1,0 +1,52 @@
+[series]
+id = "tempo-add-source-host"
+integration_branch = "refactor/add-source-host-consolidation"
+
+# §1: Extend contract.py with source-host field
+[[pr]]
+id = "PR01"
+prompt = "PR01_task.md"
+section = "§1"
+tier = "haiku"
+
+# §2: Update parser.py to extract source-host
+[[pr]]
+id = "PR02"
+prompt = "PR02_task.md"
+section = "§2"
+tier = "haiku"
+
+# §3: Update reporter.py to handle source-host in record destructuring
+[[pr]]
+id = "PR03"
+prompt = "PR03_task.md"
+section = "§3"
+tier = "haiku"
+
+# §4: Add comprehensive tests for source-host field
+[[pr]]
+id = "PR04"
+prompt = "PR04_task.md"
+section = "§4"
+tier = "sonnet"
+
+# §5: Create migration guide for external consumers
+[[pr]]
+id = "PR05"
+prompt = "PR05_task.md"
+section = "§5"
+tier = "haiku"
+
+# §6: Update package documentation and version
+[[pr]]
+id = "PR06"
+prompt = "PR06_task.md"
+section = "§6"
+tier = "haiku"
+
+# Wave budget and drift gate
+[budget]
+estimate_usd = 8.50          # Estimated cost: 5 haiku + 1 sonnet
+all_opus_baseline_usd = 24.00 # Same series on Opus baseline
+drift_threshold = 0.25        # Flag if cost exceeds 25% above estimate
+on_breach = "warn"            # Warn if cost drifts, but allow continuation

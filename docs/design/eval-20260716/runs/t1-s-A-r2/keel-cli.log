@@ -1,0 +1,13 @@
+keel --help
+keel init --help
+keel new-spec --help
+keel check-ready --help
+keel bind-check --help
+keel --version
+keel init docs/method
+keel bind-check docs/method/method-bindings.md
+keel new-spec docs/specs/2026-07-16-source-host-field.md
+keel check-ready docs/specs/2026-07-16-source-host-field.md --structure-only
+keel check-ready docs/specs/2026-07-16-source-host-field.md --structure-only
+keel check-ready spec-2026-07-16-source-host-field.md --structure-only
+keel check-ready spec-2026-07-16-source-host-field.md

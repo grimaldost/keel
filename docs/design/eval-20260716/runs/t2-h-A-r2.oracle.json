@@ -1,0 +1,8 @@
+{
+  "sandbox": "/tmp/claude-0/-home-user-keel/45db73dd-b9a7-5a54-a57d-a3cb99393e15/scratchpad/eval/sandboxes/t2-h-A-r2",
+  "task": "T2",
+  "arm": "A",
+  "o5_no_method_ceremony": true,
+  "o6_flag_works": true,
+  "o_hop_procedure_reached": "inline"
+}

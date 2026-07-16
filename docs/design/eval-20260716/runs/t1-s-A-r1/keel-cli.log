@@ -1,0 +1,10 @@
+keel --version
+keel init --help
+keel init docs/method
+keel new-spec docs/specs/0001-source-host-field.md
+keel check-ready docs/specs/0001-source-host-field.md --structure-only
+keel check-ready docs/specs/0001-source-host-field.md --structure-only
+keel check-ready --help
+keel check-ready 0001-source-host-field.md --structure-only
+keel check-ready 0001-source-host-field.md
+keel check-ready 0001-source-host-field.md --structure-only

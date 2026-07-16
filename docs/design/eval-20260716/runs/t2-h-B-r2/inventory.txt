@@ -1,0 +1,7 @@
+run=t2-h-B-r2 arm=B dist=/tmp/claude-0/-home-user-keel/45db73dd-b9a7-5a54-a57d-a3cb99393e15/scratchpad/eval/wheels/keel-0.14.0-py3-none-any.whl
+agents_md_sha=3087f4181af00e0e4ec527e832fbfa4fe98d9c4db61e3b0f016e2301ee62fb8d
+AGENTS.md
+README.md
+bin
+src
+tests

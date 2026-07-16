@@ -1,0 +1,17 @@
+keel init
+keel init .
+keel init --help
+keel init . --force
+keel check-ready docs/specs/add-source-host.md
+keel check-ready --help
+keel check-ready docs/specs/add-source-host.md --structure-only
+keel check-ready docs/specs/add-source-host.md --structure-only
+keel check-ready docs/specs/add-source-host.md --structure-only
+keel check-ready docs/specs/add-source-host.md --structure-only
+keel check-ready docs/specs/add-source-host.md --structure-only
+keel check-ready docs/specs/add-source-host.md
+keel check-ready docs/specs/add-source-host.md
+keel check-ready docs/specs/add-source-host.md
+keel check-ready docs/specs/add-source-host.md
+keel check-ready docs/specs/add-source-host.md
+keel check-ready docs/specs/add-source-host.md

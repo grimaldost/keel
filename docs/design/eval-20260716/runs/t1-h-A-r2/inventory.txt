@@ -1,0 +1,7 @@
+run=t1-h-A-r2 arm=A dist=/tmp/claude-0/-home-user-keel/45db73dd-b9a7-5a54-a57d-a3cb99393e15/scratchpad/eval/keel-0131
+agents_md_sha=c00e3dd251fd876308193788e01c9b97a99f2d3d1c26b6d0a111b28d2312ca87
+AGENTS.md
+README.md
+bin
+src
+tests

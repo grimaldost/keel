@@ -1,0 +1,11 @@
+{
+  "sandbox": "/tmp/claude-0/-home-user-keel/45db73dd-b9a7-5a54-a57d-a3cb99393e15/scratchpad/eval/sandboxes/t1-s-B-r1",
+  "task": "T1",
+  "arm": "B",
+  "o1_kit_present": true,
+  "o2_bindings_filled": true,
+  "o3_spec_structure_ready": true,
+  "o3_spec_file": "0001-source-host-field.md",
+  "o4_not_self_certified": true,
+  "o_hop_procedure_reached": true
+}

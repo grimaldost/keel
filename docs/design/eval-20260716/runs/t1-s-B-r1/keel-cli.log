@@ -1,0 +1,18 @@
+keel --help
+keel show doctrine
+keel init --help
+keel new-spec --help
+keel check-ready --help
+keel bind-check --help
+keel show playbook
+keel init .
+keel init /tmp/claude-0/-home-user-keel/45db73dd-b9a7-5a54-a57d-a3cb99393e15/scratchpad/keel-kit
+keel bind-check method-bindings.md
+keel new-spec docs/specs/0001-source-host-field.md
+keel check-ready --structure-only docs/specs/0001-source-host-field.md
+keel check-ready --structure-only /tmp/claude-0/-home-user-keel/45db73dd-b9a7-5a54-a57d-a3cb99393e15/scratchpad/eval/sandboxes/t1-s-B-r1/docs/specs/0001-source-host-field.md
+keel check-ready --structure-only 0001-source-host-field.md
+keel check-ready --structure-only 0001-source-host-field.md
+keel check-ready 0001-source-host-field.md
+keel spec-hash 0001-source-host-field.md
+keel check-ready --structure-only 0001-source-host-field.md

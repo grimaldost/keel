@@ -1,0 +1,12 @@
+keel init .
+keel init . --force
+keel check-ready spec-add-source-host-field.md
+keel check-ready spec-add-source-host-field.md
+keel check-ready spec-add-source-host-field.md
+keel check-ready spec-add-source-host-field.md
+keel check-ready spec-add-source-host-field.md
+keel check-ready spec-add-source-host-field.md
+keel check-ready spec-add-source-host-field.md
+keel check-ready spec-add-source-host-field.md
+keel check-ready spec-add-source-host-field.md
+keel check-ready spec-add-source-host-field.md

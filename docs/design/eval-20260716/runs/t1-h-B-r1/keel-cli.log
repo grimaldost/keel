@@ -1,0 +1,13 @@
+keel --help
+keel show doctrine
+keel show playbook
+keel init .
+keel init . --force
+keel new-spec docs/specs/refactor-add-source-host.md
+keel check-ready --structure-only docs/specs/refactor-add-source-host.md
+keel check-ready --structure-only ./docs/specs/refactor-add-source-host.md
+keel check-ready --structure-only docs/specs/refactor-add-source-host.md
+keel check-ready --structure-only docs/specs/refactor-add-source-host.md
+keel check-ready docs/specs/refactor-add-source-host.md
+keel check-ready --structure-only docs/specs/refactor-add-source-host.md
+keel spec-hash docs/specs/refactor-add-source-host.md

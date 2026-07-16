@@ -1,0 +1,16 @@
+keel --help
+keel show doctrine
+keel show playbook
+keel init --help
+keel init .
+keel init /tmp/claude-0/-home-user-keel/45db73dd-b9a7-5a54-a57d-a3cb99393e15/scratchpad/keel-init-tmp
+keel bind-check --help
+keel bind-check .
+keel new-spec --help
+keel new-spec docs/specs/source-host-field.md
+keel check-ready --structure-only docs/specs/source-host-field.md
+keel check-ready --help
+keel check-ready --structure-only source-host-field.spec.md
+keel check-ready source-host-field.spec.md
+keel spec-hash source-host-field.spec.md
+keel check-ready --structure-only source-host-field.spec.md
