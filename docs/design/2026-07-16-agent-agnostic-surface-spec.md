@@ -13,8 +13,8 @@ keel ships the method as a Claude Code plugin plus a CLI (ADR-0001), but the met
 is reachable only through the plugin or a repo checkout. The audit behind ADR-0017 found the
 coupling concentrated in path resolution and packaging, not in the method itself:
 
-- The skill resolves the doctrine through an environment variable only Claude Code sets:
-  `skills/apply-method/SKILL.md:15` `${CLAUDE_PLUGIN_ROOT}/docs/doctrine.md`.
+- The skill resolved the doctrine through an environment variable only Claude Code sets —
+  `${CLAUDE_PLUGIN_ROOT}/docs/doctrine.md` in the pre-wave skill body (§4 removed the form).
 - A CLI-only install carries the template kit but not the doctrine: the build packages only
   `src/keel/` (`pyproject.toml:23` `build-backend = 'uv_build'`), while the doctrine lives at
   `docs/doctrine.md` — outside the package.
@@ -73,7 +73,7 @@ Run each unpiped, from the repo root:
   `agents/pre-mortem-review.md` or the packaged prompt; the marker/clause guard must stay
   green untouched.
 - **CLI surface ↔ reference-table sync**: every registered command appears in
-  `docs/cli-reference.md:23` `tests/test_cli.py` — §3 adds the `show` row.
+  `docs/cli-reference.md:24` `tests/test_cli.py` — §3 adds the `show` row.
 
 ## Enforcement status
 
@@ -160,7 +160,7 @@ packaged files — `doctrine` → `method/doctrine.md`, `playbook` → `method/p
 `pre-mortem` → `templates/pre-mortem-prompt.md` — and a `read_asset` function returning the
 file text; an unknown name raises `KeyError` for the CLI layer to translate.
 
-Wire `show` in `src/keel/cli.py` next to the existing commands (`src/keel/cli.py:136`
+Wire `show` in `src/keel/cli.py` next to the existing commands (`src/keel/cli.py:138`
 `@app.command('init')` is the wiring pattern): `keel show` with an asset argument writes the
 asset text to stdout **without appending a trailing newline** (`typer.echo(..., nl=False)` or
 `sys.stdout.write` — a default `typer.echo` adds one and breaks the byte-equal criterion;
