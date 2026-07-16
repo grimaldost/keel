@@ -1,7 +1,7 @@
 # Spec — The agent-agnostic surface (any-agent keel)
 
 - **Date:** 2026-07-16
-- **Status:** draft
+- **Status:** ready (DoR passed)
 - **Audience:** the implementing wave (one PR per section) and its reviewers
 - **Output artifact(s):** `src/keel/method/` (packaged corpus), `src/keel/assets.py`,
   the `keel show` command, a thinned plugin surface, `src/keel/templates/method-agents-snippet.md`,
@@ -269,18 +269,36 @@ newest CHANGELOG heading is 0.14.0); `docs/installation.md` and `README.md` each
 
 ## Pre-mortem certification
 
-- **Reviewer:**
-- **Verdict:** not yet certified
-- **Operator:**
-- **Certification artifact:**
-- **Date:**
-- **Reviewed against:**
-- **Post-fold coherence:**
-- **Failure modes considered & folded in:**
+- **Reviewer:** pre-mortem-review@0.13.1 (fresh subagent, round 2 — non-author; round 1 by a
+  distinct fresh subagent, saved as `docs/design/2026-07-16-agent-agnostic-surface-spec.premortem-r1.md`)
+- **Verdict:** CERTIFIED
+- **Operator:** none required (verdict is CERTIFIED, not CONDITIONAL-CERTIFY)
+- **Certification artifact:** docs/design/2026-07-16-agent-agnostic-surface-spec.premortem.md
+- **Date:** 2026-07-16
+- **Reviewed against:** the keel working tree at the branch head (no external dependency
+  SHAs reasoned against; the wheel-packaging claim was verified by building the wheel in-tree)
+- **Post-fold coherence:** re-read performed after folding FM-1..FM-4 — each finding applied
+  consistently across its section and the concept→module map (the §4 edit-set growth is
+  mirrored in the map's slash-commands row); no dependent count changed ("three assets"
+  re-derived and still exact); each claim the fold newly introduced was re-grounded against
+  the tree (the line-12 path-form, the three `@v0.11.1` pins, typer's `nl=True` default)
+  before round 2, and round 2 independently re-verified all of them.
+- **Failure modes considered & folded in:** FM-1 (MAJOR — §4's path-form purity guard would
+  fail PR04's own gate on the unedited `commands/keel-check-ready.md`; file added to the edit
+  set, sibling SKILL summary de-pathed); FM-2 (MINOR — any-agent one-liner must pin v0.14.0,
+  not the older example pin); FM-3 (MINOR — wheel-namelist assertion added so the portability
+  claim is gated on the built wheel, not the editable install); FM-4 (MINOR — `keel show`
+  writes with no trailing newline so the byte-equal acceptance is reachable). Round 2
+  re-gate: all four RESOLVED, zero new findings.
 
 ### Fold ledger
 
 | Finding | Target section | artifact:line | Confirmed |
 |---|---|---|---|
+| FM-1 guard scope: `commands/keel-check-ready.md` enters §4's edit set; line-12 path-form becomes a plain committed path | §4 | `docs/design/2026-07-16-agent-agnostic-surface-spec.md:191` `commands/keel-check-ready.md` | yes (round-2 audit: RESOLVED) |
+| FM-1 sibling sweep: the thinned SKILL when-not-to summary cites the doctrine by plain name, never a plugin-root path | §4 | `docs/design/2026-07-16-agent-agnostic-surface-spec.md:188` `keel show doctrine` | yes (round-2 audit: RESOLVED) |
+| FM-2 the any-agent one-liner pins the first tag that ships `keel show` | §6 | `docs/design/2026-07-16-agent-agnostic-surface-spec.md:232` `v0.14.0` | yes (round-2 audit: RESOLVED) |
+| FM-3 wheel-namelist assertion added to the freshness test | §1 | `docs/design/2026-07-16-agent-agnostic-surface-spec.md:119` `uv build --wheel` | yes (round-2 audit: RESOLVED) |
+| FM-4 `keel show` writes the asset with no added trailing newline | §3 | `docs/design/2026-07-16-agent-agnostic-surface-spec.md:165` `nl=False` | yes (round-2 audit: RESOLVED) |
 
 ---
