@@ -1,0 +1,4 @@
+WARN: the certification names no artifact — B2 verifies one when present; save the pass's returned output per keel-premortem.md and reference it (`Certification artifact:`).
+PR ↔ section manifest: section §1 is covered by 2 PRs (not a bijection).
+hint: a required top-level section is missing or malformed — start from spec-template.md (run `keel new-spec <path>`).
+exit=1

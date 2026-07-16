@@ -1,0 +1,4 @@
+WARN: pre-mortem verdict is CONDITIONAL-CERTIFY, operator-accepted by 'grimaldo' (ready modulo a named fix) — not a clean CERTIFIED (B1).
+WARN: the certification names no artifact — B2 verifies one when present; save the pass's returned output per keel-premortem.md and reference it (`Certification artifact:`).
+OK
+exit=0

@@ -1,0 +1,6 @@
+WARN: the certification names no artifact — B2 verifies one when present; save the pass's returned output per keel-premortem.md and reference it (`Certification artifact:`).
+Numbered sections: section heading is not numbered: 'Add the widget'.
+PR ↔ section manifest: manifest cites §1, which is not a numbered section.
+line 19: reference §1 resolves to no numbered section.
+hint: a required top-level section is missing or malformed — start from spec-template.md (run `keel new-spec <path>`).
+exit=1

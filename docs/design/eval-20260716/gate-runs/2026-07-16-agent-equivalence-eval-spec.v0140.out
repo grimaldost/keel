@@ -1,0 +1,4 @@
+WARN: the certification names no artifact — B2 verifies one when present; save the pass's returned output per keel-premortem.md and reference it (`Certification artifact:`).
+Pre-mortem certification: pre-mortem verdict is 'not yet certified', not "CERTIFIED" — the verdict field must lead with the bare token CERTIFIED (trailing prose allowed), or CONDITIONAL-CERTIFY with a named Operator.
+Pre-mortem certification: pre-mortem certification names no reviewer (must be a non-author).
+exit=1
