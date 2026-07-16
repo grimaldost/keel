@@ -3,11 +3,12 @@
 - Spec: docs/design/2026-07-16-agent-agnostic-surface-spec.md
 - Date: 2026-07-16
 - Reviewer: pre-mortem-review@0.13.1 (fresh subagent, round 2 — non-author)
-- Spec-hash: 0792f370669f2083e2bcf47c8a19114e87ea503f11e86dfdeeb702fbcfead487
-  (the spec the closing confirmatory pass re-read end to end; the round-2 re-gate body read
-  82cc76ad3340b471a45befb233a60ec0467ba2af675f91d69d5e918e0506842b — the sole body delta
-  between the two is the gate-prompted Status flip `draft` → `ready (DoR passed)`, confirmed
-  by the pass appended at the end of this artifact)
+- Spec-hash: b845384a8d7d5c3023e46cbe1a84fecdd07ac1b667b498a51f9e23462a21afca
+  (the current revision, certified by the POST-WAVE confirmatory pass appended last. Hash
+  chain, oldest first: 82cc76ad33… — the round-2 re-gate read; 0792f37066… — after the
+  gate-prompted Status flip, certified by the first confirmatory pass; b845384a8d… — after
+  the three line-count-preserving post-wave coordinate amendments, certified by the post-wave
+  pass with a full §1–§6 acceptance-criteria spot-check against the implemented tree)
 - Prior round: docs/design/2026-07-16-agent-agnostic-surface-spec.premortem-r1.md (NEEDS-REVISION, FM-1..FM-4)
 
 ---
@@ -77,3 +78,46 @@ Otherwise the body I certified in round 2 is byte-consistent: Context, Goal, Gat
 Both edits are exactly as described and neither touches certified technical content (a status-currency flip and a masked-region anchor correction that improves internal consistency). My round-2 verdict stands.
 
 PREMORTEM-VERDICT: CERTIFIED pre-mortem-review@0.13.1 (fresh subagent, round 2 + targeted confirmatory pass)
+
+---
+
+## Post-wave confirmatory pass (fresh subagent; after PR01→PR06 landed + 3 coordinate amendments)
+
+**Scope:** re-certify the CURRENT spec revision after the PR01→PR06 wave landed and three coordinate amendments were applied. Repo `/home/user/keel`, branch `dev/agent-agnostic-surface`, tree at HEAD `87d8a23` with the spec's three amendments live in the working tree (uncommitted, `M` per `git status`).
+
+### (a) Delta audit — amendments vs. the certified body
+
+Baseline = certified commit `f421871` (round 2 + prior confirmatory state; `git diff f421871 HEAD` on the spec is empty, so HEAD's committed spec == certified spec). The working-tree diff carries **exactly three** hunks, all in the body, **none** in the hash-masked certification section (lines 270–303 untouched):
+
+| # | Location | Before → After | Line-count preserving | Matches described amendment |
+|---|---|---|---|---|
+| 1 | Context bullet (L16–17) | `The skill resolves … : skills/apply-method/SKILL.md:15 ${CLAUDE_PLUGIN_ROOT}/docs/doctrine.md.` → past tense, no path:line anchor, `… in the pre-wave skill body (§4 removed the form).` | 2→2 lines | yes |
+| 2 | Invariants bullet (L76) | `docs/cli-reference.md:23` → `docs/cli-reference.md:24` | 1→1 | yes |
+| 3 | §3 (L163) | `src/keel/cli.py:136` → `src/keel/cli.py:138` | 1→1 | yes |
+
+No other body deltas. File length unchanged (305 lines). **Delta audit: clean.**
+
+### (b) Amendments TRUE against the current tree
+
+1. **Reworded claim** — `skills/apply-method/SKILL.md` has no `${CLAUDE_PLUGIN_ROOT}/` path-form; its sole `${CLAUDE_PLUGIN_ROOT}` occurrence is the `uvx --from` bundle locator (L12). Repo-wide `grep '${CLAUDE_PLUGIN_ROOT}/'` over `skills/ commands/` returns NONE. §4 did remove the doctrine path-form. Dropping the stale `:15` anchor (nothing left to pin) is correct under the keep-coordinates-current rule. **TRUE.**
+2. **`docs/cli-reference.md:24`** — line 24 is `*This table is pinned by tests/test_cli.py — every registered command appears here.*` (the row addition in §3 shifted it down from 23). **TRUE.**
+3. **`src/keel/cli.py:138`** — line 138 is `@app.command('init')`; two new imports (incl. `from keel.errors import format_error`, L14) shifted it from 136. **TRUE.**
+
+### (c) AC spot-check — §1–§6 built as certified
+
+| § | Built? | Evidence |
+|---|---|---|
+| §1 doctrine mirror + gated freshness | yes | `src/keel/method/doctrine.md` byte-equal to `docs/doctrine.md` (`cmp` = 0); `tests/test_method_corpus_sync.py` asserts byte-equality (L25), package-data readability via `files('keel')` (L32), and **wheel namelist** via `uv build --wheel` subprocess (L44–58, member check for `keel/method/{doctrine,playbook}.md`); test **passes** (real build, timed 0.34s) |
+| §2 agent-neutral playbook | yes | `src/keel/method/playbook.md` exists; `grep -c CLAUDE_PLUGIN_ROOT` = 0; carries `established format IS the binding` (L25); pinned by `test_playbook_is_agent_neutral` |
+| §3 `keel show` + registry | yes | `src/keel/assets.py` `ASSETS` maps exactly the three names; `read_asset` raises `KeyError` on unknown; `cli.py` `show_cmd` emits `typer.echo(text, nl=False)` (L189), `--list`, and `format_error` exit-2; `docs/cli-reference.md:13` show row; `test_cli.py` byte-equal / list-exact / unknown-exit-2 all **pass** |
+| §4 thinned skill/commands | yes | skill routes to `keel show playbook` (L12) / bare form (L15), when-not-to cites `keel show doctrine` by plain name (L19,27); path-form guard `test_no_plugin_root_path_forms_in_skill_or_commands` **scans the full population** (`rglob('*.md')` over `skills`,`commands`, L124–127) and passes; retargeted routing guard asserts `keel show playbook` in skill + clause in playbook (L114–115); `agents/pre-mortem-review.md` change in the wave is **version-only** (`0.13.1→0.14.0`, §6 bump), not a body edit — marker/clause guards intact |
+| §5 AGENTS.md snippet | yes | `src/keel/templates/method-agents-snippet.md` exists, carries all three pinned markers (`method-bindings.md`, `keel show doctrine`, `keel check-ready`); `REQUIRED_SECTIONS['method-agents-snippet.md']` pins them (L25); `docs/templates-reference.md:16` row present; `test_templates_valid.py` **passes** |
+| §6 docs + 0.14.0 bump | yes | version `0.14.0` at all **seven** sites (pyproject L3, plugin.json L3, `__init__` L3, CHANGELOG heading L5, agent identity L7, spec-template kit stamp L184, skill line L8); `test_version_is_consistent_across_all_sites` **passes**; CHANGELOG newest heading `0.14.0` cites ADR-0017; `docs/installation.md` "Any agent" path pins `@v0.14.0` (not `@v0.11.1`) with `keel show`; `README.md` "Any agent" para names `keel show` |
+
+Aggregate read-only run of the gating tests (version-consistency, corpus-sync incl. real wheel build, three show behaviors, path-form guard, templates-valid): **13 passed**.
+
+### Findings under the rising bar
+
+None blocking. The FM-1..FM-4 folds are all present in the built artifacts (path-form guard scans the full `rglob` population; any-agent one-liner pins `v0.14.0`; wheel-namelist assertion gates the built wheel; `nl=False` preserves byte-equality). The one stylistic observation — amendment 1 drops a path:line anchor while sibling context bullets keep theirs — is correct, not a defect: the cited form no longer exists in the tree, so there is nothing to pin. Nothing corrupts the decision the spec gates.
+
+PREMORTEM-VERDICT: CERTIFIED pre-mortem-review@0.14.0 (fresh subagent, round 2 + post-wave confirmatory pass)
