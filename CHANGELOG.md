@@ -2,6 +2,46 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.14.0] - 2026-07-16
+
+The agent-agnostic surface (ADR-0017): the CLI becomes the single portable entry point — the
+method corpus ships inside the package and any AI agent that can run a shell applies the full
+method from a pinned `uvx` invocation; the Claude Code plugin artifacts thin down to routers
+over the same packaged content. MCP and per-agent adapters stay named deferrals (ADR-0017).
+Origin: the 2026-07-16 agent-agnostic-surface spec, certified blind over two rounds
+(maintainer-local design record).
+
+### Added
+
+- **The packaged method corpus** (`src/keel/method/`, §1–§2): `doctrine.md`, a byte-identical
+  mirror of `docs/doctrine.md` (the doctrine stays the source of truth; the mirror is held
+  equal by `tests/test_method_corpus_sync.py`, which also asserts the built wheel ships the
+  corpus — the editable install the other gates run against cannot see a packaging
+  regression), and `playbook.md`, the agent-neutral apply-method procedure (bindings-first
+  entry, setup, phases and gates, the portable pre-mortem) with no plugin-only construct.
+- **`keel show <asset>`** (`src/keel/assets.py`, `src/keel/cli.py`, §3): prints `doctrine`,
+  `playbook`, or `pre-mortem` to stdout byte-for-byte (no added trailing newline);
+  `--list` enumerates the names; an unknown asset exits 2 naming the valid set. Row added to
+  `docs/cli-reference.md` (held by the CLI↔reference sync test).
+- **The any-agent routing snippet** (`src/keel/templates/method-agents-snippet.md`, §5): a
+  paste-ready `AGENTS.md` block routing any coding agent into the method; ships with
+  `keel init`, pinned by `tests/test_templates_valid.py`.
+- **The "Any agent" install path** (`docs/installation.md`, `README.md`, §6): the pinned
+  `uvx` one-liner, `keel show` as the corpus entry, and the honest scope line (an agent with
+  no shell cannot run the deterministic gates either way; the MCP wrapper is a named
+  deferral, ADR-0017).
+
+### Changed
+
+- **The plugin surface thinned to routers over the packaged corpus** (§4):
+  `skills/apply-method/SKILL.md` keeps its discovery frontmatter and routes to
+  `keel show playbook`; the slash commands swap `${CLAUDE_PLUGIN_ROOT}/<file>` content reads
+  for `keel show` / kit-copy references, keeping the variable only as the `uvx --from` bundle
+  locator. A new guard (`tests/test_plugin_manifest.py`) scans the full `skills/` +
+  `commands/` population for leftover path-forms; the routing-clause guard retargets at the
+  playbook. The bundled `pre-mortem-review` agent stays standalone-full (it IS the dispatched
+  prompt) under its existing drift guards.
+
 ## [0.13.1] - 2026-07-15
 
 Capacity-dispatch vocabulary: the Route & Budget map names the role that owns task→model

@@ -5,7 +5,7 @@ description: Apply the keel method — the author's externalized development met
 
 # Apply the method
 
-This skill ships with keel 0.13.1 and is a **thin router**: the procedure lives in the packaged
+This skill ships with keel 0.14.0 and is a **thin router**: the procedure lives in the packaged
 playbook, one command away. Run
 
 ```

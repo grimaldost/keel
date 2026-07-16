@@ -25,6 +25,11 @@ CLI (self-contained, no install):
 uvx --from git+https://github.com/grimaldost/keel keel --help
 ```
 
+Any agent: the CLI alone carries the whole method (ADR-0017) — `keel show
+doctrine|playbook|pre-mortem` prints the packaged corpus, and `keel init` drops the kit plus an
+`AGENTS.md` routing snippet, so any AI agent with a shell can apply the method (see
+`docs/installation.md`, "Any agent").
+
 ## Quickstart
 
 - `keel init ./my-kit` — drop the template kit (DoR, DoD, checklists, spec/ADR templates) into a project.
