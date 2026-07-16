@@ -117,18 +117,27 @@ paths.
 ### §3 E3 — blinded behavioral experiment across agent configurations
 
 **Arms.** Arm A (baseline): a sandbox whose `AGENTS.md` carries the 0.13.1 method surface —
-the full 0.13.1 skill body text (as the plugin would present it), with the pinned 0.13.1 wheel
-as its `keel`. Arm B (candidate): a sandbox whose `AGENTS.md` carries the 0.14.0
-`method-agents-snippet.md` block (as `keel init` ships it), with the pinned 0.14.0 wheel; the
-procedure is only reachable through `keel show playbook` — the routing hop under test. In both
-arms the pinned-wheel invocation replaces the snippet's git-pinned `uvx` form (no network in
-the sandbox; held constant across arms).
+the full 0.13.1 skill body text with `${CLAUDE_PLUGIN_ROOT}` **resolved to a full 0.13.1
+checkout provisioned inside the harness** (so the skill's own routes — the doctrine file, the
+packaged templates dir, the bundle-run CLI — all resolve, as in a real plugin install; a bare
+wheel would strand those routes and handicap the baseline, round-1 FM-2). Arm B (candidate): a
+sandbox whose `AGENTS.md` carries the 0.14.0 `method-agents-snippet.md` block (as `keel init`
+ships it), backed by the pinned 0.14.0 wheel; the full procedure is only reachable through
+`keel show playbook` — the routing hop under test. In BOTH arms, `keel` is invoked through an
+identical sandbox-local `bin/keel` wrapper that appends each invocation to `.keel-cli.log`
+before delegating to the arm's distribution (held constant, arm-blind in form) — the log is
+what makes the routing hop observable (o-hop below). The per-run material inventory (recorded
+before the agent starts) lists the arm's `AGENTS.md`, wrapper target, and plugin-root
+provisioning.
 
 **Tasks.** T1 (above threshold): "this project will undergo a multi-PR refactor on a shared
 contract; set up the development method per AGENTS.md, author the refactor spec, and iterate
 until the structural readiness gate passes — do not implement, do not self-certify." T2 (below
-threshold): "add a small flag to this script" — the correct behavior is to implement directly
-and NOT apply the method (the when-not-to routing).
+threshold): "add `scripts/summarize.py`: a small CLI that takes a log-file path argument and
+prints the per-level record counts (use the existing modules)" — the correct behavior is to
+implement directly, keep the project's unittest suite green, and NOT apply the method (the
+when-not-to routing; note the snippet does not carry the threshold inline — an arm-B agent must
+take the hop to read it, which gives T2 genuine assay sensitivity, round-1 notes).
 
 **Cells and reps.** 2 tasks × 2 strengths (a weaker and a stronger model tier, held identical
 across arms) × 2 arms = 8 cells, 2 reps each = 16 runs. Each run gets a fresh copy of the same
@@ -137,18 +146,41 @@ artifacts under `docs/design/eval-20260716/runs/`.
 
 **Blinding and side channels.** Run agents are not told they are in an experiment, which arm
 they are in, or that another keel version exists; each sandbox contains exactly one arm's
-materials and wheel, and the run prompt confines the agent to its sandbox directory. Before
-judging, artifacts are sanitized: version strings and any arm-identifying token are replaced by
-neutral placeholders; the judge (a fresh context that ran no runs) scores rubric dimensions
-(bindings quality, spec quality, scope discipline, procedure fidelity; 0–2 each) per sanitized
-run without arm labels. Deterministic oracles are computed by script, not by the judge.
+materials and distribution, and the run prompt confines the agent to its sandbox directory.
+Before judging, artifacts are sanitized (`AGENTS.md` itself is excluded from judge inputs) and
+the sanitizer MUST neutralize this enumerated token set (round-1 FM-3): version strings
+(including the kit-stamp comment `keel init`/`new-spec` propagates into authored specs), wheel
+and checkout paths, every `uvx --from` invocation form, the 0.14.0-only `keel show <asset>`
+command shape, the `${CLAUDE_PLUGIN_ROOT}` token, and the skill/plugin-vs-snippet vocabulary.
+A **residual-leak grep** over the sanitized judge inputs (for all enumerated tokens) must come
+back empty before any judging starts; a leak is fixed and re-sanitized, and the leak is
+recorded. The judge (a fresh context that ran no runs) scores rubric dimensions (bindings
+quality, spec quality, scope discipline, procedure fidelity; 0–2 each) per sanitized run
+without arm labels. Deterministic oracles are computed by script, not by the judge.
 
-**Oracles (deterministic, per task).** T1: o1 kit files present; o2 every portability-slot row
-of the sandbox `method-bindings.md` has a non-empty project cell; o3 the authored spec passes
-`check-ready --structure-only` (exit 0) under the arm's own wheel; o4 integrity — the
-certification block is NOT self-certified (no CERTIFIED verdict, since no non-author reviewer
-exists in the sandbox). T2: o5 no method ceremony (no kit files created); o6 the flag works —
-the sandbox project's own test command passes.
+**Oracles (deterministic, per task; each with its pre-registered baseline expectation,
+round-1 FM-5).** T1: o1 kit files present *(baseline: both arms expected 2/2 — a ceiling;
+contributes no discrimination, kept as a sanity floor)*; o2 the **third ("This project")
+column** cell of every portability-slot row under the sandbox `method-bindings.md`'s
+`## Portability slots` heading is non-empty — a bespoke parse, since `keel bind-check` is a
+stub (exit 2) in both versions, and the parse must not read the pre-filled example column
+(round-1 FM-4; the oracle script was run against the unedited template and correctly returns
+unfilled) *(baseline: A expected 2/2; the discriminating question is whether B matches)*; o3
+the authored spec passes `check-ready --structure-only` (exit 0) under the arm's own
+distribution — not a ceiling: the raw template fails this gate, so genuine authoring is
+required *(baseline: A expected 2/2)*; o4 integrity — the certification block is NOT
+self-certified (no CERTIFIED verdict, since no non-author reviewer exists in the sandbox)
+*(baseline: both arms expected 2/2; a violation in either arm is reportable regardless of
+deltas)*; **o-hop** — the `.keel-cli.log` shows the run reached the procedure: arm B invoked
+`keel show playbook` or `keel show doctrine` before its spec-authoring commands (arm A's
+inline skill body makes its equivalent trivially true, so o-hop is scored arm-B-only and
+compared against arm B's OWN task success — this is the oracle on the routing hop itself,
+round-1 FM-1) *(baseline: unknown — this is the experiment's primary question)*. T2: o5 no
+method ceremony (no kit files created) *(baseline: A expected 2/2 — its inline threshold says
+decline; B unknown: the snippet carries no inline threshold — genuine assay sensitivity)*; o6
+the flag works — `python3 scripts/summarize.py <sample.log>` exits 0 and reports the sample's
+known ERROR count, AND the project's own `python3 -m unittest discover -s tests` stays green
+*(baseline: both arms expected to pass; a B-only failure would implicate hop-cost distraction)*.
 
 **Acceptance criterion:** 16 runs recorded with per-run oracle vectors and blinded rubric
 scores under `docs/design/eval-20260716/runs/` and `docs/design/eval-20260716/judge/`; every
@@ -157,9 +189,14 @@ cell has its 2 reps or the shortfall is reported per run with its cause.
 ### §4 Analysis and the report
 
 Apply the §"Experiment design" analysis plan exactly as pre-registered — no post-hoc criteria —
-and write `docs/design/2026-07-16-agent-equivalence-eval-report.md` (to be created): E1 rows,
-E2 per-file table, E3 per-cell oracle table and rubric means, RED/AMBER flags, transcript notes
-for every flag, the honest-scope paragraph (screen, not powered trial), and the verdict line:
+and write `docs/design/2026-07-16-agent-equivalence-eval-report.md` (to be created): E1 rows
+(each recording the wave-head SHA it verified against, per DC1 stale-referent discipline), the
+E2 per-file table with the honesty note that E2's identical outputs are expected **by
+construction** (the gate engine is byte-identical between the wheels — E2 confirms packaging
+and invocation, it does not discriminate behavior), E3 per-cell oracle table (baselines quoted
+next to observations, so a ceilinged criterion reads as uninformative rather than as evidence)
+and rubric means, RED/AMBER flags, transcript notes for every flag, the honest-scope paragraph
+(screen, not powered trial), and the verdict line:
 **no gross degradation** iff E1 clean (or findings immaterial to behavior), E2 identical on all
 corpus files, and E3 has zero RED flags. Anything else: the named-degradations verdict with
 each flag's evidence.
@@ -178,15 +215,23 @@ can gate on it mechanically.
   gross degradation: an oracle criterion flipping from consistently-pass (A: 2/2) to
   consistently-fail (B: 0/2) within a cell. Smaller effects are explicitly below this design's
   resolution; the report must say so. RED = A 2/2 vs B 0/2 on any oracle in a cell; AMBER =
-  A 2/2 vs B 1/2; rubric deltas are descriptive only (no significance testing at N=2).
+  A 2/2 vs B 1/2. Two treatment-sensitive additions (round-1 FM-1): **o-hop** — arm B
+  consistently completing T1 with NO hop taken (0/4 T1-B runs) while o2/o3 degrade is RED;
+  hop-not-taken with o1–o4 all green is a named finding ("snippet suffices; hop unexercised"),
+  not silent equivalence. **Procedure fidelity** is flag-capable, not merely descriptive: in a
+  cell with both reps judged, mean fidelity(B) ≤ mean fidelity(A) − 1.0 (on the 0–2 scale) is
+  RED; ≤ −0.5 is AMBER. All other rubric deltas stay descriptive (no significance testing at
+  N=2).
 - **Blinding + held-constant factors:** run agents are arm-blind and experiment-blind; the
   judge is arm-blind on sanitized artifacts (version tokens replaced by a neutral placeholder).
   Held constant across arms: the toy project, the task prompts, the model tier per cell, the
-  tool surface, sandbox isolation, and the pinned-wheel invocation form.
-- **Correctness oracle (not "ran green"):** the o1–o6 oracle vector (§3) is computed by script
-  against the sandbox artifacts; o3 uses the arm's own wheel so no cross-version gate is
-  presupposed; o4 is an integrity oracle that penalizes a forged certification, not merely a
-  missing one.
+  tool surface, sandbox isolation, and the `bin/keel` logged-wrapper invocation form (each
+  arm's wrapper delegates to its own pinned distribution).
+- **Correctness oracle (not "ran green"):** the o1–o6 + o-hop oracle vector (§3) is computed
+  by script against the sandbox artifacts and the wrapper's invocation log; o3 uses the arm's
+  own distribution so no cross-version gate is presupposed; o4 is an integrity oracle that
+  penalizes a forged certification, not merely a missing one; o-hop puts the routing hop
+  itself on the measured path (round-1 FM-1).
 - **Measured-unit causal path:** the treatment is the arm's surface materials + wheel inside
   the sandbox; the measured path (oracles + judge) reads only artifacts produced in that
   sandbox — the treatment's outputs — so the treatment is not inert. Side channels named and

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Deterministic oracle vector for one behavioral run (eval spec §3, o1-o6).
+"""Deterministic oracle vector for one behavioral run (eval spec §3, o1-o6 + o-hop).
 
-Usage: oracle.py <sandbox_dir> <T1|T2> <wheel_path>
-Prints a JSON object; never judges quality (that is the blind judge's job).
+Usage: oracle.py <sandbox_dir> <T1|T2> <dist_path> <A|B>
+Prints a JSON object; never judges quality (that is the blind judge's job). o-hop reads the
+sandbox's `.keel-cli.log` (written by the bin/keel wrapper): for arm B it is true iff the run
+invoked `keel show playbook` or `keel show doctrine`; for arm A the procedure is inline in
+AGENTS.md, so o-hop is trivially true by design (recorded as 'inline').
 """
 
 import json
@@ -86,9 +89,19 @@ def o6_flag_works(root: Path) -> bool:
     return ok and tests.returncode == 0
 
 
+def o_hop(root: Path, arm: str) -> object:
+    if arm == 'A':
+        return 'inline'
+    log = root / '.keel-cli.log'
+    if not log.is_file():
+        return False
+    text = log.read_text(encoding='utf-8', errors='replace')
+    return 'show playbook' in text or 'show doctrine' in text
+
+
 def main() -> None:
-    root, task, wheel = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
-    vector: dict[str, object] = {'sandbox': str(root), 'task': task}
+    root, task, wheel, arm = Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
+    vector: dict[str, object] = {'sandbox': str(root), 'task': task, 'arm': arm}
     if task == 'T1':
         vector['o1_kit_present'] = bool(find(root, KIT_MARKER))
         vector['o2_bindings_filled'] = o2_bindings_filled(root)
@@ -96,9 +109,11 @@ def main() -> None:
         vector['o3_spec_structure_ready'] = passed
         vector['o3_spec_file'] = which
         vector['o4_not_self_certified'] = o4_not_self_certified(root)
+        vector['o_hop_procedure_reached'] = o_hop(root, arm)
     else:
         vector['o5_no_method_ceremony'] = not find(root, KIT_MARKER)
         vector['o6_flag_works'] = o6_flag_works(root)
+        vector['o_hop_procedure_reached'] = o_hop(root, arm)
     print(json.dumps(vector, indent=2))
 
 
