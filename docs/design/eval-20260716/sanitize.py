@@ -18,7 +18,7 @@ PRE_EXISTING = {'AGENTS.md', 'README.md', 'test_tempo.py', 'contract.py', 'parse
 # the plugin-root token, wrapper paths, and the skill/plugin-vs-snippet vocabulary.
 RULES = [
     (re.compile(r'0\.1[34]\.\d+'), 'X.Y.Z'),
-    (re.compile(r'/tmp/\S*?(keel[-_]?[\w.]*\.whl|keel-0131)\S*'), '<KEEL-DIST>'),
+    (re.compile(r'/tmp/\S*?(keel[\w.-]*\.whl|keel-0131)\S*'), '<KEEL-DIST>'),
     (re.compile(r'uvx --from \S+ keel'), '<KEEL-CLI>'),
     (re.compile(r'(\./)?bin/keel'), '<KEEL-CLI>'),
     (re.compile(r'\bkeel show (\w[\w-]*)'), r'<KEEL-CLI> read \1'),

@@ -1,7 +1,7 @@
 # Spec — Equivalence evaluation: keel 0.14.0 (agent-agnostic surface) vs 0.13.1
 
 - **Date:** 2026-07-16
-- **Status:** draft
+- **Status:** ready (DoR passed, operator close)
 - **Audience:** the evaluation runner and the maintainer deciding the merge of `dev/agent-agnostic-surface`
 - **Output artifact(s):** `docs/design/eval-20260716/` (corpus, gate runs, behavioral runs, judge
   inputs) and `docs/design/2026-07-16-agent-equivalence-eval-report.md`
@@ -258,18 +258,42 @@ can gate on it mechanically.
 
 ## Pre-mortem certification
 
-- **Reviewer:**
-- **Verdict:** not yet certified
-- **Operator:**
-- **Certification artifact:**
-- **Date:**
-- **Reviewed against:**
-- **Post-fold coherence:**
-- **Failure modes considered & folded in:**
+- **Reviewer:** pre-mortem-review@0.14.0 (fresh subagent, round 2 — non-author; round 1 by a
+  distinct fresh subagent, saved as `docs/design/2026-07-16-agent-equivalence-eval-spec.premortem-r1.md`)
+- **Verdict:** CONDITIONAL-CERTIFY — COND-1..COND-3 discharged by the Operator, 2026-07-16
+  (each a ≤2-line harness-script fix, applied and verified by its own disconfirming test; the
+  operator close, definition-of-ready.md Part B — the B1 WARN is the expected honest state)
+- **Operator:** claude-session eval runner (maintainer-delegated to complete all eval stages)
+- **Certification artifact:** docs/design/2026-07-16-agent-equivalence-eval-spec.premortem.md
+- **Date:** 2026-07-16
+- **Reviewed against:** the dev/agent-agnostic-surface working tree; both pinned wheels at the
+  harness scratchpad (0.13.1 built from `a8520b9`, 0.14.0 from the wave head); the harness
+  scripts and arm materials as committed/inventoried
+- **Post-fold coherence:** re-read after folding FM-1..FM-6 — o-hop consistent across §3, Part
+  B thresholds, and `oracle.py`; the wrapper invocation form propagated to Part B's
+  held-constant list; baselines attached to every oracle; condition discharges (COND-1..3)
+  verified by running each condition's disconfirming test (unfilled template still unfilled;
+  echoed-log line rejected; wheel path neutralized in one pass).
+- **Failure modes considered & folded in:** FM-1 (BLOCKER — inert treatment: verdict oracles
+  off the routing-hop path; o-hop added on the wrapper log + fidelity flip thresholds); FM-2
+  (arm A plugin-root provisioning); FM-3 (enumerated sanitizer token set + residual-leak gate);
+  FM-4 (o2 third-column parse, bind-check stub noted); FM-5 (per-oracle baselines, E2
+  identical-by-construction note); FM-6 (o6/T2 concretized). Round-2 conditions COND-1..3
+  discharged in the harness scripts.
 
 ### Fold ledger
 
 | Finding | Target section | artifact:line | Confirmed |
 |---|---|---|---|
+| FM-1 o-hop oracle on the routing hop | §3 | `docs/design/2026-07-16-agent-equivalence-eval-spec.md:174` `o-hop` | yes (round-2 audit: RESOLVED) |
+| FM-1 hop made observable via logged wrapper | §3 | `docs/design/2026-07-16-agent-equivalence-eval-spec.md:127` `bin/keel` | yes (round-2 audit: RESOLVED) |
+| FM-2 arm A plugin-root provisioning | §3 | `docs/design/2026-07-16-agent-equivalence-eval-spec.md:122` | yes (round-2 audit: RESOLVED) |
+| FM-3 enumerated sanitizer set + leak gate | §3 | `docs/design/2026-07-16-agent-equivalence-eval-spec.md:155` `residual-leak grep` | yes (round-2 audit: RESOLVED) |
+| FM-4 o2 targets the third column | §3 | `docs/design/2026-07-16-agent-equivalence-eval-spec.md:163` `third ("This project")` | yes (round-2 audit: RESOLVED) |
+| FM-5 per-oracle baseline expectations | §3 | `docs/design/2026-07-16-agent-equivalence-eval-spec.md:161` `baseline expectation` | yes (round-2 audit: RESOLVED) |
+| FM-6 T2/o6 concretized | §3 | `docs/design/2026-07-16-agent-equivalence-eval-spec.md:136` `scripts/summarize.py` | yes (round-2 audit: RESOLVED) |
+| COND-1 o6 exact ERROR-count parse | §3 | `docs/design/eval-20260716/oracle.py:89` | yes (disconfirming test run) |
+| COND-2 sanitizer covers build-tagged wheel names | §3 | `docs/design/eval-20260716/sanitize.py:21` | yes (disconfirming test run) |
+| COND-3 o2 scoped to the Portability-slots section | §3 | `docs/design/eval-20260716/oracle.py:29` | yes (disconfirming test run) |
 
 ---

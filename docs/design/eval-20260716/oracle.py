@@ -26,13 +26,17 @@ def find(root: Path, name: str) -> list[Path]:
 def o2_bindings_filled(root: Path) -> bool:
     for bindings in find(root, 'method-bindings.md'):
         text = bindings.read_text(encoding='utf-8', errors='replace')
+        # Scope to the Portability-slots section (round-2 COND-3), so a table collapsed to two
+        # columns cannot let the pre-filled example cell satisfy the last-cell test.
+        section = re.split(r'^## ', text, flags=re.MULTILINE)
+        slots_body = next((s for s in section if s.lower().startswith('portability slots')), '')
         hits = 0
-        for line in text.splitlines():
+        for line in slots_body.splitlines():
             if not line.strip().startswith('|'):
                 continue
             if any(slot.lower() in line.lower() for slot in SLOTS):
                 cells = [c.strip() for c in line.strip().strip('|').split('|')]
-                if cells and cells[-1] and not cells[-1].startswith('<'):
+                if len(cells) >= 3 and cells[-1] and not cells[-1].startswith('<'):
                     hits += 1
         if hits >= len(SLOTS):
             return True
@@ -81,7 +85,11 @@ def o6_flag_works(root: Path) -> bool:
         [sys.executable, str(script), sample], capture_output=True, text=True,
         check=False, cwd=root,
     )
-    ok = proc.returncode == 0 and 'ERROR' in proc.stdout and '2' in proc.stdout
+    # Exact count parse (round-2 COND-1): the sample's `1700000002` timestamp contains a bare
+    # '2', so require a standalone 2 on an ERROR line — an echoed raw log line cannot satisfy it.
+    ok = proc.returncode == 0 and any(
+        'ERROR' in line and re.search(r'\b2\b', line) for line in proc.stdout.splitlines()
+    )
     tests = subprocess.run(
         [sys.executable, '-m', 'unittest', 'discover', '-s', 'tests'],
         capture_output=True, text=True, check=False, cwd=root,
