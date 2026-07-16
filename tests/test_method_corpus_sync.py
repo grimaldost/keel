@@ -33,6 +33,14 @@ def test_mirror_is_readable_as_package_data():
     assert len(text) > 0
 
 
+def test_playbook_is_agent_neutral():
+    # §2: the packaged playbook is the any-agent procedure — no plugin-only path resolution,
+    # and it carries the entry rule the thinned skill routes to (§4 retargets its guard here).
+    text = (files('keel') / 'method' / 'playbook.md').read_text(encoding='utf-8')
+    assert '${CLAUDE_PLUGIN_ROOT}' not in text, 'playbook leaks a plugin-only path resolution'
+    assert 'established format IS the binding' in text, 'playbook lost the bindings entry rule'
+
+
 def test_wheel_ships_the_method_corpus(tmp_path):
     subprocess.run(
         ['uv', 'build', '--wheel', '--out-dir', str(tmp_path)],
@@ -43,7 +51,8 @@ def test_wheel_ships_the_method_corpus(tmp_path):
     [wheel] = tmp_path.glob('*.whl')
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
-    assert 'keel/method/doctrine.md' in names, (
-        'the built wheel does not ship keel/method/doctrine.md — the editable-install gates '
-        'cannot see this; fix the packaging, not the test'
-    )
+    for member in ('keel/method/doctrine.md', 'keel/method/playbook.md'):
+        assert member in names, (
+            f'the built wheel does not ship {member} — the editable-install gates cannot see '
+            'this; fix the packaging, not the test'
+        )
