@@ -7,9 +7,11 @@ from pathlib import Path
 import typer
 
 from keel import __version__
+from keel.assets import ASSETS, read_asset
 from keel.bindings import check_bindings
 from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready, spec_hash
+from keel.errors import format_error
 from keel.models import GateResult
 from keel.templates import copy_templates, stamp_spec
 
@@ -159,6 +161,32 @@ def new_spec_cmd(
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
     typer.echo(f'Wrote {stamped}')
+
+
+@app.command('show')
+def show_cmd(
+    asset: str = typer.Argument('', help="Asset name - see 'keel show --list'."),
+    list_names: bool = typer.Option(False, '--list', help='List the available asset names.'),
+) -> None:
+    """Print a packaged method asset (doctrine, playbook, pre-mortem) to stdout."""
+    if list_names:
+        for name in ASSETS:
+            typer.echo(name)
+        return
+    try:
+        text = read_asset(asset)
+    except KeyError as exc:
+        typer.echo(
+            format_error(
+                what=f'unknown asset {asset!r}.',
+                why=f'`keel show` serves: {", ".join(ASSETS)}.',
+                fix='Pick one of those names, or run `keel show --list`.',
+            )
+        )
+        raise typer.Exit(code=2) from exc
+    # nl=False: the output is the asset, byte-for-byte — an added trailing newline would break
+    # `keel show doctrine | cmp - src/keel/method/doctrine.md` (spec §3, round-1 FM-4).
+    typer.echo(text, nl=False)
 
 
 def _force_utf8(stream: object) -> None:

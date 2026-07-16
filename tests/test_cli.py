@@ -70,7 +70,7 @@ Do another. **Acceptance criterion:** a unit test asserts the second behaviour h
 def test_help_lists_all_commands():
     result = runner.invoke(app, ['--help'])
     assert result.exit_code == 0
-    for command in ('check-ready', 'new-spec', 'bind-check', 'budget-drift', 'init'):
+    for command in ('check-ready', 'new-spec', 'bind-check', 'budget-drift', 'init', 'show'):
         assert command in result.output
 
 
@@ -328,3 +328,26 @@ def test_spec_hash_missing_file_exits_2(tmp_path):
     result = runner.invoke(app, ['spec-hash', str(tmp_path / 'nope.md')])
     assert result.exit_code == 2
     assert 'not found' in result.output.lower()
+
+
+def test_show_doctrine_is_byte_equal_to_the_mirror():
+    # §3 (round-1 FM-4): no added trailing newline — the output IS the packaged mirror.
+    mirror = (
+        Path(__file__).resolve().parents[1] / 'src' / 'keel' / 'method' / 'doctrine.md'
+    ).read_text(encoding='utf-8')
+    result = runner.invoke(app, ['show', 'doctrine'])
+    assert result.exit_code == 0
+    assert result.output == mirror
+
+
+def test_show_list_names_exactly_the_asset_set():
+    result = runner.invoke(app, ['show', '--list'])
+    assert result.exit_code == 0
+    assert result.output.split() == ['doctrine', 'playbook', 'pre-mortem']
+
+
+def test_show_unknown_asset_exits_2_and_names_the_valid_set():
+    result = runner.invoke(app, ['show', 'nonesuch'])
+    assert result.exit_code == 2
+    for name in ('doctrine', 'playbook', 'pre-mortem'):
+        assert name in result.output

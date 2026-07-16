@@ -10,6 +10,7 @@ console-script executable.
 | `keel spec-hash <spec>` | Print the canonical certification hash (the spec minus its certification section) — what a saved pre-mortem artifact records as `Spec-hash:` (B2) | 0 ok, 2 not-runnable | **real** |
 | `keel new-spec <target> [--force]` | Stamp `spec-template.md` to a new spec path (the author on-ramp) | 0 ok, 2 exists | **real** |
 | `keel init <target> [--force]` | Copy the full template kit into a project | 0 ok, 2 exists | **real** |
+| `keel show <asset>` (or `keel show --list`) | Print a packaged method asset — `doctrine`, `playbook`, `pre-mortem` — to stdout, byte-for-byte (the any-agent corpus entry, ADR-0017) | 0 ok, 2 unknown asset | **real** |
 | `keel bind-check <bindings>` | All method-binding slots filled | 0 / 1 / 2 | stub |
 | `keel budget-drift <series> <actuals>` | Wave cost drift past threshold | 0 / 1 / 2 | stub |
 | `keel --version` | Print the installed keel version and exit | 0 | **real** |
