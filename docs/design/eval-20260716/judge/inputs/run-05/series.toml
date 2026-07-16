@@ -1,0 +1,39 @@
+[series]
+id = "tempo-add-source-host"
+integration_branch = "refactor/add-source-host-consolidation"
+description = "Add source_host field to record contract across parser, reporter, and tests"
+
+# PR01: Extend contract.py with source_host field
+[[pr]]
+id = "PR01"
+prompt = "docs/prompts/PR01_contract_extend.md"
+section = "§1"
+tier = "haiku"
+
+# PR02: Update parser to extract source_host from input
+[[pr]]
+id = "PR02"
+prompt = "docs/prompts/PR02_parser_extract.md"
+section = "§2"
+tier = "haiku"
+
+# PR03: Update reporter to handle 4-tuple records
+[[pr]]
+id = "PR03"
+prompt = "docs/prompts/PR03_reporter_adapt.md"
+section = "§3"
+tier = "haiku"
+
+# PR04: Extend tests to validate source_host
+[[pr]]
+id = "PR04"
+prompt = "docs/prompts/PR04_tests_extend.md"
+section = "§4"
+tier = "haiku"
+
+# Wave budget and drift gate
+[budget]
+estimate_usd = 2.00
+all_opus_baseline_usd = 3.00
+drift_threshold = 0.25
+on_breach = "warn"
