@@ -22,6 +22,7 @@ REQUIRED_SECTIONS = {
         'not just the address',
     ],
     'series-toml-skeleton.md': ['Tier vocabulary', 'model-family names', 'method-bindings.md'],
+    'method-agents-snippet.md': ['method-bindings.md', 'keel show doctrine', 'keel check-ready'],
 }
 
 

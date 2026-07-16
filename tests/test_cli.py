@@ -129,6 +129,8 @@ def test_init_copies_template_kit(tmp_path):
     assert result.exit_code == 0
     assert (target / 'definition-of-ready.md').exists()
     assert (target / 'spec-template.md').exists()
+    # 2026-07-16 spec §5: the any-agent routing snippet ships with the kit.
+    assert (target / 'method-agents-snippet.md').exists()
 
 
 def test_init_refuses_overwrite_without_force(tmp_path):
