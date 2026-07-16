@@ -97,7 +97,7 @@ Run each unpiped, from the repo root:
 | `keel show` command | `src/keel/cli.py` |
 | `keel show` CLI tests | `tests/test_cli.py` |
 | thinned skill router | `skills/apply-method/SKILL.md` |
-| de-Clauded slash commands | `commands/keel-apply.md`, `commands/keel-triage.md`, `commands/keel-premortem.md` |
+| de-Clauded slash commands | `commands/keel-apply.md`, `commands/keel-triage.md`, `commands/keel-premortem.md`, `commands/keel-check-ready.md` |
 | consumer AGENTS.md routing snippet | `src/keel/templates/method-agents-snippet.md` (to be created) |
 | agnostic install/usage docs | `docs/installation.md`, `README.md` |
 | release notes + version bump | `CHANGELOG.md` |
@@ -114,16 +114,21 @@ existing src layout (the same mechanism that already ships `src/keel/templates/`
 
 Add `tests/test_method_corpus_sync.py` (to be created), modeled on the existing drift-guard
 precedent, asserting: (a) the mirror and `docs/doctrine.md` are byte-equal (read both,
-compare full text — not markers), and (b) the mirror is readable through
-`importlib.resources.files('keel')`, the installed-package view. The test docstring records
-the regeneration rule: **a PR that edits `docs/doctrine.md` re-copies the mirror in the same
-PR** — the doctrine's own per-change freshness rule for committed mirrors, so the gate is
-never deferrable to a later PR.
+compare full text — not markers), (b) the mirror is readable through
+`importlib.resources.files('keel')`, the installed-package view, and (c) the **built wheel**
+actually ships it: the test builds a wheel (`uv build --wheel` via subprocess, into a temp
+dir) and asserts `keel/method/doctrine.md` appears in the wheel's namelist — every other gate
+runs against the editable install, which resolves to the source tree and would stay green even
+if a packaging change dropped `method/` from the wheel (round-1 pre-mortem FM-3). The test
+docstring records the regeneration rule: **a PR that edits `docs/doctrine.md` re-copies the
+mirror in the same PR** — the doctrine's own per-change freshness rule for committed mirrors,
+so the gate is never deferrable to a later PR.
 
 **Model-on:** `tests/test_premortem_agent.py`
 
 **Acceptance criterion:** `uv run pytest tests/test_method_corpus_sync.py` passes; editing one
-byte of either copy makes it fail; `uv run python -c "from importlib.resources import files;
+byte of either copy makes it fail; the wheel-namelist item fails when `keel/method/doctrine.md`
+is absent from a freshly built wheel; `uv run python -c "from importlib.resources import files;
 print(len((files('keel') / 'method' / 'doctrine.md').read_text(encoding='utf-8')))"` prints a
 non-zero length.
 
@@ -156,19 +161,21 @@ packaged files — `doctrine` → `method/doctrine.md`, `playbook` → `method/p
 file text; an unknown name raises `KeyError` for the CLI layer to translate.
 
 Wire `show` in `src/keel/cli.py` next to the existing commands (`src/keel/cli.py:136`
-`@app.command('init')` is the wiring pattern): `keel show` with an asset argument prints the
-asset text to stdout and exits 0; `keel show --list` prints one asset name per line and exits
-0; an unknown asset exits 2 with a `format_error` message naming the valid set (printing from
-the CLI layer only, per the no-print-from-engine convention). Add the `show` row to the
+`@app.command('init')` is the wiring pattern): `keel show` with an asset argument writes the
+asset text to stdout **without appending a trailing newline** (`typer.echo(..., nl=False)` or
+`sys.stdout.write` — a default `typer.echo` adds one and breaks the byte-equal criterion;
+round-1 pre-mortem FM-4) and exits 0; `keel show --list` prints one asset name per line and
+exits 0; an unknown asset exits 2 with a `format_error` message naming the valid set (printing
+from the CLI layer only, per the no-print-from-engine convention). Add the `show` row to the
 command table in `docs/cli-reference.md`, which the CLI↔reference sync test holds to the
 registered command set, and extend `tests/test_cli.py` with the three behaviors.
 
 **Reuse:** `src/keel/templates.py::templates_root`
 
-**Acceptance criterion:** `uv run keel show doctrine` output is byte-equal to
-`src/keel/method/doctrine.md`; `uv run keel show --list` names exactly the three assets;
-`uv run keel show nonesuch` exits 2 and names the valid set; the CLI↔reference sync test
-passes with the new row.
+**Acceptance criterion:** `uv run keel show doctrine | cmp - src/keel/method/doctrine.md`
+exits 0 (byte-equal, no added newline); `uv run keel show --list` names exactly the three
+assets; `uv run keel show nonesuch` exits 2 and names the valid set; the CLI↔reference sync
+test passes with the new row.
 
 ### §4 Thin the Claude skill and commands onto the packaged corpus
 
@@ -177,13 +184,18 @@ Rewrite the body of `skills/apply-method/SKILL.md` as a thin router: keep the YA
 procedure with the instruction to run `uvx --from ${CLAUDE_PLUGIN_ROOT} keel show playbook`
 (bare `keel show playbook` when a persistent keel is on PATH) and follow the returned playbook,
 keeping only the when-not-to threshold summary inline (the routing decision must be readable
-without a tool call). Update `commands/keel-apply.md` and `commands/keel-triage.md` the same
-way: content references of the form `${CLAUDE_PLUGIN_ROOT}/docs/…` or
-`${CLAUDE_PLUGIN_ROOT}/src/keel/templates/…` become `keel show` / kit-copy references;
-`commands/keel-premortem.md` gains one line naming `keel show pre-mortem` as the portable
-prompt source. `${CLAUDE_PLUGIN_ROOT}` survives **only** as the `uvx --from` bundle locator
-(the pattern already live at `commands/keel-check-ready.md:9`
-`uvx --from ${CLAUDE_PLUGIN_ROOT} keel check-ready $ARGUMENTS`).
+without a tool call), that summary citing the doctrine section by plain name ("doctrine §6 via
+`keel show doctrine`"), never by a plugin-root path (round-1 pre-mortem FM-1 sibling sweep).
+Update `commands/keel-apply.md` and `commands/keel-triage.md` the same way: content references
+of the form `${CLAUDE_PLUGIN_ROOT}/docs/…` or `${CLAUDE_PLUGIN_ROOT}/src/keel/templates/…`
+become `keel show` / kit-copy references; **`commands/keel-check-ready.md` is also in the edit
+set** — its cross-reference at `commands/keel-check-ready.md:12`
+`${CLAUDE_PLUGIN_ROOT}/docs/installation.md` becomes the plain committed path
+`docs/installation.md` (round-1 pre-mortem FM-1: the file sits inside the new guard's scan
+surface, so leaving it unedited fails PR04's own gate); `commands/keel-premortem.md` gains one
+line naming `keel show pre-mortem` as the portable prompt source. `${CLAUDE_PLUGIN_ROOT}`
+survives **only** as the `uvx --from` bundle locator (the pattern already live at
+`commands/keel-check-ready.md:9` `uvx --from ${CLAUDE_PLUGIN_ROOT} keel check-ready $ARGUMENTS`).
 
 Retarget the routing-clause guard (`tests/test_plugin_manifest.py:112`
 `established format IS the binding`) at the playbook (its clause moves there in §2), asserting
@@ -217,7 +229,10 @@ kit; the new `REQUIRED_SECTIONS` entry passes; `docs/templates-reference.md` gai
 Add an "Any agent" install path to `docs/installation.md` (the pinned `uvx` one-liner, `keel
 show` as the corpus entry, the snippet paste step, and the honest scope line: any agent that
 can run a shell; shell-less agents wait on the MCP deferral, ADR-0017) and a short "Any
-agent" paragraph to `README.md`. The existing plugin path stays valid as documented at
+agent" paragraph to `README.md`. The any-agent one-liner pins the tag `v0.14.0` — the first
+release that ships `keel show` — never a copy of the older example pin at
+`docs/installation.md:19` `@v0.11.1`, under which `keel show` does not exist (round-1
+pre-mortem FM-2). The existing plugin path stays valid as documented at
 `docs/installation.md:36` `uvx --from ${CLAUDE_PLUGIN_ROOT} keel …`. Write the 0.14.0
 CHANGELOG entry (release-notes-in-wave) covering the whole wave, citing ADR-0017, and bump
 the version at all seven pinned sites in the same PR, keeping `tests/test_plugin_manifest.py:51`
