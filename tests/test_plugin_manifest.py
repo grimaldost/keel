@@ -105,8 +105,25 @@ def test_referenced_assets_exist():
         assert (ROOT / 'commands' / f'{command}.md').exists()
 
 
-def test_apply_method_routes_through_bindings():
-    # §8 (c1-T4): the router consumes the project's bindings record on the already-established
-    # path instead of pointing every entry at the packaged templates.
+def test_apply_method_routes_through_the_packaged_playbook():
+    # 2026-07-16 spec §4: the skill is a thin router over the packaged corpus; the bindings
+    # entry rule (formerly asserted here in the skill body) lives in the playbook the skill
+    # routes to via `keel show playbook` (§2 pins the clause there too — this is the retarget).
     skill = (ROOT / 'skills' / 'apply-method' / 'SKILL.md').read_text(encoding='utf-8')
-    assert 'established format IS the binding' in skill
+    playbook = (ROOT / 'src' / 'keel' / 'method' / 'playbook.md').read_text(encoding='utf-8')
+    assert 'keel show playbook' in skill, 'the thinned skill no longer routes to the playbook'
+    assert 'established format IS the binding' in playbook
+
+
+def test_no_plugin_root_path_forms_in_skill_or_commands():
+    # 2026-07-16 spec §4 (round-1 pre-mortem FM-1): ${CLAUDE_PLUGIN_ROOT} survives only as the
+    # `uvx --from` bundle locator (variable + space); the path-form (variable + slash) is the
+    # plugin-only content resolution the packaged corpus replaced. Scans the FULL population of
+    # both directories, not the edited exemplars.
+    offenders = [
+        str(path.relative_to(ROOT))
+        for directory in ('skills', 'commands')
+        for path in sorted((ROOT / directory).rglob('*.md'))
+        if '${CLAUDE_PLUGIN_ROOT}/' in path.read_text(encoding='utf-8')
+    ]
+    assert not offenders, f'plugin-root path-forms remain in: {offenders}'

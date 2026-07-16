@@ -4,9 +4,11 @@ argument-hint: <path-to-spec.md>
 ---
 
 Dispatch the `pre-mortem-review` agent against the spec at $ARGUMENTS — the agent is read-only and
-RETURNS its findings. Then YOU, the caller, fold its top failure modes back into the spec/prompts
-(re-grounding each `smallest_fix` first — it is a hypothesis, not an instruction) as the closing
-step of the Definition-of-Ready gate.
+RETURNS its findings. (The prompt itself is portable: any fresh non-author context can run it from
+`uvx --from ${CLAUDE_PLUGIN_ROOT} keel show pre-mortem`, or bare `keel show pre-mortem`.) Then YOU,
+the caller, fold its top failure modes back into the spec/prompts (re-grounding each
+`smallest_fix` first — it is a hypothesis, not an instruction) as the closing step of the
+Definition-of-Ready gate.
 
 **Size the arc** (the doctrine's round economy, ADR-0014): two rounds — fresh pass → fold →
 re-gate under the rising bar — when round 1 found a BLOCKER, the spec touches an
