@@ -105,6 +105,32 @@ def test_referenced_assets_exist():
         assert (ROOT / 'commands' / f'{command}.md').exists()
 
 
+def test_plugin_reference_documents_every_entry_point():
+    # The CLI half has had a coverage test since F9/ARCH-10; the plugin half had none, and two of
+    # the four slash commands were named in no published doc at all. Same shape as
+    # test_cli_reference_documents_every_command: every shipped entry point appears in the
+    # published reference, so a new one cannot land undocumented.
+    # All three entry-point directories are globbed, not listed by hand — docs/extension-points.md
+    # tells a contributor that adding under `commands/`, `skills/` or `agents/` requires a row
+    # here, and a hardcoded list would leave that claim unenforced for two of the three.
+    # The command match requires the table's backticked form (`` `/name` `` or `` `/name <arg>` ``)
+    # rather than a bare substring: `f'/{name}' in reference` passes vacuously for any name that
+    # is a prefix of an existing one (`/keel-check` matches inside `/keel-check-ready`), and an
+    # `\b` anchor does not close that hole either, since `-` is already a word boundary.
+    reference = (ROOT / 'docs' / 'plugin-reference.md').read_text(encoding='utf-8')
+    commands = sorted(p.stem for p in (ROOT / 'commands').glob('*.md'))
+    skills = sorted(p.parent.name for p in (ROOT / 'skills').glob('*/SKILL.md'))
+    agents = sorted(p.stem for p in (ROOT / 'agents').glob('*.md'))
+    assert commands and skills and agents, 'an entry-point directory enumerated empty'
+    missing = [
+        f'/{name}' for name in commands if not re.search(rf'`/{re.escape(name)}(?=[ `])', reference)
+    ]
+    missing += [
+        name for name in skills + agents if not re.search(rf'`{re.escape(name)}`', reference)
+    ]
+    assert not missing, f'plugin-reference.md is missing: {missing}'
+
+
 def test_apply_method_routes_through_bindings():
     # §8 (c1-T4): the router consumes the project's bindings record on the already-established
     # path instead of pointing every entry at the packaged templates.

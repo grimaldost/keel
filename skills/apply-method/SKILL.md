@@ -33,8 +33,8 @@ imported by ≥~50 modules, additive-on-a-shared-contract, a boundary crossing, 
 1. Read `${CLAUDE_PLUGIN_ROOT}/docs/doctrine.md` (thesis + the 8 phases + mechanism map).
 2. Run `uvx --from ${CLAUDE_PLUGIN_ROOT} keel init <target>` to copy the full template kit
    into the target project — ADR + spec templates, the DoR and DoD gates, the review
-   checklist, reflection-triage, the series/budget skeleton, method-bindings, and the
-   pre-mortem prompt.
+   checklist, reflection-triage, the series/budget skeleton, method-bindings, the
+   pre-mortem prompt, and the kit's own README.
 3. Fill the `method-bindings.md` that step 2 just copied **into `<target>`** (the project's
    own copy, NOT the packaged template under `${CLAUDE_PLUGIN_ROOT}`) — bind each slot (ADR
    home, spec format, gates, review checklist, reflection sink) to a concrete mechanism.
@@ -51,10 +51,12 @@ record instead of re-globbing. Run `keel init` only when the kit itself is absen
 
 Follow the phases; the gates are the load-bearing part:
 
-- **Specify → DoR gate.** The spec is not ready to decompose until
-  `definition-of-ready.md` passes (Part A deterministic + Part B certified by a
-  non-author reviewer). Then run
-  the `pre-mortem-prompt.md` pass and fold findings back in.
+- **Specify → DoR gate.** Iterate the spec's shape with
+  `keel check-ready <spec> --structure-only` (Part A only). Then run the
+  `pre-mortem-prompt.md` pass with a non-author reviewer, fold the findings back in, and
+  record the certification block. The full `keel check-ready` passes only once that
+  certification is recorded (Part A + Part B, B1) — a spec is not ready to decompose until
+  it does.
 - **Decompose.** One PR per spec section (`spec-template.md` has the PR↔section
   manifest). Score each PR → model tier.
 - **Route & Budget.** Fill the `[budget]` block in `series-toml-skeleton.md`;

@@ -81,9 +81,10 @@ carry its snippet, so the gate verifies the evidence, not just the address. Cite
 `**Reuse:** <backticked path::symbol>`; `check-ready` (A9) resolves the path, and the symbol
 when given — so a spec cannot say "model-on / reuse X" without X actually existing.*
 
-*Anchor ranges: a multi-line citation is `` `path:lo-hi` ``; `check-ready` (A11) flags a range that
-opens a bracket/brace/paren it does not close, so a citation cannot silently truncate a collection
-literal mid-structure. Quote a literal complete or not at all.*
+*Anchor ranges: a multi-line citation is `` `path:lo-hi` ``; `check-ready` (A11) resolves the file
+and the `hi` line, and for a `.py`/`.pyi` anchor additionally flags a range that opens a
+bracket/brace/paren it does not close, so a citation cannot silently truncate a collection literal
+mid-structure. Quote a literal complete or not at all.*
 
 *Gate-adversarial examples: when the spec must QUOTE something the gate itself scans for — a
 literal `Verdict:` line, a bare to-do placeholder token, an example `### heading` — put it inside a

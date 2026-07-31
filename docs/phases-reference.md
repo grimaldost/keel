@@ -13,5 +13,7 @@ Each phase has an artifact, an entry gate (Ready), and an exit gate (Done).
 | 7 Review | Reviewer verdict vs checklist | Gates green | **Definition-of-Done** met; APPROVE or salvage closed |
 | 8 Reflect | Reflection entries | PR merged | **reflection-triage**: recurring traps promoted |
 
-keel gates: phase 2 → `keel check-ready` (+ pre-mortem); phase 4 → `keel budget-drift`;
-phase 8 → `keel-triage`. (`keel check-ready` is live as of 0.2.0; `budget-drift` and `keel-triage` are still template/manual.)
+keel gates: phase 2 → `keel check-ready` (+ the pre-mortem pass); phase 4 → `keel budget-drift`;
+phase 8 → the `/keel-triage` slash command, which drives `reflection-triage.md`.
+(`keel check-ready` is live as of 0.2.0; `keel budget-drift` is still a stub — deferred,
+ADR-0003 — and the phase-8 loop is a template procedure, not a deterministic gate.)

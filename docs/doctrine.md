@@ -51,7 +51,7 @@ reinstate the comparative claim — is set out in `docs/evidence.md`.
 | Scope / the plan | In-session plan; agent judges step size | Numbered spec sections, pre-committed; each commit cites one |
 | Context | Accumulates over the session → drifts | Reset per PR; the subagent reads its section fresh |
 | Invariants | Agent remembers to check | Machine-enforced: edit-time hook + guardrail scripts + gates |
-| Review | Generic review | 15-item project checklist, injected, blocking |
+| Review | Generic review | Project review checklist, injected, blocking |
 | Scope discipline | Agent restraint | Complexity scoring as a forcing function — a vague PR can't be scored |
 | Learning across rounds | None by default | Reflections → cross-project memory → next round's checklist |
 
@@ -197,7 +197,7 @@ in Composition below describe the same nesting at larger grain).
 | 4 Route & Budget | Per-PR complexity score → model tier; wave cost estimate | PR prompts precise enough to score | Each PR has a tier; wave has an estimated cost vs all-Opus baseline |
 | 5 Implement | Branch/diff per PR | PR prompt + its spec section in hand; fresh context | Single-concern change; no invariant violated (edit-time hook did not block) |
 | 6 Gate | Deterministic gate results | Implementation believes it is done | ruff format/check, mypy, pytest, guardrail scripts all pass (fail-closed) |
-| 7 Review | Reviewer verdict vs 15-item checklist | Gates green | APPROVE (or salvage round closed); no blocking checklist item open |
+| 7 Review | Reviewer verdict vs the project review checklist | Gates green | APPROVE (or salvage round closed); no blocking checklist item open |
 | 8 Reflect | Reflection entries → memory | PR merged | Reflections extracted; any recurring trap promoted to a checklist item / guardrail for next round |
 
 ## 4. Mechanism map

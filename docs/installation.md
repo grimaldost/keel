@@ -7,29 +7,36 @@
 /plugin install keel
 ```
 
-Installs the `apply-method` skill, the `/keel-*` commands, the `pre-mortem-review` agent,
-and the template kit.
+Installs the `apply-method` skill, the four `/keel-*` commands, the `pre-mortem-review`
+agent, and the template kit. Each entry point, its argument and what it does:
+`docs/plugin-reference.md`.
 
 ## CLI
 
-Self-contained (no install), runs the bundled engine — pin a tag so gate
-semantics don't shift under you:
+Self-contained (no install), runs the bundled engine:
 
 ```
-uvx --from git+https://github.com/grimaldost/keel@v0.11.1 keel --help
+uvx --from git+https://github.com/grimaldost/keel keel --help
 ```
 
 Persistent binary on PATH (so a bare `keel` works, e.g. from a slash command):
 
 ```
-uv tool install git+https://github.com/grimaldost/keel@v0.11.1
+uv tool install git+https://github.com/grimaldost/keel
 ```
 
-Or pin it as a project dependency straight from the repository:
+Or add it as a project dependency straight from the repository:
 
 ```
-uv add git+https://github.com/grimaldost/keel@v0.11.1
+uv add git+https://github.com/grimaldost/keel
 ```
+
+None of these pins a revision; uv resolves a `git+` URL with no `@<ref>` against the
+repository's default branch (uv's documented behaviour), so what you get moves as that
+branch moves. To hold gate semantics still across a series, append `@<ref>` — a tag that
+exists (`git ls-remote --tags https://github.com/grimaldost/keel`) or a commit SHA.
+Tagging currently lags the shipped version, so run that command and check the ref
+resolves before pinning to it.
 
 Requires Python >= 3.11 and `uv`. The `/keel-check-ready` slash command runs the
 engine straight from the installed plugin bundle

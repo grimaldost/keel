@@ -14,8 +14,10 @@ See `docs/installation.md`. Everything below assumes `keel` on PATH — substitu
 keel init docs/method
 ```
 
-Copies the template kit (spec/ADR templates, the DoR/DoD gate checklists, the review checklist,
-reflection-triage, the series skeleton, method-bindings). Then fill `docs/method/method-bindings.md`
+Copies the ten-file template kit (spec/ADR templates, the DoR/DoD gate checklists, the review
+checklist, reflection-triage, the series skeleton, method-bindings, the pre-mortem prompt, and the
+kit's own README — full per-file list: `docs/templates-reference.md`).
+Then fill `docs/method/method-bindings.md`
 — bind each slot (ADR home, spec format, gates, review checklist, reflection sink) to a concrete
 mechanism in YOUR project. keel's own filled sheet is a worked example: `docs/method-bindings.md`.
 
