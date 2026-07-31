@@ -23,7 +23,9 @@ is Part B's job).
 - [ ] Every numbered section has a **non-trivial** acceptance criterion.
 - [ ] No `TBD` / `TODO` / `FIXME` / `???` anywhere in the spec.
 - [ ] PR ↔ section manifest exists; every section is covered by **exactly one** PR
-      and every PR cites **exactly one** section (a bijection).
+      and every PR cites **exactly one** section (a bijection) — unless the header declares
+      Decompose skipped, in which case an absent manifest is accepted and a present one is
+      still fully checked.
 - [ ] Every path in the concept→module map exists, or is explicitly marked "to be
       created" **and** claimed by a numbered section.
 - [ ] Every `path:line` anchor resolves (file + line exist) and any quoted snippet — the
@@ -35,7 +37,8 @@ is Part B's job).
       denotes this spec's own sections — a cross-document reference names the document.
 - [ ] When an `Enforcement status` table is present, no prose claims an invariant
       "enforced" / "guaranteed" that the table marks review-only / planned / absent (A10).
-- [ ] Every `path:lo-hi` range anchor closes (string/comment-aware) every bracket it opens (A11) —
+- [ ] Every `path:lo-hi` range anchor resolves (file + `hi` line exist); for a `.py`/`.pyi`
+      anchor it must additionally close (string/comment-aware) every bracket it opens (A11) —
       a citation cannot truncate a collection literal mid-structure.
 - [ ] A certification that claims a non-trivial fold carries a `### Fold ledger` with a resolving
       `artifact:line` row per finding (R1); when rows are present each anchor resolves (A12); a clean
@@ -47,18 +50,20 @@ is Part B's job).
 A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
 A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words)
 A3 fail on a TBD/TODO/FIXME/??? token, or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view (inline-code spans space-filled, wrapped spans included), so backticked `<target>` syntax is exempt while a bare `<title>` is caught
-A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage
+A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — relaxed to absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)`; a manifest that IS present is still checked in full (ADR-0014)
 A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
 A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches
 A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
 A10 when an Enforcement-status table is present: fail if prose claims an invariant "enforced"/"guaranteed" whose row is not enforced
-A11 each `path:lo-hi` range anchor: fail unless it closes (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
+A11 each `path:lo-hi` range anchor: the file and `hi` line must resolve; for a `.py`/`.pyi` anchor it must additionally close (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
 A12 when a `### Fold ledger` sub-table is present: fail unless each row's `artifact:line` confirmation anchor resolves
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
 B2 when the certification names a `Certification artifact:`: fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision" — suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY) and when no artifact is named (adoption nudge)
+W1 (warn) a spec stamped `<!-- keel kit X.Y.Z -->` from a different kit MAJOR.MINOR than the running gate warns of kit<->gate skew; a patch difference and an unstamped spec are silent
+W2 (warn) a header `Status:` still reading `draft` while a CERTIFIED / CONDITIONAL-CERTIFY certification is recorded warns that the coordinate system is stale; silent when there is no Status field, when Status has moved past draft, or when nothing is certified
 ```
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*
