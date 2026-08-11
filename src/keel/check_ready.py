@@ -248,7 +248,8 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     # scanners that must not read code (A3 angle idiom, A8 `§N` detection); offsets stay true.
     prose = _mask_inline_spans(text)
     sections = _split_top_sections(text)
-    subsections = _subsections(_find_section(sections, 'numbered', 'sections') or '')
+    numbered_body = _find_section(sections, 'numbered', 'sections')
+    subsections = _subsections(numbered_body or '')
     section_ids = [m.group(1) for title, _ in subsections if (m := re.match(r'(§\d+)\b', title))]
 
     first_heading = re.search(r'^##[ \t]+', text, re.MULTILINE)
@@ -257,20 +258,32 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     violations: list[Violation] = []
     warnings: list[str] = []
     warnings += _kit_skew_warning(text)
-    violations += _check_numbered(subsections)
-    violations += _check_acceptance(subsections)
-    violations += _check_placeholders(text, prose)
-    # §11 (0.12.0): a header `Phases:` declaration that explicitly names Decompose as skipped
-    # relaxes the manifest requirement to absent-ok — a declared Decide+Specify round no longer
-    # invents a manifest to pass its own gate (ADR-0014). A manifest that IS present is still
-    # checked in full, and nothing else in Part A is relaxed; the declaration is content the
-    # pre-mortem can challenge.
+    # §11 (0.12.0) + KEEL-B01: two header declarations widen the *absence* tolerance of the
+    # Part-A structural trio, and nothing else. `Phases: … (Decompose: skipped)` relaxes the
+    # manifest (ADR-0014); `Kind: single-change` relaxes all three, because a spec that decomposes
+    # into nothing has no manifest, no concept→module map and no numbered sections to write. A
+    # section that IS present is still checked in full, and the declaration is content the
+    # pre-mortem can challenge — not an escape hatch. An unreadable Kind relaxes nothing.
+    kind, kind_violation = _declared_kind(header)
+    if kind_violation is not None:
+        violations.append(kind_violation)
+    single_change = kind == 'single-change'
     phases = _field(header, 'phases').lower()
     decompose_skipped = 'decompose' in phases and 'skipped' in phases
+    if numbered_body is not None or not single_change:
+        violations += _check_numbered(subsections)
+        violations += _check_acceptance(subsections)
+    else:
+        # With no numbered sections there is nothing for A2 to read, so the criterion floor moves
+        # to the document: a relaxed spec still promises something observable.
+        violations += _check_document_acceptance(text)
+    violations += _check_placeholders(text, prose)
     manifest_body = _find_section(sections, 'section', 'manifest')
-    if manifest_body is not None or not decompose_skipped:
+    if manifest_body is not None or not (decompose_skipped or single_change):
         violations += _check_manifest(manifest_body, section_ids)
-    violations += _check_paths(_find_section(sections, 'concept', 'module'), subsections, spec_path)
+    concept_body = _find_section(sections, 'concept', 'module')
+    if concept_body is not None or not single_change:
+        violations += _check_paths(concept_body, subsections, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
     violations += _check_anchors(text, spec_path)
     violations += _check_anchor_ranges(text, spec_path)
@@ -401,6 +414,34 @@ def _field(body: str, name: str) -> str:
     return ''
 
 
+_SPEC_KINDS = ('series', 'single-change')
+_DECLARE_SMALLER = (
+    'add it, or — when this spec really is one change with nothing to decompose — declare '
+    '`- **Kind:** single-change` in the header (KEEL-B01: the declaration relaxes the absent '
+    'trio; a section that IS present is still checked in full)'
+)
+
+
+def _declared_kind(header: str) -> tuple[str, Violation | None]:
+    """The header's declared spec kind, or ('' , Violation) when it names an unknown one.
+
+    A kind keel cannot read relaxes nothing — the alternative (silently ignoring it) hands back a
+    trio failure with no hint that the declaration was the problem. The violation names the
+    offending token, not the row.
+    """
+    raw = _field(header, 'kind')
+    if not raw:
+        return '', None
+    token = raw.split()[0].strip('`*.,;:').lower()
+    if token in _SPEC_KINDS:
+        return token, None
+    return '', Violation(
+        'Kind',
+        f'declared spec kind {token!r} is not one of '
+        f'{" | ".join(_SPEC_KINDS)} — it relaxes nothing as written.',
+    )
+
+
 _VENDOR_DIRS = frozenset({'.git', '.venv', 'node_modules', '__pycache__', 'site-packages'})
 
 
@@ -510,7 +551,7 @@ def _check_numbered(subsections: list[tuple[str, str]]) -> list[Violation]:
             Violation(
                 'Numbered sections',
                 'no numbered sections found: expected a "## Numbered sections" section with '
-                '"### §N <title>" subsections.',
+                f'"### §N <title>" subsections — {_DECLARE_SMALLER}.',
             )
         ]
     violations: list[Violation] = []
@@ -542,6 +583,27 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
                 )
             )
     return violations
+
+
+def _check_document_acceptance(text: str) -> list[Violation]:
+    """A2 at document scope: a `Kind: single-change` spec with no §N still names its criterion.
+
+    Runs only where the numbered-sections requirement was relaxed away (KEEL-B01). Same floor as
+    A2 — a present, non-trivial criterion paragraph — read over the whole spec rather than per
+    section, so the relaxation buys a smaller shape and not a weaker promise.
+    """
+    for marker in re.finditer(r'acceptance\s+criterion', text, re.IGNORECASE):
+        para = re.split(r'\n[ \t]*\n', text[marker.end() :], maxsplit=1)[0]
+        if len(_words(para)) >= _MIN_CRITERION_WORDS:
+            return []
+    return [
+        Violation(
+            'Acceptance criterion',
+            'a spec declared `Kind: single-change` carries no non-trivial acceptance criterion '
+            f'(a present criterion of >= {_MIN_CRITERION_WORDS} words) — the declaration relaxes '
+            'the structural trio, not the observable condition that means the change is done.',
+        )
+    ]
 
 
 def _check_placeholders(text: str, prose: str) -> list[Violation]:
@@ -583,7 +645,13 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
     a single PR row citing two sections now fails (the scope-bundling A4 exists to forbid).
     """
     if manifest_body is None:
-        return [Violation('PR ↔ section manifest', 'no PR ↔ section manifest found.')]
+        return [
+            Violation(
+                'PR ↔ section manifest',
+                f'no "## PR ↔ section manifest" section found — {_DECLARE_SMALLER}, or declare '
+                '`- **Phases:** … (Decompose: skipped)` for a round that stops before Decompose.',
+            )
+        ]
     rows = _table_rows(manifest_body)
     header = rows[0] if rows else []
     section_col = next(
@@ -642,7 +710,12 @@ def _check_paths(
     three consumers). An ambiguous basename keeps the full-path requirement.
     """
     if concept_body is None:
-        return [Violation('Concept → module map', 'no concept → module map found.')]
+        return [
+            Violation(
+                'Concept → module map',
+                f'no "## Concept → module map" section found — {_DECLARE_SMALLER}.',
+            )
+        ]
     base = _resolve_base(spec_path)
     section_text = '\n'.join(sub_body for _, sub_body in subsections)
     rows = [cells for cells in _table_rows(concept_body) if len(cells) >= 2]

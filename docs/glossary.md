@@ -44,5 +44,8 @@ stay the source of truth.
   promotion rows (what statuses track). Don't conflate them.
 - **subset of phases** — a round runs a named subset of the 8 phases (`- **Phases:** Decide+Specify
   (Decompose: skipped)`); the unused phases are named-as-skipped, not faked (doctrine §3, A4).
+- **spec kind** — the header's `Kind: series | single-change` declaration. `single-change` relaxes
+  the Part-A structural trio to absent-ok and moves the acceptance-criterion floor to the document;
+  a present section is still checked in full, and an unreadable kind relaxes nothing.
 - **widen-only** — a gate change that accepts strictly more than before (e.g. B1 learning the
   operator-accepted conditional), so no green spec turns red.

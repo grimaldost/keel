@@ -28,6 +28,10 @@ is Part B's job).
       still fully checked.
 - [ ] Every path in the concept→module map exists, or is explicitly marked "to be
       created" **and** claimed by a numbered section.
+- [ ] The three structural sections above (numbered sections, the manifest, the concept→module
+      map) are required — unless the header declares `Kind: single-change`, which relaxes all
+      three to absent-ok and moves the acceptance-criterion floor to the document. A declared
+      kind sizes the gate to the round; it does not weaken a section that is present.
 - [ ] Every `path:line` anchor resolves (file + line exist) and any quoted snippet — the
       backticked token right after the anchor — matches.
 - [ ] Every cited `docs/adr/NNNN-…` uses a number free on the base (no collision).
@@ -47,11 +51,18 @@ is Part B's job).
 ### Reference: what `check_spec_ready` asserts
 
 ```
-A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
-A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words)
+A0 the header's `Kind:` declaration, when present, must read `series` or `single-change` — an
+   unknown kind is a violation naming the offending token, and relaxes nothing. `single-change`
+   relaxes A1/A4/A5 to absent-ok (a present section is still checked in full) and moves A2 to
+   document scope
+A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered — absent-ok under a
+   declared `Kind: single-change`
+A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words); under a
+   declared `Kind: single-change` with no numbered sections, the same floor is read over the
+   whole document instead
 A3 fail on a TBD/TODO/FIXME/??? token, or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view (inline-code spans space-filled, wrapped spans included), so backticked `<target>` syntax is exempt while a bare `<title>` is caught
-A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — relaxed to absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)`; a manifest that IS present is still checked in full (ADR-0014)
-A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
+A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — relaxed to absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` or `- **Kind:** single-change`; a manifest that IS present is still checked in full (ADR-0014)
+A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §) — absent-ok under a declared `Kind: single-change`
 A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches
 A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)

@@ -2,14 +2,17 @@
 
 - **Date:** YYYY-MM-DD
 - **Status:** draft | ready (DoR passed) | in progress | done
+- **Kind:** series | single-change
 - **Audience:** <who/what reads this>
 - **Output artifact(s):** <paths>
 
-*Optional header field for a declared non-series round: `- **Phases:** Decide+Specify
-(Decompose: skipped)` — when Decompose is explicitly named as skipped, `check-ready` (A4) relaxes
-the PR↔section manifest requirement to absent-ok. A manifest that IS present is still fully
-checked, everything else in Part A applies regardless, and the declaration is content the
-pre-mortem can challenge — not an escape hatch (ADR-0014).*
+*Two optional header declarations size the gate to the round. `Kind: single-change` relaxes the
+three structural sections — numbered sections, the PR↔section manifest, the concept→module map —
+to absent-ok, and moves the acceptance-criterion floor to the document (a spec that decomposes
+into nothing still promises something observable). `Phases: Decide+Specify (Decompose: skipped)`
+relaxes the manifest alone. A section that IS present is still fully checked, everything else in
+Part A applies regardless, and each declaration is content the pre-mortem can challenge — not an
+escape hatch (ADR-0014).*
 
 ## Context
 

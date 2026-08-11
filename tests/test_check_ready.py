@@ -785,6 +785,116 @@ def test_declared_skip_with_present_manifest_still_checked_a4(tmp_path):
     assert any('§2' in v.message and 'cover' in v.message.lower() for v in result.violations)
 
 
+# --- KEEL-B01: the declared spec kind (the Part-A structural trio) -----------
+
+# A legitimate small spec: one change, no decomposition, so no trio at all. The compensating
+# control is that it must still carry a non-trivial acceptance criterion somewhere.
+_SINGLE_CHANGE = """# Spec — retire the compatibility shim
+
+- **Status:** ready (DoR passed)
+- **Kind:** single-change
+
+## Goal
+
+Delete the compatibility shim now that every caller is migrated.
+
+## Change
+
+Remove the shim module and the import that reaches it. **Acceptance criterion:** the module is
+gone and the suite passes with no importer of it left in the tree.
+
+## Pre-mortem certification
+
+- **Reviewer:** review-panel (non-author)
+- **Verdict:** CERTIFIED
+- **Date:** 2026-08-11
+- **Failure modes considered & folded in:** none outstanding
+"""
+
+
+def test_declared_single_change_relaxes_the_trio(tmp_path):
+    result = check_spec_ready(_write(tmp_path, _SINGLE_CHANGE))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_undeclared_small_spec_still_fails_the_trio(tmp_path):
+    # Without the declaration nothing is relaxed — the kind is a declaration, not a shape sniff.
+    spec = _SINGLE_CHANGE.replace('- **Kind:** single-change\n', '')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    wheres = {v.where for v in result.violations}
+    assert wheres >= {'Numbered sections', 'PR ↔ section manifest', 'Concept → module map'}
+
+
+def test_declared_series_does_not_relax(tmp_path):
+    spec = _SINGLE_CHANGE.replace('- **Kind:** single-change', '- **Kind:** series')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any(v.where == 'PR ↔ section manifest' for v in result.violations)
+
+
+def test_unknown_kind_names_the_offending_token(tmp_path):
+    spec = _SINGLE_CHANGE.replace('- **Kind:** single-change', '- **Kind:** smallish')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    nv = [v for v in result.violations if v.where == 'Kind']
+    assert nv and 'smallish' in nv[0].message
+    # and it relaxes nothing — an unreadable declaration is not a pass
+    assert any(v.where == 'PR ↔ section manifest' for v in result.violations)
+
+
+def test_single_change_still_checks_a_present_trio_section(tmp_path):
+    # The declaration widens absence-tolerance only: a section that IS present is checked in full.
+    spec = _SINGLE_CHANGE.replace(
+        '## Pre-mortem certification',
+        '## PR ↔ section manifest\n\n'
+        '| PR | Implements section | One concern? |\n|---|---|---|\n| PR01 | §7 | yes |\n\n'
+        '## Pre-mortem certification',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('§7' in v.message for v in result.violations)
+
+
+def test_single_change_needs_an_acceptance_criterion(tmp_path):
+    # With no numbered sections there is nothing for A2 to read, so the criterion floor moves to
+    # the document: a relaxed spec that promises nothing observable is not Ready.
+    spec = _SINGLE_CHANGE.replace(
+        '**Acceptance criterion:** the module is\ngone and the suite passes with no importer of '
+        'it left in the tree.',
+        'It goes away.',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('acceptance criterion' in v.message.lower() for v in result.violations)
+
+
+def test_single_change_trivial_acceptance_criterion_fails(tmp_path):
+    spec = _SINGLE_CHANGE.replace(
+        '**Acceptance criterion:** the module is\ngone and the suite passes with no importer of '
+        'it left in the tree.',
+        '**Acceptance criterion:** done.',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('acceptance criterion' in v.message.lower() for v in result.violations)
+
+
+def test_missing_trio_sections_name_the_exact_heading(tmp_path):
+    # The violation names the section to add and the declaration that would relax it, instead of
+    # restating the generic requirement — the three consecutive operator overrides in the field
+    # were all on this message.
+    bad = '# Spec — empty\n\nNothing here yet.\n'
+    result = check_spec_ready(_write(tmp_path, bad))
+    by_where = {v.where: v.message for v in result.violations}
+    assert '## PR ↔ section manifest' in by_where['PR ↔ section manifest']
+    assert '## Concept → module map' in by_where['Concept → module map']
+    assert '## Numbered sections' in by_where['Numbered sections']
+    for message in by_where.values():
+        assert message.startswith('no ')  # the CLI template pointer depends on this token
+    assert 'single-change' in by_where['PR ↔ section manifest']
+
+
 # --- §10 (0.12.0): Status x Verdict currency ---------------------------------
 
 
