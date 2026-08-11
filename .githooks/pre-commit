@@ -1,0 +1,18 @@
+#!/bin/sh
+# keel's pre-commit hook, installed via `git config core.hooksPath .githooks`.
+#
+# Why not `pre-commit install`? That writes a hook which invokes the `pre-commit` console
+# script directly, and an application-control policy on at least one machine this repo is
+# developed on blocks that shim while running a git-invoked hook fine. Invoking the module
+# through `uv run` works in both environments and pins the project's interpreter, so the
+# claim in CONTRIBUTING ("these gates run before a commit lands") is true rather than
+# aspirational (KEEL-B05).
+#
+# Tracked, so a fresh clone gets the hook with one command instead of a recipe. Skip a run
+# with `git commit --no-verify` when you mean to; CI runs the full set regardless.
+HERE=$(dirname "$0")
+exec uv run python -m pre_commit hook-impl \
+	--config=.pre-commit-config.yaml \
+	--hook-type=pre-commit \
+	--hook-dir "$HERE" \
+	-- "$@"
