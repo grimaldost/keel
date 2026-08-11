@@ -19,3 +19,17 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ty check src
       - run: uv run pytest
+
+  changelog-currency:
+    # CONTRIBUTING step 4, machine-enforced (KEEL-B08): a diff that ships kit or doctrine while
+    # CHANGELOG.md stays untouched is an unrecorded promotion — and an unrecorded promotion is
+    # uncountable. PR-only: the base ref is what makes the diff meaningful.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the merge-base with the target branch has to exist locally
+      - run: |
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+            | python scripts/changelog_currency.py
