@@ -34,8 +34,9 @@ stay the source of truth.
   (RESOLVED / PARTIALLY-RESOLVED / UNRESOLVED) before hunting fold-introduced defects.
 - **DC1…DC3, DC4-B** — the grounding axes (doctrine sharpening 5): ground the verification, model
   the mechanical consumers, verify the transformation, and standing cross-artifact consistency.
-- **drift guard** — the test pinning `pre-mortem-prompt.md` ⊕ `agents/pre-mortem-review.md`
-  together (marker presence + verbatim clause identity, counts pinned).
+- **one home (the directives)** — `pre-mortem-prompt.md` carries the pre-mortem directive text and
+  the bundled agent reads it at run start; the drift guard that used to pin the two copies together
+  retired with the duplication (ADR-0017). What is pinned now is non-duplication.
 - **the kit** — the packaged templates `keel init` copies (`src/keel/templates/`); its stamp
   (`<!-- keel kit X.Y.Z -->`) lets `check-ready` warn on kit↔gate skew.
 - **finding IDs vs. promotion IDs** — two namespaces in the feedback loop: a report's stable
