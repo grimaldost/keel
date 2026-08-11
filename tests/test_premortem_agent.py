@@ -1,97 +1,63 @@
-"""Drift guard: the bundled pre-mortem agent must carry the prompt template's contract.
+"""Single-source guard: the directive text has one home, and the agent points at it.
 
-The 0.4.0 release upgraded `pre-mortem-prompt.md` but left `agents/pre-mortem-review.md` on the
-0.2.0 "top 5" prose — so the agent that actually runs lagged keel's own doctrine. Two guarantees,
-each with a named limit (0.11.0, honest after the skeptic panel found a live divergence the marker
-check missed):
+Until 0.13.1 the directive text lived in two ~90%-identical files (`agents/pre-mortem-review.md`
+and `src/keel/templates/pre-mortem-prompt.md`), held together by a drift guard that pinned a
+34-marker tuple and a clause-identity set — a guard bumped on every release, over a duplication
+that had only ever grown. KEEL-B02 folds the pair: the template is the single home of the
+directives (it is the copy that reaches consumers running the method without the plugin), and the
+agent body is a thin identity + dispatch + output-contract wrapper that READS it at run start.
 
-- **Marker presence** — every pinned marker in `MARKERS` appears in BOTH files. Catches a directive
-  *dropped* from one side. Limit: it cannot see a directive *reworded* while its marker survives, or
-  a marker that recurs in cross-references (deleting one occurrence keeps the token).
-- **Clause identity** — every distinctive clause in `SHARED_CLAUSES` appears VERBATIM (modulo
-  whitespace) in BOTH files. Catches a pinned directive reworded on one side only (the divergence
-  class the panel exploited: "and sibling repos" added to the prompt but not the agent). Limit: it
-  only pins the enumerated clauses, not the whole directive set.
+The drift guard goes with the duplication it existed to hold together. What replaces it is the
+arrangement itself, pinned here:
 
-Full byte-identity of the shared span stays deferred (V3b); these two together are what actually
-holds today, stated as such rather than over-claimed as "neither can ever drift".
+- **Delegation** — the agent names the template by its `${CLAUDE_PLUGIN_ROOT}` path, so the body
+  that actually runs cannot silently stop consuming the directives.
+- **Non-duplication** — directive clauses appear in the template and NOT in the agent, so the
+  fold cannot quietly refill (the failure mode the 34-marker guard could never catch: growth).
+- **Identity** — the agent's version line still matches the package (the fifth version site,
+  0.12.0 §2), so a stale plugin-cache copy self-announces on every verdict it returns.
+
+The agent's word cap lives with the other body budgets in `test_body_budgets.py`.
 """
 
 import re
 from pathlib import Path
 
+from keel import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
 AGENT = ROOT / 'agents' / 'pre-mortem-review.md'
 PROMPT = ROOT / 'src' / 'keel' / 'templates' / 'pre-mortem-prompt.md'
 
-# Structured-findings schema + severity + one distinctive token per directive section, so the
-# bundled agent and the prompt template cannot drift apart (ADR-0005 agent <-> prompt fidelity).
-# Each token is the verbatim string the directive carries; removing a directive from EITHER file
-# drops its token and fails the shared-markers test below.
-MARKERS = (
-    'smallest_fix',
-    'target_section',
-    'BLOCKER',
-    'population',  # DC1 ground-the-verification
-    'staged',  # DC2 mechanical consumers
-    'fold ledger',  # DC3 verify-the-transformation
-    'evidence-timeline',  # DC1 overturn
-    'CONDITIONAL-CERTIFY',  # convergence
-    'cross-pr',  # 0.6.0 §5: cross-PR generated-artifact invalidation
-    'intent vs. executable',  # 0.6.0 §5: intent -> executable cross-artifact
-    'predicted signal',  # 0.6.0 §7: stress-test recorded predictions
-    'stress-test',  # 0.6.0 §7: stress-test recorded predictions
-    'hypothesis, not an instruction',  # 0.6.1: re-ground a proposed fix before folding
-    'rising bar',  # 0.7.0 §1: rising-bar / convergence directive
-    'source-ground capability claims',  # 0.7.0 §3: source-ground capability claims
-    'series-pass checklist',  # 0.7.0 §4: first-class SERIES-pass checklist
-    'instrument defeatability',  # 0.7.0 §6: eval-spec instrument defeatability
-    'feasibility',  # 0.8.0 §1: feasibility-grounding-first (measurable on the record?)
-    'generated-artifact behavior',  # 0.8.0 §2: generated-output grounding on the target
-    'not deferrable',  # 0.8.0 §3: un-deferrable-when-gated cross-PR artifact
-    'caller folds and records',  # 0.8.0 §5: read-only agent returns, caller folds
-    'premortem-verdict',  # 0.8.0 §5: machine-greppable verdict line
-    'unit of analysis',  # 0.9.0 §1: measurement-design attack (experiment specs)
-    'disconfirming',  # 0.9.0 §3: each predicted mode names its disconfirming test
-    'inert-treatment',  # 0.10.0 §1: causal path (treatment must reach the measured path)
-    'side channel',  # 0.10.0 §1: measured-unit capability audit (no back channel to ground truth)
-    'enforcement mechanism',  # 0.10.0 §1: each isolation invariant names a buildable mechanism
-    'newly-introduced',  # 0.10.0 §2: re-cert hunts the fold's own newly-introduced errors
-    'resolution audit',  # 0.12.0 §2: re-gate posture (round >=2 audits prior findings first)
-    'cleared:',  # 0.12.0 §2: verified-correct claims as confirmations (colon: bare word pre-exists)
-    'conditions:',  # 0.12.0 §2: CONDITIONAL-CERTIFY carries a structured conditions list
-    'blast_radius',  # 0.12.0 §2: shared/global-config fixes state their spread in-schema
-    'decomposition completeness',  # 0.12.0 §6: every asserted property is built by a named PR
-    'consumed_input',  # 0.13.0 §6: a predicted coupling names the input the dependent consumes
-)
+TEMPLATE_REF = '${CLAUDE_PLUGIN_ROOT}/src/keel/templates/pre-mortem-prompt.md'
 
-
-# Distinctive directive clauses carried VERBATIM in both files. Each must appear (whitespace-
-# normalized) in the agent AND the prompt; rewording one side drops its count there and fails. Seed
-# set — extend it when a directive's exact wording is load-bearing.
-SHARED_CLAUSES = (
-    'the scope read (src AND tests AND docs, and sibling repos) must be named.',
-    'folding a wrong fix verbatim ships the bug it named',
-    'a grep of the ground truth is both a defeat and a side channel',
+# Directive clauses that used to be carried verbatim in both files. Each must now appear in the
+# template and NOT in the agent — one home per directive. Sampled across the directive layers
+# (DC1 grounding, DC2 mechanical consumers, DC3 the fold, the measurement lane) so a partial
+# re-inlining is caught, not only a wholesale one.
+DIRECTIVE_CLAUSES = (
+    'the scope read (src AND tests AND docs, and sibling repos) must be named',
     "the SECOND pass attacks the FIRST pass's folds",
     'a store the measured call recomputes live',
-    "recording the `## Pre-mortem certification` block is the caller's step",
-    'so a cached or stale copy self-announces on every verdict it returns',
     'a wave that plans no regeneration can still leave a mirror stale',
     'the concrete input the dependent actually consumes',
+    'a grep of the ground truth is both a defeat and a side channel',
+)
+
+# Output-contract invariants the agent DOES carry: a caller greps these, so they must survive in
+# the body that runs even if the template is unreachable.
+OUTPUT_CONTRACT = (
+    'PREMORTEM-VERDICT:',
+    'Unverified-offline:',
+    'smallest_fix',
+    'target_section',
+    'disconfirming_test',
+    'CONDITIONAL-CERTIFY',
 )
 
 
 def _normalized(path: Path) -> str:
     return re.sub(r'\s+', ' ', path.read_text(encoding='utf-8'))
-
-
-def test_shared_directive_clauses_are_identical():
-    agent, prompt = _normalized(AGENT), _normalized(PROMPT)
-    for clause in SHARED_CLAUSES:
-        needle = re.sub(r'\s+', ' ', clause)
-        assert needle in agent, f'agent missing verbatim clause: {clause!r}'
-        assert needle in prompt, f'prompt missing verbatim clause: {clause!r}'
 
 
 def test_agent_preserves_frontmatter():
@@ -101,20 +67,34 @@ def test_agent_preserves_frontmatter():
     assert 'tools:' in head
 
 
-def test_agent_is_not_the_stale_top5_prompt():
-    assert 'top 5' not in AGENT.read_text(encoding='utf-8').lower()
+def test_agent_identity_line_states_the_running_version():
+    # The fifth version site (0.12.0 §2). test_plugin_manifest asserts all sites AGREE; this
+    # asserts the agent's own line resolves to the running package, so the wrapper cannot lose it.
+    match = re.search(
+        r'bundled `pre-mortem-review` agent from keel ([0-9]+\.[0-9]+\.[0-9]+)',
+        AGENT.read_text(encoding='utf-8'),
+    )
+    assert match is not None, 'agent identity line missing'
+    assert match.group(1) == __version__
 
 
-def test_agent_and_prompt_share_the_contract_markers():
-    agent = AGENT.read_text(encoding='utf-8').lower()
-    prompt = PROMPT.read_text(encoding='utf-8').lower()
-    for marker in MARKERS:
-        needle = marker.lower()
-        assert needle in agent, f'agent missing contract marker: {marker!r}'
-        assert needle in prompt, f'prompt template missing contract marker: {marker!r}'
+def test_agent_dispatches_to_the_single_source_template():
+    agent = AGENT.read_text(encoding='utf-8')
+    assert TEMPLATE_REF in agent, f'agent no longer reads the directive template ({TEMPLATE_REF})'
+    assert PROMPT.is_file()
 
 
-def test_markers_tuple_length_is_pinned():
-    # A marker added to the files but dropped from the guard (or vice-versa) is caught here:
-    # the count is the single source of truth for "how many directives are pinned".
-    assert len(MARKERS) == 34
+def test_directives_live_in_the_template_only():
+    agent, prompt = _normalized(AGENT).lower(), _normalized(PROMPT).lower()
+    for clause in DIRECTIVE_CLAUSES:
+        needle = re.sub(r'\s+', ' ', clause).lower()
+        assert needle in prompt, f'template lost the directive clause: {clause!r}'
+        assert needle not in agent, (
+            f'agent re-carries a directive the template owns: {clause!r} — the fold is refilling'
+        )
+
+
+def test_agent_keeps_the_output_contract_tokens():
+    agent = AGENT.read_text(encoding='utf-8')
+    for token in OUTPUT_CONTRACT:
+        assert token in agent, f'agent lost an output-contract token a caller greps: {token!r}'
