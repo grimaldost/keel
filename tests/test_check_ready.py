@@ -1388,6 +1388,28 @@ def test_spec_hash_changes_on_body_edit(tmp_path):
     assert before != after
 
 
+def test_status_flip_does_not_move_the_spec_hash(tmp_path):
+    # W2's self-defeat (T0.4): the warning tells the author to update the header `Status:`, and
+    # doing so used to move the hash and invalidate the certification the same run just verified.
+    # The header Status line is excluded from the hash exactly as the certification section is.
+    draft = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft')
+    assert spec_hash(_write(tmp_path, draft)) == spec_hash(_write(tmp_path, READY_SPEC))
+
+
+def test_removing_the_header_status_line_entirely_does_not_move_the_hash(tmp_path):
+    without = READY_SPEC.replace('- **Status:** ready (DoR passed)\n', '')
+    assert spec_hash(_write(tmp_path, without)) == spec_hash(_write(tmp_path, READY_SPEC))
+
+
+def test_a_status_line_in_the_body_still_moves_the_hash(tmp_path):
+    # The exclusion is the HEADER field, not the word: a spec that discusses a `Status:` field in
+    # a numbered section is discussing content, and content still binds the certification.
+    edited = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`.\n- **Status:** rework'
+    )
+    assert spec_hash(_write(tmp_path, edited)) != spec_hash(_write(tmp_path, READY_SPEC))
+
+
 def test_spec_hash_indifferent_to_crlf(tmp_path):
     lf = spec_hash(_write(tmp_path, READY_SPEC))
     crlf_spec = tmp_path / 'crlf.md'

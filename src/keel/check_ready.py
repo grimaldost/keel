@@ -182,29 +182,48 @@ def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
         ) from exc
 
 
-def spec_hash(spec_path: Path) -> str:
-    """B2's canonical certification hash: sha256 of the spec minus its certification section.
+_HEADER_STATUS_RE = re.compile(r'^[\-*\s]*status[\s*]*:', re.IGNORECASE)
 
-    The `## Pre-mortem certification` section's lines (heading included, through the next `## `
-    heading or EOF) are REMOVED from the ``splitlines()`` sequence and the remainder re-joined
-    with newlines — not blanked: blanked lines still contribute newline bytes, so a growing fold
-    ledger would change the very hash its own recording is part of (ADR-0014). Removal plus
-    splitlines normalization also makes the hash indifferent to CRLF/LF. Fenced text is masked
-    only to LOCATE the section (a fenced example heading cannot shift the span); the hash is
+
+def spec_hash(spec_path: Path) -> str:
+    """B2's canonical certification hash: sha256 of the spec minus the parts that are not content.
+
+    Two spans are REMOVED from the ``splitlines()`` sequence before hashing, and the remainder
+    re-joined with newlines — not blanked: blanked lines still contribute newline bytes, so a
+    growing fold ledger would change the very hash its own recording is part of (ADR-0014).
+    Removal plus splitlines normalization also makes the hash indifferent to CRLF/LF. Fenced text
+    is masked only to LOCATE the spans (a fenced example heading cannot shift them); the hash is
     computed over the raw lines.
+
+    1. The `## Pre-mortem certification` section (heading included, through the next `## ` heading
+       or EOF) — recording a certification must not invalidate it.
+    2. The HEADER `Status:` field, i.e. the one above the first `## ` heading. W2 warns that a
+       recorded certification sits over a header still reading `draft`; obeying that warning moved
+       the hash and invalidated the certification the same run had just verified, so the gate's own
+       advice defeated the gate. A `Status:` line inside a numbered section is content and still
+       binds.
+
+    The hash's scope is pinned per gate MINOR, exactly as W1's kit-skew semantics are: changing
+    what is hashed invalidates every `Spec-hash:` already recorded in a saved pre-mortem artifact,
+    which surfaces as a one-time wave of W5 "certified against an earlier revision" warnings.
     """
     raw = _read_spec_text(spec_path, purpose='spec-hash')
     masked_lines = _mask_fenced(raw).splitlines()
     raw_lines = raw.splitlines()
     keep: list[str] = []
     in_cert = False
+    in_header = True
     for i, masked in enumerate(masked_lines):
         heading = re.match(r'^##[ \t]+(.+?)[ \t]*$', masked)
         if heading is not None:
+            in_header = False
             low = heading.group(1).lower()
             in_cert = 'pre-mortem' in low and 'certification' in low
-        if not in_cert:
-            keep.append(raw_lines[i])
+        if in_cert:
+            continue
+        if in_header and _HEADER_STATUS_RE.match(masked):
+            continue
+        keep.append(raw_lines[i])
     return hashlib.sha256('\n'.join(keep).encode('utf-8')).hexdigest()
 
 
