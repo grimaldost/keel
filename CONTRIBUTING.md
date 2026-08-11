@@ -37,6 +37,29 @@ gate exists to catch exactly that over-claim in a spec):
    DoR. *Maintainer discipline, not yet mechanized:* `check-ready` does not read a triage state, so
    nothing blocks a spec on an untriaged backlog; the operator holds this by hand.
 
+## Body budgets
+
+Three shipped bodies are dispatched or read **in full** every time they are used, and each has
+only ever grown — one clause per finding. Each now carries a number, enforced by
+`tests/test_body_budgets.py`:
+
+| Body | Cap (words) | Why it is capped |
+|---|---|---|
+| The pre-mortem directive block — the fenced prompt in `src/keel/templates/pre-mortem-prompt.md` | 2,050 | dispatched on every pre-mortem; the most expensive prompt in the surface, and since ADR-0017 the only copy of it |
+| The spec-template's italic gate-contract notes (`src/keel/templates/spec-template.md`) | 925 | read by every author the scaffold reaches — 64 of the template's 185 lines |
+| The bundled agent wrapper (`agents/pre-mortem-review.md`) | 550 | identity + dispatch + output contract only (ADR-0017); the directives live in the template |
+
+The rule the caps enforce: **a promotion that adds prose to one of these bodies names the one it
+displaces or merges into**, in the CHANGELOG entry that ships it. That rule was already stated and
+was already failing — the drift guard's marker count went 22 → 33 → 34 across six ADRs, one clause
+per finding — because nothing made the cost visible at edit time. A cap is not a target: an edit
+that lands under it still owes the displacement.
+
+Raising a cap is a recorded decision with its reason in the CHANGELOG, not the way to make a red
+suite green. And the directive body carries one further constraint: **net-new** directive prose
+waits for the ablation that measures the body's marginal effect (backlog KEEL-B09); a rewrite that
+displaces existing text does not.
+
 ## Release discipline
 
 A post-certification change to an open release lands as a **spec amendment section** (a new or
