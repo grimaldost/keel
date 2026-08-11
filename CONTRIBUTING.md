@@ -91,3 +91,31 @@ uv run pytest
 
 All green before merge, and run them **unpiped** — a pipe (`| tail -1`) substitutes the filter's
 exit status for the gate's, so a red gate reads green. keel holds itself to the gates it preaches.
+
+Install the commit-time hook once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+That points git at the tracked `.githooks/pre-commit`, which runs the first three gates through
+`uv run python -m pre_commit`. `pre-commit install` is deliberately **not** the instruction: it
+writes a hook that invokes the `pre-commit` console script, and an application-control policy on
+at least one machine this repo is developed on blocks that shim while running git-invoked hooks
+fine — so the shim form would leave the claim below as untrue as no hook at all.
+
+### Enforcement status (the same table this repo's A10 gate demands of a spec)
+
+A10 fails a spec whose prose claims an invariant "enforced" while its own status table marks it
+planned or absent. Turned on the repo itself:
+
+| Invariant | Status | Gate/mechanism |
+|---|---|---|
+| The four DoD gates hold before a merge | enforced | `.github/workflows/ci.yml`, every PR, on two OSes |
+| ruff-format, ruff and `ty check src` hold before a commit lands | enforced | `.githooks/pre-commit` + `.pre-commit-config.yaml`, once `core.hooksPath` is set — a clone that skips that one command is covered by CI only |
+| `uv run pytest` before a commit | review-only | CI's by choice: the one gate whose cost belongs on a push. Run it yourself before you push |
+| The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
+| The three capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
+| All method-binding slots filled (`keel bind-check`) | absent | the command is a documented stub that exits 2 (ADR-0003; the build is backlog KEEL-B17) |
+| Wave cost drift (`keel budget-drift`) | absent | a documented stub that exits 2; its disposition is removal, sequenced behind a bound orchestrator's live measurement window (backlog KEEL-B30) |
+| An edit-time invariant hook | absent | consciously unbound (`docs/method-bindings.md`); the empty `hooks.json` placeholder that claimed the slot was deleted (KEEL-B29) |
