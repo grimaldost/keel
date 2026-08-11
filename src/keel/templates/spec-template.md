@@ -2,14 +2,17 @@
 
 - **Date:** YYYY-MM-DD
 - **Status:** draft | ready (DoR passed) | in progress | done
+- **Kind:** series | single-change
 - **Audience:** <who/what reads this>
 - **Output artifact(s):** <paths>
 
-*Optional header field for a declared non-series round: `- **Phases:** Decide+Specify
-(Decompose: skipped)` — when Decompose is explicitly named as skipped, `check-ready` (A4) relaxes
-the PR↔section manifest requirement to absent-ok. A manifest that IS present is still fully
-checked, everything else in Part A applies regardless, and the declaration is content the
-pre-mortem can challenge — not an escape hatch (ADR-0014).*
+*Two optional header declarations size the gate to the round. `Kind: single-change` relaxes the
+three structural sections — numbered sections, the PR↔section manifest, the concept→module map —
+to absent-ok, and moves the acceptance-criterion floor to the document (a spec that decomposes
+into nothing still promises something observable). `Phases: Decide+Specify (Decompose: skipped)`
+relaxes the manifest alone. A section that IS present is still fully checked, everything else in
+Part A applies regardless, and each declaration is content the pre-mortem can challenge — not an
+escape hatch (ADR-0014).*
 
 ## Context
 
@@ -154,7 +157,7 @@ forging a certification; it does not prove the pass was blind — that residual 
 - **Reviewer:**
 - **Verdict:** not yet certified
 - **Operator:** <required only when the Verdict is CONDITIONAL-CERTIFY — the named owner who accepts "ready modulo a named fix"; check-ready then passes with a WARN (B1). If the Operator applies the conditions, the verdict stays CONDITIONAL-CERTIFY with a discharge note — the operator close, definition-of-ready.md Part B>
-- **Certification artifact:**
+- **Certification artifact:** <the saved pass output's path. `check-ready` reads the LEADING path token and ignores what follows, so a prior round belongs right here: `<stem>.premortem.md` (r1 at `<stem>.premortem-r1.md`)>
 - **Date:**
 - **Reviewed against:** <external dependency SHAs/versions reasoned against, if any>
 - **Post-fold coherence:**
@@ -182,4 +185,4 @@ manifest are all required fields. The one field NOT satisfied by construction is
 pre-mortem certification — a non-author reviewer must sign it, which is the point
 (ADR-0002).*
 
-<!-- keel kit 0.13.1 -->
+<!-- keel kit 0.14.0 -->

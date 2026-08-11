@@ -12,5 +12,5 @@ The portable kit (`src/keel/templates/`, emitted by `keel init`):
 | `reflection-triage.md` | Sweep prior open rows; cluster reflections; promote recurring traps to checklist/gate/spec and land them. |
 | `series-toml-skeleton.md` | The `[budget]` block, per-PR `section = "§N"` traceability, and the tier-vocabulary note (family names; the binding translates). |
 | `method-bindings.md` | Bind each portability slot to a concrete mechanism (per project). |
-| `pre-mortem-prompt.md` | Adversarial pre-execution pass; output = spec/prompt edits only. |
+| `pre-mortem-prompt.md` | Adversarial pre-execution pass; output = spec/prompt edits only. The single home of the directive text — the bundled `pre-mortem-review` agent reads this file at run start (ADR-0017). |
 | `README.md` | The kit's own index (slot → file mapping). |

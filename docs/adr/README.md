@@ -18,6 +18,7 @@
 | [0014](0014-certification-artifact-and-round-economy.md) | the certification artifact & the round economy | Accepted |
 | [0015](0015-retiring-the-comparative-claim.md) | retiring the headline comparative claim (discharges ADR-0013 §4) | Accepted |
 | [0016](0016-field-hardening-enforcing-layers.md) | field-hardening — moving recurring gaps to their enforcing layer | Accepted |
+| [0017](0017-one-home-for-the-pre-mortem-directives.md) | one home for the pre-mortem directives (narrows the agent ⇄ prompt fidelity invariant) | Accepted |
 
 Status: Proposed | Accepted | Superseded by ADR-NNNN. Never edit an Accepted decision —
 supersede it.

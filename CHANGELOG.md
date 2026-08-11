@@ -2,6 +2,56 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.14.0] - 2026-08-11
+
+The backlog-wave-1 release: nine items from the 2026-08-11 improvement backlog
+(`docs/backlog.md`), driven by the feedback-triage and feature-review pass. One structural
+change (the pre-mortem directives folded to a single home, ADR-0017), three gate wideners
+(spec kinds, the shared field parser, reviewer-form anchors), and the release loop itself
+machine-enforced. Design register: ADR-0017.
+
+### Added
+
+- **A declared spec kind sizes the Part-A structural trio** (KEEL-B01, `check_ready.py`):
+  `Kind: series | single-change`. A `single-change` spec may omit the trio sections
+  (absence-ok, presence still fully checked) with the ≥5-word acceptance floor moved to
+  document scope as the compensating control; an unknown kind fails naming the token, and
+  each relaxed absence names the exact heading plus the relaxing declaration.
+- **Reviewer-form anchor resolution** (KEEL-B04, `check_ready.py`): A12 accepts the anchor
+  form keel's own pre-mortem reviewer emits, resolving a unique basename with a WARN (W3)
+  that names the expansion; line range and snippet are still verified against the resolved
+  file, and ambiguity fails naming the candidates.
+- **Body budgets** (KEEL-B06, `CONTRIBUTING.md`, `tests/test_body_budgets.py`): explicit
+  word caps for the three bodies that only grow, with a test asserting the doc and the
+  suite carry the same numbers.
+- **The release loop, machine-enforced** (KEEL-B08, `scripts/changelog_currency.py`,
+  `tests/test_release_flow.py`, CI `changelog-currency` job): a PR that touches a
+  shipped-kit path with `CHANGELOG.md` unchanged fails, and every released version carries
+  its `vX.Y.Z` tag (0.11.1–0.13.1 tagged retroactively).
+- **The pre-commit hook, installed in the form this environment runs** (KEEL-B05,
+  `.githooks/pre-commit`): `core.hooksPath` invoking `uv run python -m pre_commit`,
+  covering ruff, ruff-format and `ty check src`; pytest stays CI's, and CONTRIBUTING now
+  carries an enforcement-status table stating which gates run where.
+
+### Changed
+
+- **One home for the pre-mortem directives** (KEEL-B02, ADR-0017):
+  `src/keel/templates/pre-mortem-prompt.md` is the single source;
+  `agents/pre-mortem-review.md` is a thin identity + dispatch + output-contract wrapper
+  that reads the template at run start (named fallback, announced when unreachable). Total
+  pre-mortem surface 4,768 → 3,111 words; the 34-marker drift guard is replaced by tests
+  that pin the arrangement.
+- **One field parser for Part A** (KEEL-B03, `check_ready.py`): `_first_path_token` is the
+  single home for path-valued fields (a `Certification artifact:` cell no longer eats
+  trailing prose); A12 names the cell it read; the column-break diagnostic runs ahead of
+  the anchor search; A8 skips a References section.
+
+### Removed
+
+- **The empty hooks placeholder** (KEEL-B29, `hooks/hooks.json`): deleted by inspection —
+  the declaration was empty and the manifest test now asserts the inverse invariant (a
+  `hooks.json` that exists must declare a real hook).
+
 ## [0.13.1] - 2026-07-15
 
 Capacity-dispatch vocabulary: the Route & Budget map names the role that owns task→model

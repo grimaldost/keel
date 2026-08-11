@@ -12,7 +12,7 @@ bundled engine with `uvx --from ${CLAUDE_PLUGIN_ROOT} keel …`.
 | `/keel-premortem <path-to-spec.md>` | command | `<path-to-spec.md>` | Dispatches the `pre-mortem-review` agent, then the caller folds the findings, saves the artifact (B2) and records the certification block. |
 | `/keel-triage` | command | none | Runs the `reflection-triage.md` procedure over the series' feedback: sweep open rows, cluster by cause, promote each recurring trap to one durable check, and land it. |
 | `apply-method` | skill | — | The method playbook an agent reads: setup in a new project, the entry-read-the-bindings rule, and the phase-by-phase gates. |
-| `pre-mortem-review` | agent | — | Read-only fresh reviewer (Read/Grep/Glob). Returns findings ending in a machine-greppable `PREMORTEM-VERDICT:` line; it never edits the spec. |
+| `pre-mortem-review` | agent | — | Read-only fresh reviewer (Read/Grep/Glob). Reads `src/keel/templates/pre-mortem-prompt.md` at run start for its directives (ADR-0017) and returns findings ending in a machine-greppable `PREMORTEM-VERDICT:` line; it never edits the spec. |
 
 Only `/keel-check-ready` and `/keel-premortem` declare an argument (both carry
 `argument-hint: <path-to-spec.md>` in their front matter); `/keel-apply` and `/keel-triage`

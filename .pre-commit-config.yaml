@@ -1,3 +1,6 @@
+# Three of the four Definition-of-Done gates, at commit time. `uv run pytest` is the fourth
+# and stays in CI: it is the one gate whose cost belongs on a push, not on every commit.
+# Installed with `git config core.hooksPath .githooks` (see CONTRIBUTING, "Quality gates").
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.0
@@ -5,3 +8,11 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty check src
+        entry: uv run ty check src
+        language: system
+        pass_filenames: false
+        files: ^src/.*\.py$

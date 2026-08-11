@@ -785,6 +785,204 @@ def test_declared_skip_with_present_manifest_still_checked_a4(tmp_path):
     assert any('§2' in v.message and 'cover' in v.message.lower() for v in result.violations)
 
 
+# --- KEEL-B03: field extraction reads a token, and violations name it --------
+
+
+def test_certification_artifact_reads_the_leading_path_token(tmp_path):
+    # The field consumed more text than the field it names: everything after the path was
+    # stripped of backticks and resolved as part of the path, so recording a prior round in the
+    # same cell reddened the gate. The parser takes the leading path token and ignores the prose.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'spec.premortem.md').write_text(
+        'PREMORTEM-VERDICT: CERTIFIED pre-mortem-review@0.13.1\n', encoding='utf-8'
+    )
+    spec = READY_SPEC.replace(
+        '- **Verdict:** CERTIFIED',
+        '- **Verdict:** CERTIFIED\n- **Certification artifact:** `spec.premortem.md` '
+        '(round 2; round 1 is kept at `spec.premortem-r1.md`)',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_certification_artifact_missing_file_still_fails_and_names_the_token(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '- **Verdict:** CERTIFIED',
+        '- **Verdict:** CERTIFIED\n- **Certification artifact:** `ghost.premortem.md` (round 2)',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    nv = [v for v in result.violations if v.where == 'Certification artifact']
+    assert nv and 'ghost.premortem.md' in nv[0].message
+    assert 'round 2' not in nv[0].message  # the prose was never part of the path
+
+
+def test_fold_ledger_anchor_is_found_in_any_column(tmp_path):
+    # A12 read cells[2] positionally, so a ledger with a round column (or any other shape) failed
+    # on a row whose anchor was perfectly good — it just was not the third cell.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('a\nb\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        '- **Failure modes considered & folded in:** none outstanding',
+        '- **Failure modes considered & folded in:** 1 finding folded.',
+    ) + (
+        '\n### Fold ledger\n\n'
+        '| Finding | Round | Target section | artifact:line | Confirmed |\n'
+        '|---|---|---|---|---|\n'
+        '| FM-1 | r2 | §1 | `mod.py:2` | yes |\n'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_fold_ledger_row_without_an_anchor_names_the_cell_it_read(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '- **Failure modes considered & folded in:** none outstanding',
+        '- **Failure modes considered & folded in:** 1 finding folded.',
+    ) + _ledger('| FM-1 | §1 | folded, see the section | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    nv = [v for v in result.violations if v.where.startswith('Fold ledger')]
+    assert nv and 'folded, see the section' in nv[0].message
+
+
+def test_section_refs_in_a_references_section_are_skipped(tmp_path):
+    # A References section cites other documents by their own section numbers; the § glyph there
+    # is not a claim about this spec's sections.
+    spec = READY_SPEC + '\n## References\n\nThe orchestrator contract, §4 and §9.\n'
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_parenthesised_section_ref_keeps_its_cross_doc_cue(tmp_path):
+    # `docs/doctrine.md` (§6) — the cue lookback saw the '(' and lost the document token.
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`, per `docs/doctrine.md` (§6).'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_dangling_intra_spec_ref_still_fails_a8(tmp_path):
+    # The lenient directions above must not swallow a real dangler in ordinary prose.
+    spec = READY_SPEC.replace('Introduce `src/widget.py`.', 'Introduce it, as §9 requires.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('§9' in v.message for v in result.violations)
+
+
+# --- KEEL-B01: the declared spec kind (the Part-A structural trio) -----------
+
+# A legitimate small spec: one change, no decomposition, so no trio at all. The compensating
+# control is that it must still carry a non-trivial acceptance criterion somewhere.
+_SINGLE_CHANGE = """# Spec — retire the compatibility shim
+
+- **Status:** ready (DoR passed)
+- **Kind:** single-change
+
+## Goal
+
+Delete the compatibility shim now that every caller is migrated.
+
+## Change
+
+Remove the shim module and the import that reaches it. **Acceptance criterion:** the module is
+gone and the suite passes with no importer of it left in the tree.
+
+## Pre-mortem certification
+
+- **Reviewer:** review-panel (non-author)
+- **Verdict:** CERTIFIED
+- **Date:** 2026-08-11
+- **Failure modes considered & folded in:** none outstanding
+"""
+
+
+def test_declared_single_change_relaxes_the_trio(tmp_path):
+    result = check_spec_ready(_write(tmp_path, _SINGLE_CHANGE))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_undeclared_small_spec_still_fails_the_trio(tmp_path):
+    # Without the declaration nothing is relaxed — the kind is a declaration, not a shape sniff.
+    spec = _SINGLE_CHANGE.replace('- **Kind:** single-change\n', '')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    wheres = {v.where for v in result.violations}
+    assert wheres >= {'Numbered sections', 'PR ↔ section manifest', 'Concept → module map'}
+
+
+def test_declared_series_does_not_relax(tmp_path):
+    spec = _SINGLE_CHANGE.replace('- **Kind:** single-change', '- **Kind:** series')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any(v.where == 'PR ↔ section manifest' for v in result.violations)
+
+
+def test_unknown_kind_names_the_offending_token(tmp_path):
+    spec = _SINGLE_CHANGE.replace('- **Kind:** single-change', '- **Kind:** smallish')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    nv = [v for v in result.violations if v.where == 'Kind']
+    assert nv and 'smallish' in nv[0].message
+    # and it relaxes nothing — an unreadable declaration is not a pass
+    assert any(v.where == 'PR ↔ section manifest' for v in result.violations)
+
+
+def test_single_change_still_checks_a_present_trio_section(tmp_path):
+    # The declaration widens absence-tolerance only: a section that IS present is checked in full.
+    spec = _SINGLE_CHANGE.replace(
+        '## Pre-mortem certification',
+        '## PR ↔ section manifest\n\n'
+        '| PR | Implements section | One concern? |\n|---|---|---|\n| PR01 | §7 | yes |\n\n'
+        '## Pre-mortem certification',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('§7' in v.message for v in result.violations)
+
+
+def test_single_change_needs_an_acceptance_criterion(tmp_path):
+    # With no numbered sections there is nothing for A2 to read, so the criterion floor moves to
+    # the document: a relaxed spec that promises nothing observable is not Ready.
+    spec = _SINGLE_CHANGE.replace(
+        '**Acceptance criterion:** the module is\ngone and the suite passes with no importer of '
+        'it left in the tree.',
+        'It goes away.',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('acceptance criterion' in v.message.lower() for v in result.violations)
+
+
+def test_single_change_trivial_acceptance_criterion_fails(tmp_path):
+    spec = _SINGLE_CHANGE.replace(
+        '**Acceptance criterion:** the module is\ngone and the suite passes with no importer of '
+        'it left in the tree.',
+        '**Acceptance criterion:** done.',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('acceptance criterion' in v.message.lower() for v in result.violations)
+
+
+def test_missing_trio_sections_name_the_exact_heading(tmp_path):
+    # The violation names the section to add and the declaration that would relax it, instead of
+    # restating the generic requirement — the three consecutive operator overrides in the field
+    # were all on this message.
+    bad = '# Spec — empty\n\nNothing here yet.\n'
+    result = check_spec_ready(_write(tmp_path, bad))
+    by_where = {v.where: v.message for v in result.violations}
+    assert '## PR ↔ section manifest' in by_where['PR ↔ section manifest']
+    assert '## Concept → module map' in by_where['Concept → module map']
+    assert '## Numbered sections' in by_where['Numbered sections']
+    for message in by_where.values():
+        assert message.startswith('no ')  # the CLI template pointer depends on this token
+    assert 'single-change' in by_where['PR ↔ section manifest']
+
+
 # --- §10 (0.12.0): Status x Verdict currency ---------------------------------
 
 
@@ -826,7 +1024,9 @@ def test_uncertified_spec_no_currency_warn(tmp_path):
 # --- §4 (0.12.0): unique-basename resolution --------------------------------
 
 
-def test_anchor_unique_basename_gets_did_you_mean_a6(tmp_path):
+def test_anchor_unique_basename_resolves_with_a_warning_a6(tmp_path):
+    # KEEL-B04: the shorthand keel's own reviewer emits. The gate already computed the expansion
+    # and offered it as a hint; it now applies it, and names what it applied.
     (tmp_path / '.git').mkdir()
     pkg = tmp_path / 'src' / 'pkg'
     pkg.mkdir(parents=True)
@@ -835,13 +1035,11 @@ def test_anchor_unique_basename_gets_did_you_mean_a6(tmp_path):
         'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
     )
     result = check_spec_ready(_write(tmp_path, spec))
-    assert not result.passed
-    hinted = [v for v in result.violations if 'mod.py' in v.message]
-    assert hinted and 'did you mean' in hinted[0].message
-    assert 'src/pkg/mod.py:2' in hinted[0].message
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+    assert any('src/pkg/mod.py:2' in w for w in result.warnings), result.warnings
 
 
-def test_anchor_ambiguous_basename_no_hint_a6(tmp_path):
+def test_anchor_ambiguous_basename_still_fails_and_names_the_candidates_a6(tmp_path):
     (tmp_path / '.git').mkdir()
     for sub in ('a', 'b'):
         d = tmp_path / sub
@@ -852,12 +1050,22 @@ def test_anchor_ambiguous_basename_no_hint_a6(tmp_path):
     )
     result = check_spec_ready(_write(tmp_path, spec))
     assert not result.passed
-    hinted = [v for v in result.violations if 'mod.py' in v.message]
-    assert hinted and 'did you mean' not in hinted[0].message
+    nv = [v for v in result.violations if 'mod.py' in v.message]
+    assert nv and 'a/mod.py' in nv[0].message and 'b/mod.py' in nv[0].message
+
+
+def test_anchor_no_basename_match_still_fails_a6(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `ghost.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('ghost.py' in v.message for v in result.violations)
 
 
 def test_anchor_vendor_tree_excluded_from_uniqueness_a6(tmp_path):
-    # FM-12: a .venv copy must not defeat exactly-one; the hint points at the real file.
+    # FM-12: a .venv copy must not defeat exactly-one; the expansion names the real file.
     (tmp_path / '.git').mkdir()
     (tmp_path / 'src').mkdir()
     (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
@@ -868,20 +1076,43 @@ def test_anchor_vendor_tree_excluded_from_uniqueness_a6(tmp_path):
         'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
     )
     result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+    assert any('src/mod.py:2' in w for w in result.warnings), result.warnings
+
+
+def test_basename_expansion_still_verifies_the_snippet_a6(tmp_path):
+    # The expansion is a resolution, not a pass: the snippet is checked against the file it found.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2` `three`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
     assert not result.passed
-    hinted = [v for v in result.violations if 'did you mean' in v.message]
-    assert hinted and 'src/mod.py:2' in hinted[0].message
+    assert any('snippet' in v.message.lower() for v in result.violations)
 
 
-def test_fold_ledger_bare_basename_gets_did_you_mean_a12(tmp_path):
+def test_basename_expansion_still_range_checks_the_line_a6(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:99`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('out of range' in v.message for v in result.violations)
+
+
+def test_fold_ledger_bare_basename_resolves_with_a_warning_a12(tmp_path):
     (tmp_path / '.git').mkdir()
     (tmp_path / 'src').mkdir()
     (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
     spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
     result = check_spec_ready(_write(tmp_path, spec))
-    assert not result.passed
-    hinted = [v for v in result.violations if 'did you mean' in v.message]
-    assert hinted, [v.message for v in result.violations]
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+    assert any('src/mod.py:2' in w for w in result.warnings), result.warnings
 
 
 def test_to_be_created_basename_claim_passes_a5(tmp_path):

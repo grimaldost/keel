@@ -248,7 +248,8 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     # scanners that must not read code (A3 angle idiom, A8 `§N` detection); offsets stay true.
     prose = _mask_inline_spans(text)
     sections = _split_top_sections(text)
-    subsections = _subsections(_find_section(sections, 'numbered', 'sections') or '')
+    numbered_body = _find_section(sections, 'numbered', 'sections')
+    subsections = _subsections(numbered_body or '')
     section_ids = [m.group(1) for title, _ in subsections if (m := re.match(r'(§\d+)\b', title))]
 
     first_heading = re.search(r'^##[ \t]+', text, re.MULTILINE)
@@ -257,28 +258,46 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     violations: list[Violation] = []
     warnings: list[str] = []
     warnings += _kit_skew_warning(text)
-    violations += _check_numbered(subsections)
-    violations += _check_acceptance(subsections)
-    violations += _check_placeholders(text, prose)
-    # §11 (0.12.0): a header `Phases:` declaration that explicitly names Decompose as skipped
-    # relaxes the manifest requirement to absent-ok — a declared Decide+Specify round no longer
-    # invents a manifest to pass its own gate (ADR-0014). A manifest that IS present is still
-    # checked in full, and nothing else in Part A is relaxed; the declaration is content the
-    # pre-mortem can challenge.
+    # §11 (0.12.0) + KEEL-B01: two header declarations widen the *absence* tolerance of the
+    # Part-A structural trio, and nothing else. `Phases: … (Decompose: skipped)` relaxes the
+    # manifest (ADR-0014); `Kind: single-change` relaxes all three, because a spec that decomposes
+    # into nothing has no manifest, no concept→module map and no numbered sections to write. A
+    # section that IS present is still checked in full, and the declaration is content the
+    # pre-mortem can challenge — not an escape hatch. An unreadable Kind relaxes nothing.
+    kind, kind_violation = _declared_kind(header)
+    if kind_violation is not None:
+        violations.append(kind_violation)
+    single_change = kind == 'single-change'
     phases = _field(header, 'phases').lower()
     decompose_skipped = 'decompose' in phases and 'skipped' in phases
+    if numbered_body is not None or not single_change:
+        violations += _check_numbered(subsections)
+        violations += _check_acceptance(subsections)
+    else:
+        # With no numbered sections there is nothing for A2 to read, so the criterion floor moves
+        # to the document: a relaxed spec still promises something observable.
+        violations += _check_document_acceptance(text)
+    violations += _check_placeholders(text, prose)
     manifest_body = _find_section(sections, 'section', 'manifest')
-    if manifest_body is not None or not decompose_skipped:
+    if manifest_body is not None or not (decompose_skipped or single_change):
         violations += _check_manifest(manifest_body, section_ids)
-    violations += _check_paths(_find_section(sections, 'concept', 'module'), subsections, spec_path)
+    concept_body = _find_section(sections, 'concept', 'module')
+    if concept_body is not None or not single_change:
+        violations += _check_paths(concept_body, subsections, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
-    violations += _check_anchors(text, spec_path)
-    violations += _check_anchor_ranges(text, spec_path)
+    anchor_violations, anchor_warnings = _check_anchors(text, spec_path)
+    violations += anchor_violations
+    warnings += anchor_warnings
+    range_violations, range_warnings = _check_anchor_ranges(text, spec_path)
+    violations += range_violations
+    warnings += range_warnings
     violations += _check_adr_numbers(text, spec_path)
     violations += _check_references(text, spec_path)
     violations += _check_section_refs(text, prose, section_ids)
     violations += _check_enforcement_claims(sections, text)
-    violations += _check_fold_ledger(cert, spec_path)
+    ledger_violations, ledger_warnings = _check_fold_ledger(cert, spec_path)
+    violations += ledger_violations
+    warnings += ledger_warnings
     if not structure_only:
         premortem_violations, premortem_warnings = _check_premortem(cert)
         violations += premortem_violations
@@ -368,11 +387,26 @@ def _words(text: str) -> list[str]:
     return [word for word in re.sub(r'[`*:#|]', ' ', text).split() if word]
 
 
-def _extract_path(cell: str) -> str | None:
-    """The path a concept→module cell points at (first backtick token, else text)."""
-    backticked = re.search(r'`([^`]+)`', cell)
+def _first_path_token(value: str) -> str:
+    """The path token a path-valued field or cell names, with trailing prose ignored ('' if none).
+
+    KEEL-B03, the one home for "which token here is the path": the first backticked token when the
+    value carries one, else its first whitespace-delimited token. Field extraction used to consume
+    more text than the field it names — `Certification artifact: `x.md` (round 2, round 1 at …)`
+    resolved the whole remainder as a path and reddened the gate on a well-formed record. Any
+    path-valued field added later reads through here rather than re-deciding it locally.
+    """
+    backticked = re.search(r'`([^`]+)`', value)
     if backticked:
         return backticked.group(1).strip()
+    tokens = value.split()
+    return tokens[0].strip('`*,;()') if tokens else ''
+
+
+def _extract_path(cell: str) -> str | None:
+    """The path a concept→module cell points at (first backtick token, else text)."""
+    if '`' in cell:
+        return _first_path_token(cell) or None
     cleaned = re.sub(r'\(to be created\)', '', cell, flags=re.IGNORECASE).strip()
     return cleaned or None
 
@@ -401,52 +435,102 @@ def _field(body: str, name: str) -> str:
     return ''
 
 
+_SPEC_KINDS = ('series', 'single-change')
+_DECLARE_SMALLER = (
+    'add it, or — when this spec really is one change with nothing to decompose — declare '
+    '`- **Kind:** single-change` in the header (KEEL-B01: the declaration relaxes the absent '
+    'trio; a section that IS present is still checked in full)'
+)
+
+
+def _declared_kind(header: str) -> tuple[str, Violation | None]:
+    """The header's declared spec kind, or ('' , Violation) when it names an unknown one.
+
+    A kind keel cannot read relaxes nothing — the alternative (silently ignoring it) hands back a
+    trio failure with no hint that the declaration was the problem. The violation names the
+    offending token, not the row.
+    """
+    raw = _field(header, 'kind')
+    if not raw:
+        return '', None
+    token = raw.split()[0].strip('`*.,;:').lower()
+    if token in _SPEC_KINDS:
+        return token, None
+    return '', Violation(
+        'Kind',
+        f'declared spec kind {token!r} is not one of '
+        f'{" | ".join(_SPEC_KINDS)} — it relaxes nothing as written.',
+    )
+
+
 _VENDOR_DIRS = frozenset({'.git', '.venv', 'node_modules', '__pycache__', 'site-packages'})
 
 
-def _unique_basename_match(base: Path, path: str) -> Path | None:
-    """The single repo file matching the path's basename, or None (zero or many).
+def _basename_matches(base: Path, path: str) -> list[Path]:
+    """Every repo file matching the path's basename, vendor/VCS trees excluded.
 
-    Vendor/VCS trees are excluded from the population — an in-tree virtualenv must not defeat
-    exactly-one (0.12.0 §4). Called only on the failure path, so the rglob cost is paid only when
-    an anchor already failed to resolve.
+    An in-tree virtualenv must not defeat exactly-one (0.12.0 §4). Called only when the anchor
+    failed to resolve as written, so the rglob cost is paid only on that path.
     """
     name = path.replace('\\', '/').rsplit('/', 1)[-1]
     if not name:
-        return None
-    matches = [
+        return []
+    return [
         candidate
         for candidate in base.rglob(name)
         if candidate.is_file() and not (_VENDOR_DIRS & set(candidate.relative_to(base).parts[:-1]))
     ]
-    return matches[0] if len(matches) == 1 else None
 
 
 def _resolve_anchor(
     base: Path, path: str, line_no: int, where: str
-) -> tuple[list[str] | None, Violation | None]:
-    """Resolve a `path:line` anchor: (file lines, None) if it resolves, else (None, Violation).
+) -> tuple[list[str] | None, Violation | None, list[str]]:
+    """Resolve a `path:line` anchor: (file lines, None, warnings), else (None, Violation, []).
 
-    On a non-resolving path, a unique repo basename match is offered as a "did you mean" hint —
-    the guess-the-path loop the field hit three times in one session becomes a one-line fix.
+    KEEL-B04: a path that does not resolve as written but whose basename matches exactly one repo
+    file resolves to that file, with a WARN naming the expansion — the gate already computed that
+    resolution and offered it only as a hint, so a fold of keel's own reviewer's shorthand anchors
+    manufactured gate failures. The expansion is a resolution, not a pass: the line range and any
+    snippet are still verified against the file it found. Ambiguity (or no match) still fails, and
+    the ambiguous message names the candidates.
     """
     target = base / path
+    warnings: list[str] = []
     if not target.is_file():
-        hint = ''
-        match = _unique_basename_match(base, path)
-        if match is not None:
-            hint = f" — did you mean '{match.relative_to(base).as_posix()}:{line_no}'?"
-        return None, Violation(
-            where,
-            f'anchor path {path!r} does not exist as a file '
-            f'(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).{hint}',
+        matches = _basename_matches(base, path)
+        if len(matches) != 1:
+            candidates = ''
+            if matches:
+                shown = ', '.join(
+                    sorted(match.relative_to(base).as_posix() for match in matches)[:5]
+                )
+                candidates = (
+                    f' {len(matches)} files share that basename ({shown}) — name the one you mean.'
+                )
+            return (
+                None,
+                Violation(
+                    where,
+                    f'anchor path {path!r} does not exist as a file '
+                    f'(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).{candidates}',
+                ),
+                [],
+            )
+        target = matches[0]
+        expanded = target.relative_to(base).as_posix()
+        warnings.append(
+            f'WARN: anchor {path}:{line_no} resolved by unique basename match to '
+            f'{expanded}:{line_no} — write anchors repo-root-relative (A6); the expansion is '
+            'unique today and a second file of that name would turn this WARN into a failure.'
         )
     lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
     if line_no < 1 or line_no > len(lines):
-        return None, Violation(
-            where, f'anchor line {line_no} is out of range ({len(lines)} lines).'
+        return (
+            None,
+            Violation(where, f'anchor line {line_no} is out of range ({len(lines)} lines).'),
+            [],
         )
-    return lines, None
+    return lines, None, warnings
 
 
 def _bracket_balance(lines: list[str]) -> tuple[int, bool]:
@@ -510,7 +594,7 @@ def _check_numbered(subsections: list[tuple[str, str]]) -> list[Violation]:
             Violation(
                 'Numbered sections',
                 'no numbered sections found: expected a "## Numbered sections" section with '
-                '"### §N <title>" subsections.',
+                f'"### §N <title>" subsections — {_DECLARE_SMALLER}.',
             )
         ]
     violations: list[Violation] = []
@@ -542,6 +626,27 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
                 )
             )
     return violations
+
+
+def _check_document_acceptance(text: str) -> list[Violation]:
+    """A2 at document scope: a `Kind: single-change` spec with no §N still names its criterion.
+
+    Runs only where the numbered-sections requirement was relaxed away (KEEL-B01). Same floor as
+    A2 — a present, non-trivial criterion paragraph — read over the whole spec rather than per
+    section, so the relaxation buys a smaller shape and not a weaker promise.
+    """
+    for marker in re.finditer(r'acceptance\s+criterion', text, re.IGNORECASE):
+        para = re.split(r'\n[ \t]*\n', text[marker.end() :], maxsplit=1)[0]
+        if len(_words(para)) >= _MIN_CRITERION_WORDS:
+            return []
+    return [
+        Violation(
+            'Acceptance criterion',
+            'a spec declared `Kind: single-change` carries no non-trivial acceptance criterion '
+            f'(a present criterion of >= {_MIN_CRITERION_WORDS} words) — the declaration relaxes '
+            'the structural trio, not the observable condition that means the change is done.',
+        )
+    ]
 
 
 def _check_placeholders(text: str, prose: str) -> list[Violation]:
@@ -583,7 +688,13 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
     a single PR row citing two sections now fails (the scope-bundling A4 exists to forbid).
     """
     if manifest_body is None:
-        return [Violation('PR ↔ section manifest', 'no PR ↔ section manifest found.')]
+        return [
+            Violation(
+                'PR ↔ section manifest',
+                f'no "## PR ↔ section manifest" section found — {_DECLARE_SMALLER}, or declare '
+                '`- **Phases:** … (Decompose: skipped)` for a round that stops before Decompose.',
+            )
+        ]
     rows = _table_rows(manifest_body)
     header = rows[0] if rows else []
     section_col = next(
@@ -642,7 +753,12 @@ def _check_paths(
     three consumers). An ambiguous basename keeps the full-path requirement.
     """
     if concept_body is None:
-        return [Violation('Concept → module map', 'no concept → module map found.')]
+        return [
+            Violation(
+                'Concept → module map',
+                f'no "## Concept → module map" section found — {_DECLARE_SMALLER}.',
+            )
+        ]
     base = _resolve_base(spec_path)
     section_text = '\n'.join(sub_body for _, sub_body in subsections)
     rows = [cells for cells in _table_rows(concept_body) if len(cells) >= 2]
@@ -684,10 +800,11 @@ def _check_paths(
     return violations
 
 
-def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
+def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[str]]:
     """Code-grounding: every `path:line` anchor resolves, and any quoted snippet matches."""
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
+    warnings: list[str] = []
     for match in _ANCHOR_RE.finditer(text):
         path, line_text, snippet = match.group(1), match.group(2), match.group(3)
         if not _anchor_shaped(path):
@@ -698,7 +815,8 @@ def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
             violations.append(Violation(where, f'anchor path {path!r} is not portable ({reason}).'))
             continue
         line_no = int(line_text)
-        lines, violation = _resolve_anchor(base, path, line_no, where)
+        lines, violation, resolve_warnings = _resolve_anchor(base, path, line_no, where)
+        warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
@@ -713,10 +831,10 @@ def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
                         'substring of that line.',
                     )
                 )
-    return violations
+    return violations, warnings
 
 
-def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
+def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], list[str]]:
     """A11: a `path:lo-hi` range anchor must close every bracket it opens (string/comment-aware).
 
     A range whose `hi` line leaves a bracket opened inside the range unclosed is a truncated
@@ -727,6 +845,7 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
     """
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
+    warnings: list[str] = []
     for match in _ANCHOR_RANGE_RE.finditer(text):
         path, lo, hi = match.group(1), int(match.group(2)), int(match.group(3))
         if not _anchor_shaped(path):
@@ -736,7 +855,8 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
         if reason is not None:
             violations.append(Violation(where, f'anchor path {path!r} is not portable ({reason}).'))
             continue
-        lines, violation = _resolve_anchor(base, path, hi, where)
+        lines, violation, resolve_warnings = _resolve_anchor(base, path, hi, where)
+        warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
@@ -753,10 +873,30 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
                         'one opened before it) — quote the literal complete or not at all.',
                     )
                 )
-    return violations
+    return violations, warnings
 
 
 _FOLD_NONE = frozenset({'', 'none', 'noneoutstanding', 'na', 'nil'})
+
+# Anchor, optionally followed by a backticked snippet (0.12.0 §8): `path:line` `snippet`. The
+# snippet makes in-range drift detectable — a bare line number survives an edit that moves content
+# within range; the snippet does not.
+_LEDGER_ANCHOR_RE = re.compile(r'`?([^`\s]*[./][^`\s]*):(\d+)`?(?:[ \t]+`([^`]+)`)?$')
+
+
+def _ledger_anchor(cells: list[str]) -> re.Match[str] | None:
+    """The first fold-ledger cell that IS an `artifact:line` confirmation, in any column.
+
+    A12 read `cells[2]` positionally (KEEL-B03), so a ledger carrying a round, a severity or a
+    disposition column failed on rows whose anchor was perfectly good and simply not third. A
+    finding id (`FM-1`) or a target section (`§1`) cannot match — the token needs a `.`/`/` and a
+    `:line` — so scanning left to right cannot pick up the wrong cell.
+    """
+    for cell in cells:
+        match = _LEDGER_ANCHOR_RE.match(re.sub(r'\*', '', cell).strip())
+        if match is not None:
+            return match
+    return None
 
 
 def _fold_claimed(cert_body: str) -> bool:
@@ -776,7 +916,7 @@ def _fold_claimed(cert_body: str) -> bool:
     return False
 
 
-def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation]:
+def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> tuple[list[Violation], list[str]]:
     """A12 + R1: a claimed fold carries a ledger, and every ledger row's anchor resolves.
 
     R1 (a deliberate DoR tightening, NOT verify-when-present): a certification whose 'folded in'
@@ -788,7 +928,7 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
     A6 does not catch.
     """
     if cert_body is None:
-        return []
+        return [], []
     ledger = next(
         (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
     )
@@ -802,10 +942,11 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
                     'the certification claims a fold but carries no `### Fold ledger` rows; '
                     'record one row (finding, target, artifact:line, confirmed) per finding (R1).',
                 )
-            ]
-        return []
+            ], []
+        return [], []
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
+    warnings: list[str] = []
     for cells in rows:
         where = f'Fold ledger {cells[0].strip() if cells else "(row)"}'
         if len(cells) < 3:
@@ -817,30 +958,35 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
                 )
             )
             continue
-        cell = re.sub(r'\*', '', cells[2]).strip()
-        # Anchor, optionally followed by a backticked snippet (0.12.0 §8): `path:line` `snippet`.
-        # The snippet makes in-range drift detectable — a bare line number survives an edit that
-        # moves content within range; the snippet does not.
-        match = re.match(r'`?([^`\s]*[./][^`\s]*):(\d+)`?(?:[ \t]+`([^`]+)`)?$', cell)
-        if match is None:
-            hint = ''
-            if header and len(cells) > len(header):
-                hint = (
-                    f' This row split into {len(cells)} cells where the header has {len(header)} — '
-                    'a bare `|` inside a cell is a column break; backtick the cell content or '
-                    'escape it as `\\|`.'
-                )
+        # A row wider than its header is a column break, checked before the anchor search: with
+        # the anchor read from any column (KEEL-B03) a split row can still carry a resolving
+        # anchor, and the row would otherwise pass while its cells mean something else entirely.
+        if header and len(cells) > len(header):
             violations.append(
                 Violation(
                     where,
-                    'fold-ledger row has no resolving `artifact:line` confirmation '
-                    '(anchor each row to `path:line`, e.g. `docs/design/your-spec.md:142`; an '
-                    'optional backticked snippet after it is verified against that line).' + hint,
+                    f'fold-ledger row split into {len(cells)} cells where the header has '
+                    f'{len(header)} — a bare `|` inside a cell is a column break; backtick the '
+                    'cell content or escape it as `\\|`.',
+                )
+            )
+            continue
+        match = _ledger_anchor(cells)
+        if match is None:
+            read = re.sub(r'\*', '', cells[2]).strip()
+            violations.append(
+                Violation(
+                    where,
+                    f'no cell in this fold-ledger row is an `artifact:line` confirmation — the '
+                    f'confirmation column reads {read!r}. Anchor the row to `path:line`, e.g. '
+                    '`docs/design/your-spec.md:142`; an optional backticked snippet after it is '
+                    'verified against that line.',
                 )
             )
             continue
         line_no = int(match.group(2))
-        lines, violation = _resolve_anchor(base, match.group(1), line_no, where)
+        lines, violation, resolve_warnings = _resolve_anchor(base, match.group(1), line_no, where)
+        warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
@@ -855,7 +1001,7 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
                         '(in-range drift: the anchored content moved — re-anchor the row).',
                     )
                 )
-    return violations
+    return violations, warnings
 
 
 def _check_adr_numbers(text: str, spec_path: Path) -> list[Violation]:
@@ -921,16 +1067,30 @@ def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[V
     """
     known = set(section_ids)
     violations: list[Violation] = []
+    in_references = False
     for lineno, (line, masked) in enumerate(
         zip(text.splitlines(), prose.splitlines(), strict=True), 1
     ):
+        heading = re.match(r'^#{2,6}[ \t]+(.+?)[ \t]*$', line)
+        if heading is not None:
+            # A References section cites OTHER documents by their own section numbers; the glyph
+            # there is never a claim about this spec's sections (KEEL-B03).
+            in_references = 'reference' in heading.group(1).lower()
+        if in_references:
+            continue
         if line.lstrip().startswith('#'):  # a heading defines a section, it is not a ref
             continue
         for match in _SECTION_REF_RE.finditer(masked):
             before = _TRAILING_SECREFS_RE.sub('', line[: match.start()])
-            toks = re.findall(r'\S+', before)
-            last = toks[-1].lower().strip(_CUE_STRIP) if toks else ''
-            prev = toks[-2].lower().strip(_CUE_STRIP) if len(toks) >= 2 else ''
+            # Punctuation-only tokens (an opening paren, a dash) are not cues and must not hide
+            # the one behind them: `docs/doctrine.md` (§6) lost its document cue to the '('.
+            toks = [
+                stripped
+                for token in re.findall(r'\S+', before)
+                if (stripped := token.lower().strip(_CUE_STRIP))
+            ]
+            last = toks[-1] if toks else ''
+            prev = toks[-2] if len(toks) >= 2 else ''
             # cross-document: a *.md file, a listed cue word, a standards id (ADR-0002, PEP8), or a
             # standards id split from its number ("RFC 9110 §15" → last='9110', prev='rfc').
             if (
@@ -1052,7 +1212,7 @@ def _check_certification_artifact(
     forgery cost from one typed line to a consistent saved artifact; it does NOT prove a blind
     pass ran — that residual trust stays named (ADR-0002, ADR-0014).
     """
-    ref = re.sub(r'[`*]', '', _field(cert_body, 'certification artifact')).strip()
+    ref = _first_path_token(_field(cert_body, 'certification artifact'))
     if not ref:
         return [], [
             'WARN: the certification names no artifact — B2 verifies one when present; save the '
@@ -1065,8 +1225,9 @@ def _check_certification_artifact(
         return [
             Violation(
                 where,
-                f'referenced artifact {ref!r} does not exist as a file '
-                '(the path is repo-root-relative, like an anchor).',
+                f'referenced artifact {ref!r} does not exist as a file — that is the leading path '
+                'token of the field; the path is repo-root-relative, like an anchor, and any '
+                'trailing prose (a round note, a prior-round path) is ignored.',
             )
         ], []
     artifact_text = target.read_text(encoding='utf-8', errors='replace')

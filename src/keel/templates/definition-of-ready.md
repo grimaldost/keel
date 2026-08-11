@@ -28,6 +28,10 @@ is Part B's job).
       still fully checked.
 - [ ] Every path in the concept→module map exists, or is explicitly marked "to be
       created" **and** claimed by a numbered section.
+- [ ] The three structural sections above (numbered sections, the manifest, the concept→module
+      map) are required — unless the header declares `Kind: single-change`, which relaxes all
+      three to absent-ok and moves the acceptance-criterion floor to the document. A declared
+      kind sizes the gate to the round; it does not weaken a section that is present.
 - [ ] Every `path:line` anchor resolves (file + line exist) and any quoted snippet — the
       backticked token right after the anchor — matches.
 - [ ] Every cited `docs/adr/NNNN-…` uses a number free on the base (no collision).
@@ -47,23 +51,31 @@ is Part B's job).
 ### Reference: what `check_spec_ready` asserts
 
 ```
-A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
-A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words)
+A0 the header's `Kind:` declaration, when present, must read `series` or `single-change` — an
+   unknown kind is a violation naming the offending token, and relaxes nothing. `single-change`
+   relaxes A1/A4/A5 to absent-ok (a present section is still checked in full) and moves A2 to
+   document scope
+A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered — absent-ok under a
+   declared `Kind: single-change`
+A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words); under a
+   declared `Kind: single-change` with no numbered sections, the same floor is read over the
+   whole document instead
 A3 fail on a TBD/TODO/FIXME/??? token, or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view (inline-code spans space-filled, wrapped spans included), so backticked `<target>` syntax is exempt while a bare `<title>` is caught
-A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — relaxed to absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)`; a manifest that IS present is still checked in full (ADR-0014)
-A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
+A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — relaxed to absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` or `- **Kind:** single-change`; a manifest that IS present is still checked in full (ADR-0014)
+A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §) — absent-ok under a declared `Kind: single-change`
 A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches
 A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
 A10 when an Enforcement-status table is present: fail if prose claims an invariant "enforced"/"guaranteed" whose row is not enforced
 A11 each `path:lo-hi` range anchor: the file and `hi` line must resolve; for a `.py`/`.pyi` anchor it must additionally close (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
-A12 when a `### Fold ledger` sub-table is present: fail unless each row's `artifact:line` confirmation anchor resolves
+A12 when a `### Fold ledger` sub-table is present: fail unless each row carries an `artifact:line` confirmation that resolves — read from whichever cell IS one, so an extra column (round, severity, disposition) does not break it; a row wider than its own header is a column break and fails as one
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
-B2 when the certification names a `Certification artifact:`: fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision" — suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY) and when no artifact is named (adoption nudge)
+B2 when the certification names a `Certification artifact:`: the field's LEADING path token is the artifact (trailing prose — a round note, a prior-round path — is ignored); fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision" — suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY) and when no artifact is named (adoption nudge)
 W1 (warn) a spec stamped `<!-- keel kit X.Y.Z -->` from a different kit MAJOR.MINOR than the running gate warns of kit<->gate skew; a patch difference and an unstamped spec are silent
 W2 (warn) a header `Status:` still reading `draft` while a CERTIFIED / CONDITIONAL-CERTIFY certification is recorded warns that the coordinate system is stale; silent when there is no Status field, when Status has moved past draft, or when nothing is certified
+W3 (warn) an anchor that does not resolve as written but whose basename matches exactly ONE repo file (vendor trees excluded) resolves to that file and warns, naming the expansion — the shorthand a fresh reviewer emits stops manufacturing gate failures; ambiguity or no match still fails (A6/A11/A12)
 ```
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*
