@@ -27,6 +27,14 @@ gate exists to catch exactly that over-claim in a spec):
    passes after the fix — no gate lands without the test that proves it bites. *Machine-enforced:*
    the suite (and CI) runs it; the version-consistency and cli-reference-coverage tests are the
    same idea applied to cross-artifact drift.
+1a. **Every check carries a positive control** — `tests/fixtures/adversarial/` holds one realistic
+   spec that fires nothing plus one minimal edit per check that must make exactly that check fire
+   (set equality, not membership). A check that has never fired in the field is either sharp and
+   internalised or broken, and those look identical from outside; the corpus is what tells them
+   apart, and it costs a pytest run rather than a measured trial. A mutant that does NOT fire is a
+   reproduced defeat, marked `xfail(strict=True)` with its mechanism — until it passes, that
+   check's silence is uninformative and no keep-or-cut argument may rest on it. *Machine-enforced:*
+   the suite, including a coverage assertion that every catalogued check has a control.
 2. **A tool-wrapping gate asserts the tool ran to completion**, not just error-count ≤
    baseline (a fatal early-exit emits fewer errors and would false-pass). *Machine-enforced where
    the gate is wired.*
