@@ -72,11 +72,15 @@ A11 each `path:lo-hi` range anchor: the file and `hi` line must resolve; for a `
 A12 when a `### Fold ledger` sub-table is present: fail unless each row carries an `artifact:line` confirmation that resolves — read from whichever cell IS one, so an extra column (round, severity, disposition) does not break it; a row wider than its own header is a column break and fails as one
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
-B2 when the certification names a `Certification artifact:`: the field's LEADING path token is the artifact (trailing prose — a round note, a prior-round path — is ignored); fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision" — suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY) and when no artifact is named (adoption nudge)
+B2 when the certification names a `Certification artifact:`: the field's LEADING path token is the artifact (trailing prose — a round note, a prior-round path — is ignored); fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict
 W1 (warn) the header's `- **Kit:** X.Y.Z` stamp (or a legacy `<!-- keel kit X.Y.Z -->` comment) from a different kit MAJOR.MINOR than the running gate warns of kit<->gate skew; a patch difference is silent, and an UNSTAMPED spec warns too — a spec that declares no kit version is one on which skew is undetectable
 W2 (warn) a header `Status:` still reading `draft` while a CERTIFIED / CONDITIONAL-CERTIFY certification is recorded warns that the coordinate system is stale; silent when there is no Status field, when Status has moved past draft, or when nothing is certified
 W3 (warn) an anchor that does not resolve as written but whose basename matches exactly ONE repo file (vendor trees excluded) resolves to that file and warns, naming the expansion — the shorthand a fresh reviewer emits stops manufacturing gate failures; ambiguity or no match still fails (A6/A11/A12)
+W4 (warn) B2's adoption nudge: the certification names no artifact at all
+W5 (warn) the named artifact's recorded `Spec-hash:` no longer matches ("certified against an earlier revision"), suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY
 ```
+*(Every finding names its check in a field, never as a `W1: ` message prefix — the id is what
+makes a check's fires countable, and `where` collides across checks by design.)*
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*
 

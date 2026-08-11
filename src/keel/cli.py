@@ -53,7 +53,7 @@ def _emit(
     # Warnings print on BOTH exit paths: they carry standing signals (operator-conditional B1,
     # B2 artifact/hash, kit skew) and a failing spec must not hide them (0.12.0 §1).
     for warning in result.warnings:
-        typer.echo(warning)
+        typer.echo(warning.message)
     if result.passed:
         typer.echo('OK')
         raise typer.Exit(code=0)

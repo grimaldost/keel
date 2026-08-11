@@ -6,9 +6,11 @@ stay the source of truth.
 - **Part A / Part B** — the DoR gate's two halves: deterministic well-formedness checks a script
   asserts (A1–A12, R1) vs. correctness externalized to a blind reviewer's recorded certification
   (B1, B2). ADR-0002.
-- **A1…A12, R1, B1, B2, W1, W2** — the individual checks `keel check-ready` runs (W1 and W2 are
+- **A0…A12, R1, B1, B2, W1…W5** — the individual checks `keel check-ready` runs (the W-letters are
   WARN-only: they report, they never fail the gate); the authoritative list is
-  `definition-of-ready.md`'s "Reference: what `check_spec_ready` asserts" block.
+  `definition-of-ready.md`'s "Reference: what `check_spec_ready` asserts" block. Every finding the
+  gate emits names its check in a field (`Violation.check`, `Warning.check`), never as a message
+  prefix — `where` is a coordinate and collides across checks, so a count keyed on it fuses them.
 - **dozes** — a verify-when-present check meeting its absent trigger: not skipped by error, asleep
   by design (e.g. A12 with no fold-ledger rows, A10 with no Enforcement-status table).
 - **verify-when-present vs. deliberate tightening** — the two retro-compatibility classes: a check
