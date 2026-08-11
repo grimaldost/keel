@@ -21,7 +21,7 @@ asks every consumer to fill — a real one, not the fictional `acme-ledger`.
 | **DoR gate** | `keel check-ready` on the release spec (Part A in the author loop via `--structure-only`, full gate before decompose) |
 | **Pre-mortem** | the bundled `pre-mortem-review` agent, blind, arc sized per the doctrine's round economy; artifact saved as `<spec-stem>.premortem.md` (B2) |
 | **Wave budget** | not bound — release waves run in-session (manual-checklist mode); no engine, no per-PR cost table |
-| **Edit-time invariant hook** | not bound — the drift guard and the version-consistency test hold the invariants at gate time instead |
+| **Edit-time invariant hook** | not bound — no `hooks/` directory ships at all (the empty `hooks.json` placeholder was deleted; it claimed a machine it never had). The suite's arrangement and version-consistency tests hold these invariants at gate time instead |
 
 ## Orchestrator
 

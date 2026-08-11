@@ -96,13 +96,24 @@ def test_changelog_heading_chain_is_intact():
 def test_referenced_assets_exist():
     assert (ROOT / 'skills' / 'apply-method' / 'SKILL.md').exists()
     assert (ROOT / 'agents' / 'pre-mortem-review.md').exists()
-    # hooks.json is an empty placeholder kept deliberately: it reserves the edit-time-hook slot
-    # (doctrine's "invariants → machines" face) and whether the plugin loader tolerates its
-    # absence is unverifiable offline — decision recorded in the 0.12.0 spec (T2g); revisit if
-    # the plugin API documents optionality.
-    assert (ROOT / 'hooks' / 'hooks.json').exists()
     for command in ('keel-apply', 'keel-check-ready', 'keel-premortem', 'keel-triage'):
         assert (ROOT / 'commands' / f'{command}.md').exists()
+
+
+def test_no_empty_hooks_placeholder(hooks_json=ROOT / 'hooks' / 'hooks.json'):
+    # KEEL-B29. `hooks/hooks.json` shipped `{"hooks": {}}` — a slot reserved for an edit-time hook
+    # that never arrived, absent from the plugin-reference entry-point table and from that table's
+    # coverage test, while the doctrine names hooks as one of the two deterministic machines: the
+    # repo's own A10 failure class, in its own tree.
+    #
+    # The 0.12.0 decision (T2g) kept it because "whether the plugin loader tolerates its absence is
+    # unverifiable offline". It is verifiable by inspection, and now verified: four installed,
+    # loading plugins in this operator's environment ship no `hooks/` directory at all. The empty
+    # placeholder is deleted; a hooks.json that exists must declare a real hook, so the placeholder
+    # cannot come back while a genuine edit-time hook still can.
+    if hooks_json.exists():
+        declared = json.loads(hooks_json.read_text(encoding='utf-8')).get('hooks')
+        assert declared, 'hooks/hooks.json declares no hook — an empty placeholder claims a machine'
 
 
 def test_plugin_reference_documents_every_entry_point():
