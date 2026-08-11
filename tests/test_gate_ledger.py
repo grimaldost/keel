@@ -25,7 +25,14 @@ from typer.testing import CliRunner
 
 from keel.check_ready import check_spec_ready
 from keel.cli import app
-from keel.gate_ledger import LedgerLine, ledger_path, line_for_run, read_lines, serialize
+from keel.gate_ledger import (
+    SCHEMA_VERSION,
+    LedgerLine,
+    ledger_path,
+    line_for_run,
+    read_lines,
+    serialize,
+)
 from keel.models import CHECK_IDS, Probe
 
 from .test_adversarial_corpus import MUTANTS, materialize
@@ -87,7 +94,7 @@ def test_structure_only_marks_the_certification_checks_not_applicable(tmp_path):
 def test_the_line_carries_the_pre_registered_schema(tmp_path):
     spec = _clean(tmp_path)
     line = json.loads(serialize(line_for_run(spec, check_spec_ready(spec), structure_only=False)))
-    assert line['v'] == 1
+    assert line['v'] == SCHEMA_VERSION
     assert line['mode'] == 'full' and line['kind'] == 'series'
     assert line['passed'] is True and line['exit'] == 0
     assert line['probes']['A6'][0] > 0 and line['probes']['A6'][1] == 0

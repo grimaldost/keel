@@ -1,5 +1,6 @@
 """Result types returned by keel gates."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 # The closed catalogue of check ids a finding may name (T0.1). A0-A12 and R1 are Part A's
@@ -43,11 +44,28 @@ class Violation:
     `path:line` from A6/A11/A12, `Pre-mortem certification` from four B1 conditions), so `check`
     carries the identity a count needs. It defaults to '' so a consumer constructing a Violation
     outside the gate is not forced to invent an id.
+
+    `cause` is the REPORT UNIT: violations sharing a non-empty key are one underlying defect, and
+    an empty key means this violation is its own cause. One insertion above a self-anchored fold
+    ledger produces one defect and dozens of violations; counting those as dozens of findings
+    misreports the check and leaves "how many things are actually wrong?" unanswerable.
     """
 
     where: str
     message: str
     check: str = ''
+    cause: str = ''
+
+
+def count_causes(violations: Iterable[Violation]) -> int:
+    """How many distinct underlying defects a set of violations represents (the report unit).
+
+    Violations sharing a non-empty `cause` are one defect; a violation with no key is its own.
+    Under-grouping is the safe direction — it over-reports causes, which is honest, where
+    over-grouping hides findings.
+    """
+    listed = list(violations)
+    return len({v.cause for v in listed if v.cause}) + sum(1 for v in listed if not v.cause)
 
 
 @dataclass(frozen=True, slots=True)

@@ -45,6 +45,13 @@ A5; W2, W3, B2, and B1 as a record rather than a rejecter. Uninformative by cons
 A10's three reproduced defeats are fixed: A10. Directional: W3 arriving should lower A6 fires per
 run, and cause-grouping should pull violations-per-cause below 3.
 
+**The report-unit criterion, stated before its data.** Cause-grouping ships with the ledger, so
+`fired` and `causes` are recorded separately from the first run. It is judged forward, on two
+figures: median violations-per-cause below 3, and round-trips-to-green falling against the
+pre-change baseline. Neither is claimed today. The ledger's `v` field marks the boundary — `fired`
+is comparable across it, `causes` is not, and reading `causes` across a version bump would be
+measuring the change with a ruler the change moved.
+
 **Dispositions the ledger fires on its own** — pre-registered, so they are not re-argued later:
 
 | trigger | disposition |

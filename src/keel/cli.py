@@ -60,6 +60,15 @@ def _emit(
         raise typer.Exit(code=0)
     for violation in result.violations:
         typer.echo(f'{violation.where}: {violation.message}')
+    # The report unit: dozens of anchor violations behind one edit are one thing to fix, and the
+    # standing complaint about these messages is that they under-specify how to conform.
+    grouped = [probe for probe in result.probes if probe.fired > probe.causes > 0]
+    if grouped:
+        detail = ', '.join(f'{p.check} {p.fired} in {p.causes}' for p in grouped)
+        typer.echo(
+            f'note: {detail} — anchors failing against the same target, or sharing one drift '
+            'delta, are one cause. Re-anchor the block; do not delete the rows.'
+        )
     if hint is not None and (message := hint(result)):
         typer.echo(message)
     raise typer.Exit(code=1)

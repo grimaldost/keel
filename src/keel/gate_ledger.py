@@ -48,7 +48,10 @@ from keel.check_ready import (
 )
 from keel.models import CHECK_IDS, GateResult
 
-SCHEMA_VERSION = 1
+# v2: `causes` became the grouped report unit (anchors against one target, or sharing one drift
+# delta, are one cause). `fired` is unchanged, so the two eras remain comparable on it — but a
+# `causes` figure must never be read across the boundary without checking `v`.
+SCHEMA_VERSION = 2
 
 _SLUG_RE = re.compile(r'^[A-Za-z0-9._-]{1,64}$')
 _HEX_RE = re.compile(r'^[0-9a-f]{4,64}$')

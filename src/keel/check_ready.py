@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 from keel.errors import format_error
-from keel.models import CHECK_IDS, GateResult, Probe, Violation, Warning
+from keel.models import CHECK_IDS, GateResult, Probe, Violation, Warning, count_causes
 
 # A3 placeholders: the four legacy tokens, plus the spec-template's angle-bracket idiom
 # (`<title>`, `<the observable condition ...>`). The angle-bracket form is matched on the shared
@@ -420,9 +420,12 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
         if finding.check:
             fired[finding.check] += 1
     probes = tuple(
-        # `causes` is the report unit. Until cause-grouping lands, one violation is one cause; the
-        # ledger line carries a schema version so the two eras stay comparable rather than mixed.
-        Probe(check=check, candidates=candidates[check], fired=fired[check], causes=fired[check])
+        Probe(
+            check=check,
+            candidates=candidates[check],
+            fired=fired[check],
+            causes=count_causes(v for v in violations if v.check == check) or fired[check],
+        )
         for check in sorted(CHECK_IDS)
     )
     return GateResult(
@@ -605,6 +608,18 @@ def _basename_matches(base: Path, path: str) -> list[Path]:
     ]
 
 
+def _snippet_delta(lines: list[str], snippet: str, claimed: int) -> str:
+    """The uniform shift a drifted snippet implies, as a cause key suffix, or '' when unknowable.
+
+    Two anchors whose content moved by the same number of lines are one edit, not two defects. A
+    snippet found nowhere (or on several lines) gives no delta, and then the violation is its own
+    cause — under-grouping is the safe direction: it over-reports causes rather than hiding one.
+    """
+    wanted = ' '.join(snippet.split())
+    found = [n for n, line in enumerate(lines, 1) if wanted in ' '.join(line.split())]
+    return f'drift{found[0] - claimed:+d}' if len(found) == 1 else ''
+
+
 def _resolve_anchor(
     base: Path, path: str, line_no: int, where: str, check: str
 ) -> tuple[list[str] | None, Violation | None, list[Warning]]:
@@ -637,6 +652,8 @@ def _resolve_anchor(
                     f'anchor path {path!r} does not exist as a file '
                     f'(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).{candidates}',
                     check,
+                    # Every anchor into one missing (or moved) file is the same defect.
+                    f'{check}:{path}:missing',
                 ),
                 [],
             )
@@ -654,7 +671,14 @@ def _resolve_anchor(
     if line_no < 1 or line_no > len(lines):
         return (
             None,
-            Violation(where, f'anchor line {line_no} is out of range ({len(lines)} lines).', check),
+            Violation(
+                where,
+                f'anchor line {line_no} is out of range ({len(lines)} lines).',
+                check,
+                # No delta is measurable past end-of-file, so the target is the whole key: one
+                # insertion above a self-anchored block overflows every row of it at once.
+                f'{check}:{path}:out-of-range',
+            ),
             [],
         )
     return lines, None, warnings
@@ -975,6 +999,9 @@ def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[Wa
                         f'snippet to match against line {line_no}; remove it or make it an exact '
                         'substring of that line.',
                         'A6',
+                        f'A6:{path}:{delta}'
+                        if (delta := _snippet_delta(lines, snippet, line_no))
+                        else '',
                     )
                 )
     return violations, warnings
@@ -1191,6 +1218,9 @@ def _check_fold_ledger(
                         f'fold-ledger snippet {snippet!r} does not match line {span} '
                         '(in-range drift: the anchored content moved — re-anchor the row).',
                         'A12',
+                        f'A12:{path}:{delta}'
+                        if (delta := _snippet_delta(lines, snippet, hi or lo))
+                        else '',
                     )
                 )
     return violations, warnings
