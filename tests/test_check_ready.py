@@ -785,6 +785,94 @@ def test_declared_skip_with_present_manifest_still_checked_a4(tmp_path):
     assert any('§2' in v.message and 'cover' in v.message.lower() for v in result.violations)
 
 
+# --- KEEL-B03: field extraction reads a token, and violations name it --------
+
+
+def test_certification_artifact_reads_the_leading_path_token(tmp_path):
+    # The field consumed more text than the field it names: everything after the path was
+    # stripped of backticks and resolved as part of the path, so recording a prior round in the
+    # same cell reddened the gate. The parser takes the leading path token and ignores the prose.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'spec.premortem.md').write_text(
+        'PREMORTEM-VERDICT: CERTIFIED pre-mortem-review@0.13.1\n', encoding='utf-8'
+    )
+    spec = READY_SPEC.replace(
+        '- **Verdict:** CERTIFIED',
+        '- **Verdict:** CERTIFIED\n- **Certification artifact:** `spec.premortem.md` '
+        '(round 2; round 1 is kept at `spec.premortem-r1.md`)',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_certification_artifact_missing_file_still_fails_and_names_the_token(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '- **Verdict:** CERTIFIED',
+        '- **Verdict:** CERTIFIED\n- **Certification artifact:** `ghost.premortem.md` (round 2)',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    nv = [v for v in result.violations if v.where == 'Certification artifact']
+    assert nv and 'ghost.premortem.md' in nv[0].message
+    assert 'round 2' not in nv[0].message  # the prose was never part of the path
+
+
+def test_fold_ledger_anchor_is_found_in_any_column(tmp_path):
+    # A12 read cells[2] positionally, so a ledger with a round column (or any other shape) failed
+    # on a row whose anchor was perfectly good — it just was not the third cell.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('a\nb\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        '- **Failure modes considered & folded in:** none outstanding',
+        '- **Failure modes considered & folded in:** 1 finding folded.',
+    ) + (
+        '\n### Fold ledger\n\n'
+        '| Finding | Round | Target section | artifact:line | Confirmed |\n'
+        '|---|---|---|---|---|\n'
+        '| FM-1 | r2 | §1 | `mod.py:2` | yes |\n'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_fold_ledger_row_without_an_anchor_names_the_cell_it_read(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        '- **Failure modes considered & folded in:** none outstanding',
+        '- **Failure modes considered & folded in:** 1 finding folded.',
+    ) + _ledger('| FM-1 | §1 | folded, see the section | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    nv = [v for v in result.violations if v.where.startswith('Fold ledger')]
+    assert nv and 'folded, see the section' in nv[0].message
+
+
+def test_section_refs_in_a_references_section_are_skipped(tmp_path):
+    # A References section cites other documents by their own section numbers; the § glyph there
+    # is not a claim about this spec's sections.
+    spec = READY_SPEC + '\n## References\n\nThe orchestrator contract, §4 and §9.\n'
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_parenthesised_section_ref_keeps_its_cross_doc_cue(tmp_path):
+    # `docs/doctrine.md` (§6) — the cue lookback saw the '(' and lost the document token.
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`, per `docs/doctrine.md` (§6).'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_dangling_intra_spec_ref_still_fails_a8(tmp_path):
+    # The lenient directions above must not swallow a real dangler in ordinary prose.
+    spec = READY_SPEC.replace('Introduce `src/widget.py`.', 'Introduce it, as §9 requires.')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('§9' in v.message for v in result.violations)
+
+
 # --- KEEL-B01: the declared spec kind (the Part-A structural trio) -----------
 
 # A legitimate small spec: one change, no decomposition, so no trio at all. The compensating

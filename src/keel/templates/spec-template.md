@@ -157,7 +157,7 @@ forging a certification; it does not prove the pass was blind — that residual 
 - **Reviewer:**
 - **Verdict:** not yet certified
 - **Operator:** <required only when the Verdict is CONDITIONAL-CERTIFY — the named owner who accepts "ready modulo a named fix"; check-ready then passes with a WARN (B1). If the Operator applies the conditions, the verdict stays CONDITIONAL-CERTIFY with a discharge note — the operator close, definition-of-ready.md Part B>
-- **Certification artifact:**
+- **Certification artifact:** <the saved pass output's path. `check-ready` reads the LEADING path token and ignores what follows, so a prior round belongs right here: `<stem>.premortem.md` (r1 at `<stem>.premortem-r1.md`)>
 - **Date:**
 - **Reviewed against:** <external dependency SHAs/versions reasoned against, if any>
 - **Post-fold coherence:**

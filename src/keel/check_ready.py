@@ -381,11 +381,26 @@ def _words(text: str) -> list[str]:
     return [word for word in re.sub(r'[`*:#|]', ' ', text).split() if word]
 
 
-def _extract_path(cell: str) -> str | None:
-    """The path a concept→module cell points at (first backtick token, else text)."""
-    backticked = re.search(r'`([^`]+)`', cell)
+def _first_path_token(value: str) -> str:
+    """The path token a path-valued field or cell names, with trailing prose ignored ('' if none).
+
+    KEEL-B03, the one home for "which token here is the path": the first backticked token when the
+    value carries one, else its first whitespace-delimited token. Field extraction used to consume
+    more text than the field it names — `Certification artifact: `x.md` (round 2, round 1 at …)`
+    resolved the whole remainder as a path and reddened the gate on a well-formed record. Any
+    path-valued field added later reads through here rather than re-deciding it locally.
+    """
+    backticked = re.search(r'`([^`]+)`', value)
     if backticked:
         return backticked.group(1).strip()
+    tokens = value.split()
+    return tokens[0].strip('`*,;()') if tokens else ''
+
+
+def _extract_path(cell: str) -> str | None:
+    """The path a concept→module cell points at (first backtick token, else text)."""
+    if '`' in cell:
+        return _first_path_token(cell) or None
     cleaned = re.sub(r'\(to be created\)', '', cell, flags=re.IGNORECASE).strip()
     return cleaned or None
 
@@ -831,6 +846,26 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
 
 _FOLD_NONE = frozenset({'', 'none', 'noneoutstanding', 'na', 'nil'})
 
+# Anchor, optionally followed by a backticked snippet (0.12.0 §8): `path:line` `snippet`. The
+# snippet makes in-range drift detectable — a bare line number survives an edit that moves content
+# within range; the snippet does not.
+_LEDGER_ANCHOR_RE = re.compile(r'`?([^`\s]*[./][^`\s]*):(\d+)`?(?:[ \t]+`([^`]+)`)?$')
+
+
+def _ledger_anchor(cells: list[str]) -> re.Match[str] | None:
+    """The first fold-ledger cell that IS an `artifact:line` confirmation, in any column.
+
+    A12 read `cells[2]` positionally (KEEL-B03), so a ledger carrying a round, a severity or a
+    disposition column failed on rows whose anchor was perfectly good and simply not third. A
+    finding id (`FM-1`) or a target section (`§1`) cannot match — the token needs a `.`/`/` and a
+    `:line` — so scanning left to right cannot pick up the wrong cell.
+    """
+    for cell in cells:
+        match = _LEDGER_ANCHOR_RE.match(re.sub(r'\*', '', cell).strip())
+        if match is not None:
+            return match
+    return None
+
 
 def _fold_claimed(cert_body: str) -> bool:
     """R1 trigger: True if the certification's 'folded in' field names a non-trivial fold.
@@ -890,25 +925,29 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
                 )
             )
             continue
-        cell = re.sub(r'\*', '', cells[2]).strip()
-        # Anchor, optionally followed by a backticked snippet (0.12.0 §8): `path:line` `snippet`.
-        # The snippet makes in-range drift detectable — a bare line number survives an edit that
-        # moves content within range; the snippet does not.
-        match = re.match(r'`?([^`\s]*[./][^`\s]*):(\d+)`?(?:[ \t]+`([^`]+)`)?$', cell)
-        if match is None:
-            hint = ''
-            if header and len(cells) > len(header):
-                hint = (
-                    f' This row split into {len(cells)} cells where the header has {len(header)} — '
-                    'a bare `|` inside a cell is a column break; backtick the cell content or '
-                    'escape it as `\\|`.'
-                )
+        # A row wider than its header is a column break, checked before the anchor search: with
+        # the anchor read from any column (KEEL-B03) a split row can still carry a resolving
+        # anchor, and the row would otherwise pass while its cells mean something else entirely.
+        if header and len(cells) > len(header):
             violations.append(
                 Violation(
                     where,
-                    'fold-ledger row has no resolving `artifact:line` confirmation '
-                    '(anchor each row to `path:line`, e.g. `docs/design/your-spec.md:142`; an '
-                    'optional backticked snippet after it is verified against that line).' + hint,
+                    f'fold-ledger row split into {len(cells)} cells where the header has '
+                    f'{len(header)} — a bare `|` inside a cell is a column break; backtick the '
+                    'cell content or escape it as `\\|`.',
+                )
+            )
+            continue
+        match = _ledger_anchor(cells)
+        if match is None:
+            read = re.sub(r'\*', '', cells[2]).strip()
+            violations.append(
+                Violation(
+                    where,
+                    f'no cell in this fold-ledger row is an `artifact:line` confirmation — the '
+                    f'confirmation column reads {read!r}. Anchor the row to `path:line`, e.g. '
+                    '`docs/design/your-spec.md:142`; an optional backticked snippet after it is '
+                    'verified against that line.',
                 )
             )
             continue
@@ -994,16 +1033,30 @@ def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[V
     """
     known = set(section_ids)
     violations: list[Violation] = []
+    in_references = False
     for lineno, (line, masked) in enumerate(
         zip(text.splitlines(), prose.splitlines(), strict=True), 1
     ):
+        heading = re.match(r'^#{2,6}[ \t]+(.+?)[ \t]*$', line)
+        if heading is not None:
+            # A References section cites OTHER documents by their own section numbers; the glyph
+            # there is never a claim about this spec's sections (KEEL-B03).
+            in_references = 'reference' in heading.group(1).lower()
+        if in_references:
+            continue
         if line.lstrip().startswith('#'):  # a heading defines a section, it is not a ref
             continue
         for match in _SECTION_REF_RE.finditer(masked):
             before = _TRAILING_SECREFS_RE.sub('', line[: match.start()])
-            toks = re.findall(r'\S+', before)
-            last = toks[-1].lower().strip(_CUE_STRIP) if toks else ''
-            prev = toks[-2].lower().strip(_CUE_STRIP) if len(toks) >= 2 else ''
+            # Punctuation-only tokens (an opening paren, a dash) are not cues and must not hide
+            # the one behind them: `docs/doctrine.md` (§6) lost its document cue to the '('.
+            toks = [
+                stripped
+                for token in re.findall(r'\S+', before)
+                if (stripped := token.lower().strip(_CUE_STRIP))
+            ]
+            last = toks[-1] if toks else ''
+            prev = toks[-2] if len(toks) >= 2 else ''
             # cross-document: a *.md file, a listed cue word, a standards id (ADR-0002, PEP8), or a
             # standards id split from its number ("RFC 9110 §15" → last='9110', prev='rfc').
             if (
@@ -1125,7 +1178,7 @@ def _check_certification_artifact(
     forgery cost from one typed line to a consistent saved artifact; it does NOT prove a blind
     pass ran — that residual trust stays named (ADR-0002, ADR-0014).
     """
-    ref = re.sub(r'[`*]', '', _field(cert_body, 'certification artifact')).strip()
+    ref = _first_path_token(_field(cert_body, 'certification artifact'))
     if not ref:
         return [], [
             'WARN: the certification names no artifact — B2 verifies one when present; save the '
@@ -1138,8 +1191,9 @@ def _check_certification_artifact(
         return [
             Violation(
                 where,
-                f'referenced artifact {ref!r} does not exist as a file '
-                '(the path is repo-root-relative, like an anchor).',
+                f'referenced artifact {ref!r} does not exist as a file — that is the leading path '
+                'token of the field; the path is repo-root-relative, like an anchor, and any '
+                'trailing prose (a round note, a prior-round path) is ignored.',
             )
         ], []
     artifact_text = target.read_text(encoding='utf-8', errors='replace')
