@@ -28,7 +28,7 @@ Deliberately **not** taken in this wave, each with the gate that holds it:
 
 | Item | Gate |
 |---|---|
-| KEEL-B07, KEEL-B09 | a measurement on the suite's eval harness, which is being repaired; KEEL-B09 additionally has to be built as a bank on that harness (its cross-review note) rather than as a bespoke three-arm run |
+| KEEL-B09 | has to be built as a bank on the eval harness (its cross-review note) rather than as a bespoke three-arm run. **KEEL-B07 no longer waits on it** — the hit-rate question turned out to need no agent at all, and shipped (below) |
 | KEEL-B28 | the skills collection's CRAF-B29 holdout finding; only the specificity half is keel's either way |
 | KEEL-B31 | the research runner's MANT-B01/B02 — deleting `scripts/external_review/` before those land replaces a working client with one that aborts |
 | KEEL-B30, KEEL-B32 (series-skeleton half) | the bound orchestrator's live measurement window (CONV-B18/CONV-B33): editing the skeleton mid-window would make a near-zero reading a record of our own edit |
@@ -267,6 +267,14 @@ recorded here explicitly. `[triage]`
 - **Change:** `check_spec_ready` appends one line per run (spec stem, date, check ids that fired,
   verdict) to a local, gitignored ledger. After ~20 real runs, cut or sharpen any check with zero
   fires and record the outcome in the CHANGELOG.
+- **Status:** **shipped**. Three corrections the build made to the item as written: (a) a finding
+  had no stable id — `where` collides across checks — so `Violation.check`, a `Warning` type and a
+  closed catalogue came first, or nothing was countable; (b) two states are not enough, because a
+  zero-fire count cannot tell *inert* from *never had an opportunity*, so each check reports a
+  `Probe(candidates, fired, causes)`; (c) the spec is identified by a digest, not a stem — stems
+  name the project's roadmap. `keel gate-health` reads it back, `docs/evidence.md` carries the
+  pre-registration written before any data arrived, and the "cut a zero-fire check" instruction is
+  superseded by the standing three-part bar (opportunity, a positive control, no open defeat).
 - **Effort:** S · **Source:** `[review]` `[research]`
 
 ### KEEL-B08 — Machine-enforce CONTRIBUTING step 4, and tag released versions
@@ -573,7 +581,12 @@ recorded here explicitly. `[triage]`
   certification the same run just verified, narrowest fix being to exclude the header `Status:` line
   from `spec_hash` (`check_ready.py:185`) exactly as the certification section already is; W9
   multi-round pre-mortem artifacts — state that only the newest round's `Spec-hash:` binds.
-- **Change:** none yet. Promote on a second report, with W8's fix named above.
+- **Change:** none yet on the remaining rows. Promote each on a second report.
+- **Status:** **W8 shipped** ahead of a second report — it was not a preference but a self-defeat:
+  the warning's own instruction invalidated the certification the run had just verified, so the
+  header `Status:` line left `spec_hash`. The recorded-hash migration it forces (a one-time W5
+  wave across sibling repos) is named in `docs/cli-reference.md`, and the hash's scope is now
+  pinned per gate minor, as W1's kit-skew semantics already were.
 - **Effort:** S · **Source:** `[triage W1/W2/W4/W6/W7/W8/W9]`
 
 ### KEEL-B26 — Publish the ratio of author-loop runs to full-gate rejections
@@ -587,7 +600,10 @@ recorded here explicitly. `[triage]`
   (expected to fail often and cheaply) versus full-gate runs on a spec submitted as ready. Publish
   the ratio in `docs/evidence.md`. It is the one number that strengthens the observational claim
   without reopening the comparative one ADR-0015 retired.
-- **Ordering:** needs ~20 real runs after KEEL-B07.
+- **Ordering:** unblocked — KEEL-B07 shipped and `keel gate-health` already prints the split. What
+  is missing is only the runs: ~20 real ones, which is a matter of using the gate, not building
+  anything. Publishing the ratio before then would be publishing a number about this repo's own
+  test suite.
 - **Effort:** S · **Source:** `[review]` `[research]`
 
 ### KEEL-B27 — State the design contrast against the named alternatives, artifact by artifact
