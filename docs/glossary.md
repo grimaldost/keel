@@ -37,8 +37,9 @@ stay the source of truth.
 - **one home (the directives)** — `pre-mortem-prompt.md` carries the pre-mortem directive text and
   the bundled agent reads it at run start; the drift guard that used to pin the two copies together
   retired with the duplication (ADR-0017). What is pinned now is non-duplication.
-- **the kit** — the packaged templates `keel init` copies (`src/keel/templates/`); its stamp
-  (`<!-- keel kit X.Y.Z -->`) lets `check-ready` warn on kit↔gate skew.
+- **the kit** — the packaged templates `keel init` copies (`src/keel/templates/`); its stamp — the
+  spec header's `- **Kit:** X.Y.Z` line, or a legacy `<!-- keel kit X.Y.Z -->` comment — lets
+  `check-ready` warn on kit↔gate skew, and on an unstamped spec (W1).
 - **finding IDs vs. promotion IDs** — two namespaces in the feedback loop: a report's stable
   `<file-stem>#<n>` findings (what triage cites as evidence) vs. a triage doc's own `T1a`-style
   promotion rows (what statuses track). Don't conflate them.

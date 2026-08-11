@@ -209,26 +209,45 @@ def spec_hash(spec_path: Path) -> str:
 
 
 _KIT_STAMP_RE = re.compile(r'<!--\s*keel kit (\d+)\.(\d+)\.(\d+)\s*-->')
+_KIT_VERSION_RE = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
 
 
-def _kit_skew_warning(text: str) -> list[str]:
-    """§9 (0.12.0): a spec stamped from a different kit MAJOR.MINOR self-announces the skew.
+def _kit_stamp(text: str, header: str) -> str | None:
+    """The kit version a spec declares, from the header `Kit:` field or the legacy HTML comment.
 
-    WARN-only and verify-when-present: pre-0.12.0 specs carry no stamp and stay silent; a patch
-    difference is silent too (gate semantics are pinned per minor). Runs in the Part A path so the
-    author loop (--structure-only) sees it — that is where a stale kit bites first.
+    T0.3 moves the stamp into the visible header, because the HTML comment lived below the closing
+    rule and every authored spec in the census had lost it at hand-copy. The comment form is still
+    read — retiring it from the template does not retire it from the specs already carrying it.
     """
-    match = _KIT_STAMP_RE.search(text)
-    if match is None:
-        return []
+    declared = _field(header, 'kit')
+    if declared and _KIT_VERSION_RE.match(token := _first_path_token(declared)):
+        return token
+    comment = _KIT_STAMP_RE.search(text)
+    return '.'.join(comment.groups()) if comment is not None else None
+
+
+def _kit_skew_warning(text: str, header: str) -> list[str]:
+    """W1: a spec stamped from a different kit MAJOR.MINOR — or carrying no stamp — self-announces.
+
+    WARN-only. A patch difference stays silent (gate semantics are pinned per minor). T0.3 widens
+    the check to the UNSTAMPED case, which is the only one the census ever observed: no authored
+    spec carried a stamp at all, so a verify-when-present skew check had zero material forever and
+    could neither fire nor be defended. Runs in the Part A path so the author loop
+    (--structure-only) sees it — that is where a stale kit bites first.
+    """
     from keel import __version__
 
-    own = __version__.split('.')
-    if (match.group(1), match.group(2)) == (own[0], own[1]):
+    stamp = _kit_stamp(text, header)
+    if stamp is None:
+        return [
+            f'WARN: this spec is unstamped — it declares no kit version, so kit↔gate skew is '
+            f'undetectable on it. Add `- **Kit:** {__version__}` to the header beside Date and '
+            'Status (W1).'
+        ]
+    if stamp.split('.')[:2] == __version__.split('.')[:2]:
         return []
-    stamped = '.'.join(match.groups())
     return [
-        f'WARN: spec stamped from kit {stamped}, gate is {__version__} — the kit and the gate '
+        f'WARN: spec stamped from kit {stamp}, gate is {__version__} — the kit and the gate '
         'moved apart; regenerate the spec scaffold or diff the kit before trusting old guidance.'
     ]
 
@@ -257,7 +276,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
 
     violations: list[Violation] = []
     warnings: list[str] = []
-    warnings += _kit_skew_warning(text)
+    warnings += _kit_skew_warning(text, header)
     # §11 (0.12.0) + KEEL-B01: two header declarations widen the *absence* tolerance of the
     # Part-A structural trio, and nothing else. `Phases: … (Decompose: skipped)` relaxes the
     # manifest (ADR-0014); `Kind: single-change` relaxes all three, because a spec that decomposes

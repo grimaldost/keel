@@ -2,12 +2,16 @@
 
 import pytest
 
+from keel import __version__
 from keel.check_ready import check_spec_ready, spec_hash
 
-# A well-formed, pre-mortem-certified spec in the spec-template.md shape.
-READY_SPEC = """# Spec — widget
+# A well-formed, pre-mortem-certified spec in the spec-template.md shape. It carries the header
+# `Kit:` stamp the template ships (T0.3), so the W1 unstamped nudge is not the ambient state of
+# every fixture here — the unstamped case has its own tests.
+READY_SPEC = f"""# Spec — widget
 
 - **Status:** ready (DoR passed)
+- **Kit:** {__version__}
 
 ## Numbered sections
 
@@ -1298,29 +1302,60 @@ def test_artifact_column_zero_schema_quote_does_not_shadow_b2(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
+def _unstamped(spec: str) -> str:
+    """READY_SPEC without its header `Kit:` stamp — every corpus spec authored before T0.3."""
+    return spec.replace(f'- **Kit:** {__version__}\n', '')
+
+
 def test_kit_stamp_minor_skew_warns_even_structure_only(tmp_path):
     # 0.12.0 §9: a spec stamped from an older kit self-announces — and the author loop
-    # (--structure-only) is where skew bites first, so the WARN reaches it.
-    spec = READY_SPEC + '\n<!-- keel kit 0.10.0 -->\n'
+    # (--structure-only) is where skew bites first, so the WARN reaches it. The legacy HTML-comment
+    # form is still read: T0.3 retires it from the template, not from the specs already carrying it.
+    spec = _unstamped(READY_SPEC) + '\n<!-- keel kit 0.10.0 -->\n'
     result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
     assert result.passed, [v.message for v in result.violations]
     assert any('kit' in w.lower() for w in result.warnings)
 
 
-def test_kit_stamp_current_version_is_silent(tmp_path):
-    from keel import __version__
+def test_header_kit_stamp_minor_skew_warns_w1(tmp_path):
+    # T0.3: the stamp's home is the visible header, so it survives the hand-copy that lost the
+    # HTML comment (no authored spec in the census carried the comment form).
+    spec = _unstamped(READY_SPEC).replace(
+        '- **Status:** ready (DoR passed)', '- **Status:** ready (DoR passed)\n- **Kit:** 0.10.0'
+    )
+    result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
+    assert result.passed, [v.message for v in result.violations]
+    assert any('0.10.0' in w for w in result.warnings), result.warnings
 
-    spec = READY_SPEC + f'\n<!-- keel kit {__version__} -->\n'
+
+def test_kit_stamp_current_version_is_silent(tmp_path):
+    spec = _unstamped(READY_SPEC) + f'\n<!-- keel kit {__version__} -->\n'
     result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
     assert result.passed
     assert not any('kit' in w.lower() for w in result.warnings)
 
 
-def test_no_kit_stamp_is_silent(tmp_path):
-    # Every pre-0.12.0 spec lacks the stamp; absence stays quiet (verify-when-present).
+def test_header_kit_stamp_current_version_is_silent(tmp_path):
     result = check_spec_ready(_write(tmp_path, READY_SPEC), structure_only=True)
     assert result.passed
     assert result.warnings == ()
+
+
+def test_unstamped_spec_warns_w1(tmp_path):
+    # T0.3 widens W1 to the only case the census actually observed: NO authored spec carries a
+    # stamp, so a check that only fires on a skewed stamp had zero material forever. The WARN names
+    # the missing declaration, and reaches the author loop where the skew bites first.
+    result = check_spec_ready(_write(tmp_path, _unstamped(READY_SPEC)), structure_only=True)
+    assert result.passed, [v.message for v in result.violations]
+    assert any('unstamped' in w.lower() or 'no kit' in w.lower() for w in result.warnings), (
+        result.warnings
+    )
+
+
+def test_unstamped_warning_names_the_header_field(tmp_path):
+    # An unstamped WARN that does not say what to write is a nag, not a nudge.
+    result = check_spec_ready(_write(tmp_path, _unstamped(READY_SPEC)), structure_only=True)
+    assert any('**Kit:**' in w for w in result.warnings), result.warnings
 
 
 def test_structure_only_skips_b2(tmp_path):

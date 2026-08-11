@@ -2,17 +2,17 @@
 
 - **Date:** YYYY-MM-DD
 - **Status:** draft | ready (DoR passed) | in progress | done
-- **Kind:** series | single-change
+- **Kit:** 0.14.0
+- **Kind:** series
 - **Audience:** <who/what reads this>
 - **Output artifact(s):** <paths>
 
-*Two optional header declarations size the gate to the round. `Kind: single-change` relaxes the
-three structural sections — numbered sections, the PR↔section manifest, the concept→module map —
-to absent-ok, and moves the acceptance-criterion floor to the document (a spec that decomposes
-into nothing still promises something observable). `Phases: Decide+Specify (Decompose: skipped)`
-relaxes the manifest alone. A section that IS present is still fully checked, everything else in
-Part A applies regardless, and each declaration is content the pre-mortem can challenge — not an
-escape hatch (ADR-0014).*
+*`Kind:` is resolved, not a menu — leave `series` unless this spec really is one change with
+nothing to decompose, then write `single-change`, which relaxes the three structural sections
+(numbered sections, the PR↔section manifest, the concept→module map) to absent-ok and moves the
+acceptance-criterion floor to the document. `Phases: Decide+Specify (Decompose: skipped)` relaxes
+the manifest alone. A section that IS present is still fully checked. `Kit:` is the kit version
+this spec was scaffolded from — keep it; `check-ready` (W1) warns on skew, and on its absence.*
 
 ## Context
 
@@ -184,5 +184,3 @@ per-section acceptance criteria, the concept→module map, and the PR↔section
 manifest are all required fields. The one field NOT satisfied by construction is the
 pre-mortem certification — a non-author reviewer must sign it, which is the point
 (ADR-0002).*
-
-<!-- keel kit 0.14.0 -->

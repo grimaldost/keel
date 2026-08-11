@@ -89,7 +89,7 @@ A release bumps **eight version sites**, in one commit with the `## [x.y.z]` CHA
 (inserted above the previous one, never replacing it): `.claude-plugin/plugin.json`,
 `pyproject.toml`, `src/keel/__init__.py`, the newest `CHANGELOG.md` heading,
 `agents/pre-mortem-review.md` (the agent identity line), `src/keel/templates/spec-template.md`
-(the kit stamp), and `skills/apply-method/SKILL.md` are the seven the version-consistency test
+(the header `- **Kit:**` stamp), and `skills/apply-method/SKILL.md` are the seven the version-consistency test
 asserts; `uv.lock` is the eighth — bump it with `uv lock` after `pyproject.toml`, and CI's
 `uv lock --check` reds a stale committed lock.
 
