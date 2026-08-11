@@ -34,6 +34,36 @@ consumer boundary ADR-0003 keeps keel behind. So a public reader **cannot** inde
 
 Treat these as the maintainer's honest field notes, not as independently checkable public evidence.
 
+## Pre-registration for the gate hit-rate ledger (KEEL-B07)
+
+Written before any data arrived, so a later reading cannot be fitted to the numbers it finds.
+`keel gate-health` reports the counts; this section fixes in advance what each count would mean.
+
+**What the ledger will show, expected.** Zero fires *with* material: A7, A9, A1, A4, A2. Zero
+*material* until the header stamp and resolved kind reach real specs: A0, W1. Live: A6, A12, R1,
+A5; W2, W3, B2, and B1 as a record rather than a rejecter. Uninformative by construction until
+A10's three reproduced defeats are fixed: A10. Directional: W3 arriving should lower A6 fires per
+run, and cause-grouping should pull violations-per-cause below 3.
+
+**Dispositions the ledger fires on its own** — pre-registered, so they are not re-argued later:
+
+| trigger | disposition |
+|---|---|
+| A7 or A9 reaches ≥40 candidates across ≥15 distinct revisions in ≥3 repos with zero fires, **and** its positive control passes | demote to WARN, recorded with the ledger figures |
+| either fires once in the field | the demotion rule is cancelled and the row returns to KEEP |
+| A0 or W1 material stays 0 after 10 forward runs | the authoring surface is the defect, not the check — reopen the header stamp, do not touch the check |
+| B1's certify rate reaches 100% **and** the fraction of certifications followed by a further spec edit falls | the reviewer, not the check, has stopped working — a reviewer that never returns a non-certify verdict is measuring nothing, and nothing would otherwise notice |
+| A8 needs a third false-positive widening | A8 re-enters review as fitted-to-noise |
+
+Two demotions were argued for during the design of this instrument and are **not** taken here:
+A7 has 33–34 material units across 18 specs and A9 has 12 across 7, and the standing bar is ≥40
+across ≥15 revisions in ≥3 repos. Neither clears it. Honest still-unmeasured beats a forced
+verdict, and the table above is what turns that into a decision the data can make by itself.
+
+**What the ledger cannot answer.** Whether a check is *worth* its author-side cost, and whether a
+gated spec produces a better wave. It counts opportunity and fires. The rest is §ADR-0015's
+retired claim, and this instrument does not reopen it.
+
 ## The comparative claim is retired (ADR-0015)
 
 The controlled experiment against a disciplined baseline (designed 2026-06-06, maintainer-local) never

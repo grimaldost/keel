@@ -63,9 +63,34 @@ class Warning:
 
 
 @dataclass(frozen=True, slots=True)
+class Probe:
+    """What one check saw on one run: three states, not two (KEEL-B07).
+
+    A zero-fire count is ambiguous between *inert* and *never had an opportunity* — eight checks
+    are verify-when-present and three more are conditionally relaxed — so a two-state count
+    records the two indistinguishably and can answer neither "is this check sharp?" nor "is it
+    decayed ritual?".
+
+        candidates == 0                  n/a     — no construct of this shape was present
+        candidates > 0 and fired == 0    clean   — the check looked and found nothing
+        fired > 0                        fired
+
+    `causes` is the report unit: distinct clustered causes behind `fired`, and 0 exactly when
+    `fired` is 0. Until cause-grouping lands it equals `fired`, which is why the ledger line
+    carries a schema version.
+    """
+
+    check: str
+    candidates: int
+    fired: int
+    causes: int
+
+
+@dataclass(frozen=True, slots=True)
 class GateResult:
     """The outcome of running a gate."""
 
     passed: bool
     violations: tuple[Violation, ...] = ()
     warnings: tuple[Warning, ...] = ()
+    probes: tuple[Probe, ...] = ()

@@ -9,6 +9,7 @@ console-script executable.
 | `keel check-ready <spec> [--structure-only]` | Definition-of-Ready gate (Part A + pre-mortem cert); `--structure-only` runs Part A only, for the author loop | 0 pass, 1 fail, 2 not-runnable | **real** |
 | `keel spec-hash <spec>` | Print the canonical certification hash (the spec minus its certification section and its header `Status:` line) — what a saved pre-mortem artifact records as `Spec-hash:` (B2) | 0 ok, 2 not-runnable | **real** |
 | `keel new-spec <target> [--force]` | Stamp `spec-template.md` to a new spec path (the author on-ramp) | 0 ok, 2 exists | **real** |
+| `keel gate-health [--since] [--repo]` | Read back the local hit-rate ledger: per check, applicable runs / distinct revisions it fired on / causes / fire rate, split by author-loop vs full-gate runs | 0 | **real** |
 | `keel init <target> [--force]` | Copy the full template kit into a project | 0 ok, 2 exists | **real** |
 | `keel bind-check <bindings>` | All method-binding slots filled | 0 / 1 / 2 | stub |
 | `keel budget-drift <series> <actuals>` | Wave cost drift past threshold | 0 / 1 / 2 | stub |
@@ -16,6 +17,24 @@ console-script executable.
 
 `check-ready` exit 2 (not-runnable) covers a missing path, a directory, and an undecodable
 (non-UTF-8) spec — distinct from exit 1, which means the spec has real violations.
+
+## The gate hit-rate ledger
+
+`keel check-ready` appends one JSONL line per run to a **local** ledger, and `keel gate-health`
+reads it back. It records ids, counts, verdict buckets and hashes — never spec text: the writer
+only accepts fields that are ints, bools, closed enums, hex digests or slugs, so a free-text field
+is unrepresentable, and the spec is identified by a digest because stems name a project's roadmap.
+Nothing is uploaded.
+
+Location, in order: `$KEEL_GATE_LEDGER` → `$XDG_STATE_HOME/keel/gate-ledger.jsonl` →
+`~/.keel/gate-ledger.jsonl`. **Set `KEEL_GATE_LEDGER=off` to disable it.** It is user-level rather
+than per-repo on purpose: the question a hit-rate answers is how a check behaves across every repo
+it runs in, and one repo rarely holds enough specs to answer it.
+
+Each check reports three states, not two — `candidates == 0` means no construct of that shape was
+present (**n/a**), `candidates > 0` with no fires means the check looked and found nothing
+(**clean**), and only the second is evidence. Writing is fail-open: a full disk or a read-only
+home changes what is recorded and never the 0/1/2 exit codes.
 
 **The hash's scope is pinned per gate MINOR**, exactly as W1's kit-skew semantics are. Changing
 what `spec_hash` covers invalidates every `Spec-hash:` already recorded in a saved pre-mortem

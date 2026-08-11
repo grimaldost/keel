@@ -43,8 +43,13 @@ gate exists to catch exactly that over-claim in a spec):
    fixtures false-fires (or dozes) on the very template the kit ships. *Maintainer discipline at
    review time.*
 3. **Track each gate's hit-rate** — a gate that has fired zero times across N series is a triage
-   input: sharpen it, or cut it as decayed ritual. *Maintainer discipline, not yet mechanized:*
-   there is no hit-rate ledger in the tree today; treat this as a review question, not a guarantee.
+   input: sharpen it, or cut it as decayed ritual. *Machine-recorded:* `keel check-ready` appends
+   one line per run to a local ledger and `keel gate-health` reads it back
+   (`docs/cli-reference.md`). Read it in three states, not two — a check with **no applicable
+   runs** never had an opportunity and its silence says nothing in either direction; only a check
+   with applicable runs and no fires is evidence of anything. The ledger records the counts; the
+   disposition is still a judgement, and the standing bar for a cut is opportunity **and** a
+   positive control **and** no open defeat, all three.
 3a. **A measured null is scoped to what was measured.** A pre-mortem ablation found *danger
    framing* inert in agent-directed prose. That is not a licence to delete the `blast_radius:`
    field, whose text names *what else the fix reaches* — target naming, the highest-value measured

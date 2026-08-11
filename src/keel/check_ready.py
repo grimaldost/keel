@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 from keel.errors import format_error
-from keel.models import GateResult, Violation, Warning
+from keel.models import CHECK_IDS, GateResult, Probe, Violation, Warning
 
 # A3 placeholders: the four legacy tokens, plus the spec-template's angle-bracket idiom
 # (`<title>`, `<the observable condition ...>`). The angle-bracket form is matched on the shared
@@ -278,6 +278,57 @@ def _kit_skew_warning(text: str, header: str) -> list[Warning]:
     ]
 
 
+def _candidate_counts(
+    *,
+    text: str,
+    prose: str,
+    header: str,
+    sections: list[tuple[str, str]],
+    subsections: list[tuple[str, str]],
+    manifest_body: str | None,
+    concept_body: str | None,
+    cert: str | None,
+    structure_only: bool,
+) -> dict[str, int]:
+    """How many constructs of each check's own shape this spec presented (KEEL-B07).
+
+    "Candidates" is the denominator a fire rate needs and the thing that tells `n/a` apart from
+    `clean`. Each count uses the SAME parser its check uses — the regexes and row-extractors are
+    shared, not re-derived — and the suite pins the invariant that a check never fires without a
+    counted candidate, which is what catches drift if a check's shape changes and this does not.
+    """
+    anchors = sum(1 for m in _ANCHOR_RE.finditer(text) if _anchor_shaped(m.group(1)))
+    ranges = sum(1 for m in _ANCHOR_RANGE_RE.finditer(text) if _anchor_shaped(m.group(1)))
+    ledger_rows = len(_ledger_rows(cert))
+    structural = len(subsections) or 1  # an absent required section is itself one construct
+    certified = 0 if structure_only else int(cert is not None)
+    return {
+        'A0': int(bool(_field(header, 'kind'))),
+        'A1': structural,
+        'A2': structural,
+        # A3 scans lines: the construct is a line of prose that could carry a placeholder token.
+        'A3': sum(1 for line in prose.splitlines() if line.strip()),
+        'A4': max(len(_table_rows(manifest_body or '')) - 1, 0) or int(manifest_body is None),
+        'A5': max(len([c for c in _table_rows(concept_body or '') if len(c) >= 2]) - 1, 0)
+        or int(concept_body is None),
+        'A6': anchors,
+        'A7': len(_ADR_REF_RE.findall(text)),
+        'A8': len(_SECTION_REF_RE.findall(prose)),
+        'A9': len(_MODEL_ON_RE.findall(text)) + len(_REUSE_RE.findall(text)),
+        'A10': len(_non_enforced(sections)),
+        'A11': ranges,
+        'A12': ledger_rows,
+        'R1': int(cert is not None),
+        'B1': 0 if structure_only else 1,
+        'B2': certified,
+        'W1': 1,  # every spec either declares a kit version or does not
+        'W2': certified,
+        'W3': anchors + ranges + ledger_rows,
+        'W4': certified,
+        'W5': certified,
+    }
+
+
 def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateResult:
     """Assert a spec is Ready: well-formed (Part A) and pre-mortem-certified (Part B).
 
@@ -353,7 +404,33 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
             warnings += artifact_warnings
         warnings += _status_currency_warning(header, cert)
 
-    return GateResult(passed=not violations, violations=tuple(violations), warnings=tuple(warnings))
+    candidates = _candidate_counts(
+        text=text,
+        prose=prose,
+        header=header,
+        sections=sections,
+        subsections=subsections,
+        manifest_body=manifest_body,
+        concept_body=concept_body,
+        cert=cert,
+        structure_only=structure_only,
+    )
+    fired: dict[str, int] = dict.fromkeys(CHECK_IDS, 0)
+    for finding in (*violations, *warnings):
+        if finding.check:
+            fired[finding.check] += 1
+    probes = tuple(
+        # `causes` is the report unit. Until cause-grouping lands, one violation is one cause; the
+        # ledger line carries a schema version so the two eras stay comparable rather than mixed.
+        Probe(check=check, candidates=candidates[check], fired=fired[check], causes=fired[check])
+        for check in sorted(CHECK_IDS)
+    )
+    return GateResult(
+        passed=not violations,
+        violations=tuple(violations),
+        warnings=tuple(warnings),
+        probes=probes,
+    )
 
 
 # --- parsing -----------------------------------------------------------------
@@ -988,6 +1065,16 @@ def _fold_claimed(cert_body: str) -> bool:
     return False
 
 
+def _ledger_rows(cert_body: str | None) -> list[list[str]]:
+    """The fold ledger's data rows (header dropped) — A12's constructs, and its candidate count."""
+    if cert_body is None:
+        return []
+    ledger = next(
+        (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
+    )
+    return (_first_table_rows(ledger) if ledger else [])[1:]
+
+
 def _check_fold_ledger(
     cert_body: str | None, spec_path: Path
 ) -> tuple[list[Violation], list[Warning]]:
@@ -1007,7 +1094,7 @@ def _check_fold_ledger(
         (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
     )
     table = _first_table_rows(ledger) if ledger else []
-    header, rows = (table[0] if table else []), table[1:]
+    header, rows = (table[0] if table else []), _ledger_rows(cert_body)
     if not rows:
         if _fold_claimed(cert_body):
             return [
@@ -1201,6 +1288,27 @@ def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[V
     return violations
 
 
+def _non_enforced(sections: list[tuple[str, str]]) -> dict[str, str]:
+    """The Enforcement-status rows whose status is not `enforced`, keyed by invariant.
+
+    A10's trigger set, and therefore also A10's candidate count: with no such row the check has no
+    opportunity to fire, which is a different fact from looking and finding nothing. One home, so
+    the count cannot drift from the check.
+    """
+    body = _find_section(sections, 'enforcement')
+    if body is None:
+        return {}
+    rows: dict[str, str] = {}
+    for cells in _table_rows(body):
+        if len(cells) < 2:
+            continue
+        key = re.sub(r'[`*]', '', cells[0]).strip()
+        status = cells[1].strip().lower()
+        if key and 'invariant' not in key.lower() and status and status != 'enforced':
+            rows[key] = status
+    return rows
+
+
 def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> list[Violation]:
     """A10: no prose claims an invariant 'enforced'/'guaranteed' that its status table denies.
 
@@ -1212,17 +1320,7 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
     deferral in the words just before the claim ("not", "never", "n't", "to be", "will be", "yet",
     "once") suppresses it.
     """
-    body = _find_section(sections, 'enforcement')
-    if body is None:
-        return []
-    non_enforced: dict[str, str] = {}
-    for cells in _table_rows(body):
-        if len(cells) < 2:
-            continue
-        key = re.sub(r'[`*]', '', cells[0]).strip()
-        status = cells[1].strip().lower()
-        if key and 'invariant' not in key.lower() and status and status != 'enforced':
-            non_enforced[key] = status
+    non_enforced = _non_enforced(sections)
     if not non_enforced:
         return []
     lines = text.splitlines()
