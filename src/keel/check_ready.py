@@ -1027,10 +1027,12 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], l
 
 _FOLD_NONE = frozenset({'', 'none', 'noneoutstanding', 'na', 'nil'})
 
-# Anchor, optionally followed by a backticked snippet (0.12.0 §8): `path:line` `snippet`. The
-# snippet makes in-range drift detectable — a bare line number survives an edit that moves content
-# within range; the snippet does not.
-_LEDGER_ANCHOR_RE = re.compile(r'`?([^`\s]*[./][^`\s]*):(\d+)`?(?:[ \t]+`([^`]+)`)?$')
+# Anchor, optionally a `lo-hi` RANGE, optionally followed by a backticked snippet (0.12.0 §8):
+# `path:line` `snippet`. The snippet makes in-range drift detectable — a bare line number survives
+# an edit that moves content within range; the snippet does not. The range form is the standing
+# field ask (T1.4): a reviewer confirming a fold against several lines had to either drop the
+# range or record a line the fix does not live on.
+_LEDGER_ANCHOR_RE = re.compile(r'`?([^`\s]*[./][^`\s]*):(\d+)(?:-(\d+))?`?(?:[ \t]+`([^`]+)`)?$')
 
 
 def _ledger_anchor(cells: list[str]) -> re.Match[str] | None:
@@ -1142,29 +1144,51 @@ def _check_fold_ledger(
                 Violation(
                     where,
                     f'no cell in this fold-ledger row is an `artifact:line` confirmation — the '
-                    f'confirmation column reads {read!r}. Anchor the row to `path:line`, e.g. '
-                    '`docs/design/your-spec.md:142`; an optional backticked snippet after it is '
-                    'verified against that line.',
+                    f'confirmation column reads {read!r}. Anchor the row to `path:line` or '
+                    '`path:lo-hi`, e.g. `docs/design/your-spec.md:142`; an optional backticked '
+                    'snippet after it is verified against those lines.',
                     'A12',
                 )
             )
             continue
-        line_no = int(match.group(2))
-        lines, violation, resolve_warnings = _resolve_anchor(
-            base, match.group(1), line_no, where, 'A12'
-        )
+        path, lo = match.group(1), int(match.group(2))
+        hi = int(match.group(3)) if match.group(3) else None
+        # A range resolves on its LAST line, exactly as A11 does; a single anchor is lo == hi.
+        lines, violation, resolve_warnings = _resolve_anchor(base, path, hi or lo, where, 'A12')
         warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
-        snippet = match.group(3)
-        if snippet is not None and lines is not None:
-            actual = ' '.join(lines[line_no - 1].split())
-            if ' '.join(snippet.split()) not in actual:
+        if lines is None:
+            continue
+        if hi is not None:
+            if lo < 1 or lo > hi:
+                violations.append(Violation(where, f'anchor range {lo}-{hi} is malformed.', 'A12'))
+                continue
+            # A range cell earns A11's guarantee too: a confirmation that stops mid-literal is a
+            # truncated citation whether it sits in prose or in a ledger row.
+            if path.endswith(('.py', '.pyi')):
+                net, ever_negative = _bracket_balance(lines[lo - 1 : hi])
+                if net > 0 or ever_negative:
+                    violations.append(
+                        Violation(
+                            where,
+                            f'fold-ledger range :{lo}-{hi} does not close every bracket it opens '
+                            '(or closes one opened before it) — quote the literal complete or not '
+                            'at all.',
+                            'A12',
+                        )
+                    )
+                    continue
+        snippet = match.group(4)
+        if snippet is not None:
+            window = ' '.join(' '.join(lines[lo - 1 : hi or lo]).split())
+            if ' '.join(snippet.split()) not in window:
+                span = f'{lo}-{hi}' if hi else str(lo)
                 violations.append(
                     Violation(
                         where,
-                        f'fold-ledger snippet {snippet!r} does not match line {line_no} '
+                        f'fold-ledger snippet {snippet!r} does not match line {span} '
                         '(in-range drift: the anchored content moved — re-anchor the row).',
                         'A12',
                     )
@@ -1309,16 +1333,55 @@ def _non_enforced(sections: list[tuple[str, str]]) -> dict[str, str]:
     return rows
 
 
+def _unwrap_spans(text: str) -> str:
+    """Backtick spans replaced by their inner text — `key` still reads as key, and nothing is lost.
+
+    Distinct from the deletion used to find the claim word: there, a backticked `enforced` is
+    meta-discussion and must vanish. Everywhere the key or its context is read, deleting a span
+    removes the very words the check is looking for.
+    """
+    return re.sub(r'`([^`]*)`', r'\1', text)
+
+
+def _paragraph_bounds(lines: list[str], i: int) -> tuple[int, int]:
+    """The blank-line-delimited paragraph containing line i, as a [start, end) range.
+
+    The author's own unit, rather than a fixed window: a spec that wraps a claim three lines below
+    its subject is ordinary prose, and a fixed prev/this/next window read it as unrelated. A blank
+    line still separates topics, so a paragraph away stays out of reach.
+    """
+    start, end = i, i + 1
+    while start > 0 and lines[start - 1].strip() and not lines[start - 1].lstrip().startswith('|'):
+        start -= 1
+    while end < len(lines) and lines[end].strip() and not lines[end].lstrip().startswith('|'):
+        end += 1
+    return start, end
+
+
+# A negation only negates the clause it is in. Sentence and clause punctuation ends the lookback,
+# so neither an ordinary aside ("is, once again, enforced") nor a negation in the PREVIOUS
+# sentence ("The row is not optional. `X` is enforced.") reads as a deferral of this claim.
+_CLAUSE_BREAK_RE = re.compile(r'[.,;:()–—]')  # noqa: RUF001 (en/em dash are clause breaks)
+
+
 def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> list[Violation]:
     """A10: no prose claims an invariant 'enforced'/'guaranteed' that its status table denies.
 
     Keyed off the spec-template 'Enforcement status' table (the convention), not free-text parsing;
     checked only when that table is present. A claim word inside backticks does not fire (a quoted
-    `enforced` is meta-discussion). The invariant key is matched with backtick spans kept as their
-    inner text (so a backticked `key` still counts) across the wrapped neighbourhood (prev+this+next
-    line), so a hard line-wrap between key and claim no longer hides an over-claim; a negation or
-    deferral in the words just before the claim ("not", "never", "n't", "to be", "will be", "yet",
-    "once") suppresses it.
+    `enforced` is meta-discussion).
+
+    Three windows, each scoped to what it is for, and each the fix to a reproduced defeat:
+
+    * the invariant KEY is looked for across the claim's whole paragraph, not a prev/this/next
+      line window — a claim three lines below its subject is ordinary wrapping, not a new topic;
+    * the negation LOOKBACK stops at the nearest sentence or clause boundary, so a negation the
+      claim does not belong to no longer suppresses it. That covers both the aside ("is, once
+      again, enforced") and the previous sentence, whose "not" became adjacent to the claim only
+      because the backticked invariant name between them was deleted from this view.
+
+    A genuine deferral puts its negation next to the claim — "not enforced", "not yet enforced",
+    "to be / will be enforced", "planned to be enforced" — and all of those still suppress.
     """
     non_enforced = _non_enforced(sections)
     if not non_enforced:
@@ -1332,15 +1395,21 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
         claim = _CLAIM_RE.search(bare)
         if claim is None:
             continue
-        # neighbourhood for the wrap fix, excluding table rows (their keys are the status source,
-        # not prose to match a claim against).
-        near = [ln for ln in lines[max(0, i - 1) : i + 2] if not ln.lstrip().startswith('|')]
-        before = re.sub(r'`[^`]*`', '', ' '.join(lines[max(0, i - 1) : i + 1]))
+        # Table rows are excluded from both windows: their keys are the status source, not prose
+        # to match a claim against.
+        start, end = _paragraph_bounds(lines, i)
+        near = [ln for ln in lines[start:end] if not ln.lstrip().startswith('|')]
+        upto = [ln for ln in lines[start : i + 1] if not ln.lstrip().startswith('|')]
+        # Spans are DELETED here, not unwrapped: the claim word was located on the same deleted
+        # view, so a backticked `enforced` elsewhere on the line cannot become the anchor `rfind`
+        # locks onto and shift the lookback off the real claim.
+        before = re.sub(r'`[^`]*`', '', ' '.join(upto))
         cut = before.rfind(claim.group(0))
-        window_before = ' '.join(before[:cut].split()[-4:]).lower() if cut != -1 else ''
+        clause = _CLAUSE_BREAK_RE.split(before[:cut])[-1] if cut != -1 else ''
+        window_before = ' '.join(clause.split()[-4:]).lower()
         if _NEG_RE.search(window_before):
             continue
-        window = re.sub(r'`([^`]*)`', r'\1', ' '.join(near)).lower()
+        window = _unwrap_spans(' '.join(near)).lower()
         for key, status in non_enforced.items():
             if key.lower() in window:
                 violations.append(

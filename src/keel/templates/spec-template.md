@@ -82,8 +82,8 @@ line, and for a `.py`/`.pyi` anchor flags a range that opens a bracket it never 
 literal complete or not at all.*
 
 *Gate-adversarial examples: when the spec must QUOTE something the gate scans for — a literal
-`Verdict:` line, a to-do placeholder token, an example `### heading` — fence it. Fenced content is
-masked before every check; unfenced, the same example false-fails A3 or shadows the certification.*
+`Verdict:` line, a to-do token, an example `### heading` — fence it. Fenced content is masked before
+every check; unfenced, it false-fails A3 or shadows the certification.*
 
 *Measurement / experiment specs: the experiment-design axes, and the DoR items that gate them, live
 in `pre-mortem-profiles.md`. Fill that sheet and name it here.*
@@ -128,9 +128,10 @@ certification; it does not prove the pass was blind.*
 ### Fold ledger
 
 *Required when the certification claims a non-trivial fold (R1); a clean certify dozes. One row per
-folded finding, so the post-fold delta is reviewable. A12 holds each `artifact:line` to a resolving
-anchor — the fold was recorded against a real line, not that it is right — and verifies a backticked
-snippet after it. Header only and A12 dozes; the ledger must be the FIRST table under this heading.*
+folded finding. A12 holds each `artifact:line` — or `artifact:lo-hi` — to a resolving anchor:
+recorded against a real line, not that it is right. A backticked snippet after it is verified
+against those lines, and a `.py` range must close its brackets. Header only and A12 dozes; the
+ledger is the FIRST table under this heading.*
 
 | Finding | Target section | artifact:line | Confirmed |
 |---|---|---|---|

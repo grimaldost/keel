@@ -547,6 +547,62 @@ def test_fold_ledger_resolves_passes_a12(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
+# --- T1.4: a confirmation cell may name a RANGE ------------------------------
+#
+# The standing field ask: a reviewer confirming a fold that spans several lines had to either
+# drop the range or record a single line the fix does not live on. Two independent reports, one
+# behaviour change. Accepting ranges must not accept TRUNCATED ranges, so A11's bracket-balance
+# guarantee comes with it — a citation that stops mid-literal is truncated wherever it sits.
+
+
+def _staged_module(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text(
+        'COLUMNS = (\n    "a",\n    "b",\n)\n\n\ndef total(rows):\n    return sum(rows)\n',
+        encoding='utf-8',
+    )
+
+
+def test_fold_ledger_accepts_a_balanced_range_cell_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:1-4` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_rejects_a_truncated_range_cell_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:1-3` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('bracket' in v.message for v in result.violations), [
+        v.message for v in result.violations
+    ]
+
+
+def test_fold_ledger_range_snippet_matches_anywhere_in_the_range_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:1-4` `"b"` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_range_snippet_outside_the_range_still_fails_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:1-4` `def total` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('drift' in v.message for v in result.violations)
+
+
+def test_fold_ledger_backwards_range_cell_is_malformed_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:4-2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('malformed' in v.message for v in result.violations)
+
+
 def test_fold_ledger_dotfile_anchor_resolves_passes_a12(tmp_path):
     # The 0.10.0 self-build friction: a fold-ledger anchor to a dotfile (`.gitignore:N`) was
     # rejected as "no resolving anchor" because the parser required a name.ext shape.
