@@ -9,6 +9,13 @@ next time. That is how "a bug bites once" actually holds.
 
 ## Generic items
 
+Ordinary code review — style, naming, obvious bugs — is **delegated** to the reviewer's own
+judgement and the project's linters; the items below are the ones a reviewer reliably skips
+without a prompt, starting with the one this checklist exists for.
+
+- [ ] **Gate completion** — every type/lint/test gate ran to completion (exit 0, no
+      "fatal" / "source file found twice" halt), not merely error-count ≤ baseline; a
+      checker that bailed early must fail the gate, not pass it.
 - [ ] **Scope** — single concern; cites exactly one spec section; no unrelated
       refactor ("while I'm here").
 - [ ] **Correctness** — does what the cited section's acceptance criterion says.
@@ -22,9 +29,6 @@ next time. That is how "a bug bites once" actually holds.
 - [ ] **Docs** — public API/config/contract changes are documented.
 - [ ] **No coupling smell** — no reaching through `getattr`/private attrs to dodge
       a boundary.
-- [ ] **Gate completion** — every type/lint/test gate ran to completion (exit 0, no
-      "fatal" / "source file found twice" halt), not merely error-count ≤ baseline; a
-      checker that bailed early must fail the gate, not pass it.
 
 ## Project-specific items
 

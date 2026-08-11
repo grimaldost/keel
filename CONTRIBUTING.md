@@ -45,6 +45,13 @@ gate exists to catch exactly that over-claim in a spec):
 3. **Track each gate's hit-rate** — a gate that has fired zero times across N series is a triage
    input: sharpen it, or cut it as decayed ritual. *Maintainer discipline, not yet mechanized:*
    there is no hit-rate ledger in the tree today; treat this as a review question, not a guarantee.
+3a. **A measured null is scoped to what was measured.** A pre-mortem ablation found *danger
+   framing* inert in agent-directed prose. That is not a licence to delete the `blast_radius:`
+   field, whose text names *what else the fix reaches* — target naming, the highest-value measured
+   property in that same body — nor to touch doctrine's blast-radius language, which routes a
+   human's second-pass decision and was never in the study's scope. Recorded here as a
+   **non-change**, with `tests/test_consumed_lines.py` pinning the field's target-naming form so
+   the register cannot drift later into the thing the null was actually about.
 4. **Reflection-triage should gate the next series** — recurring traps promoted before the next
    DoR. *Maintainer discipline, not yet mechanized:* `check-ready` does not read a triage state, so
    nothing blocks a spec on an untriaged backlog; the operator holds this by hand.
