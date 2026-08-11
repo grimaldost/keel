@@ -1,8 +1,42 @@
 # keel improvement backlog
 
 - **Opened:** 2026-08-11, against the 0.13.1 tree.
-- **Status:** proposed. Nothing here is committed work; items land through the normal loop
-  (CONTRIBUTING §The loop) and are recorded in `CHANGELOG.md` when they ship.
+- **Status:** in progress. Items land through the normal loop (CONTRIBUTING §The loop) and are
+  recorded in `CHANGELOG.md` when they ship. Each item below carries its own **Status** line once
+  worked; an item with none is untouched.
+
+## Wave 1 — 2026-08-11, branch `backlog/wave-1`
+
+Nine items, chosen as those gated on neither a re-run of the suite's eval harness nor a sibling
+project moving first: **KEEL-B02** (fold the pre-mortem directives to one source, ADR-0017),
+**KEEL-B06** (body budgets), **KEEL-B01** (declared spec kind), **KEEL-B03** (one field parser),
+**KEEL-B04** (the reviewer's own anchor form), **KEEL-B29** (delete the empty `hooks.json`),
+**KEEL-B05** (the pre-commit half + the enforcement statement), **KEEL-B08** (changelog currency +
+release tags), **KEEL-B36** (`.remember/` cleared).
+
+Two things the wave leaves for the operator, both deliberate:
+
+- **No release was cut.** `origin/dev/agent-agnostic-surface` already carries a
+  `release: keel 0.14.0` commit, unmerged, so this branch must not claim that number. The wave's
+  changes are therefore unrecorded in `CHANGELOG.md` — which KEEL-B08's own new CI job will fail
+  on when this branch is opened as a PR. That is the gate working: the release entry and the
+  version bump are the merge step, and they have to reconcile with the in-flight 0.14.0 first.
+- **Tags are local.** v0.11.1, v0.12.0, v0.13.0 and v0.13.1 were created at their release commits
+  on main; `git push --tags` publishes them.
+
+Deliberately **not** taken in this wave, each with the gate that holds it:
+
+| Item | Gate |
+|---|---|
+| KEEL-B07, KEEL-B09 | a measurement on the suite's eval harness, which is being repaired; KEEL-B09 additionally has to be built as a bank on that harness (its cross-review note) rather than as a bespoke three-arm run |
+| KEEL-B28 | the skills collection's CRAF-B29 holdout finding; only the specificity half is keel's either way |
+| KEEL-B31 | the research runner's MANT-B01/B02 — deleting `scripts/external_review/` before those land replaces a working client with one that aborts |
+| KEEL-B30, KEEL-B32 (series-skeleton half) | the bound orchestrator's live measurement window (CONV-B18/CONV-B33): editing the skeleton mid-window would make a near-zero reading a record of our own edit |
+| KEEL-B32, KEEL-B33, KEEL-B34 | two sibling projects are about to point at this kit by reference (FATH-B37, MANT-B48); `review-checklist.md` and `definition-of-done.md`'s gate commands must not be cut before those consumers move |
+
+`.remember/` was archived to the operator's session scratchpad before removal (it is gitignored, so
+nothing in git recorded it); the `.gitignore` entry stays, because the enclosing tool can recreate
+the directory and an ignored path keeps `git status` honest about the repo's own files.
 
 This is the leverage-ordered successor to ADR-0013's deferred-call list, which is now fully
 discharged (see "Reconciliation" below). It merges three inputs:
@@ -99,6 +133,11 @@ recorded here explicitly. `[triage]`
   checked in full; the missing-section violation names the exact sections missing rather than the
   generic requirement. Homes: `check_ready.py` + `spec-template.md` header +
   `definition-of-ready.md` Part A reference + tests.
+- **Status:** **shipped** 2026-08-11 (wave 1). `Kind: series | single-change` in the header;
+  `single-change` relaxes all three trio sections to absent-ok and moves the
+  acceptance-criterion floor to the document; a present section is still checked in full; an
+  unknown kind fails naming the offending token; the three absence violations now name the
+  exact heading and the declaration that relaxes it.
 - **Effort:** M · **Source:** `[triage Q1a]` `[research]`
 
 ### KEEL-B02 — Fold the pre-mortem directives to one source before anything else edits them
@@ -119,6 +158,11 @@ recorded here explicitly. `[triage]`
 - **Disagreement:** the triage assumes the pair persists — Q3b and Q6a are both written as
   drift-marker-paired edits landing twice. The audit sentences the duplication. Resolved by
   ordering, not by choosing: fold first, then those edits land once against one file.
+- **Status:** **shipped** 2026-08-11 (wave 1), recorded as ADR-0017. The template is the single
+  home; the agent is a thin identity + dispatch + output-contract wrapper that Reads it; the
+  34-marker drift guard is retired and replaced by a test pinning the arrangement
+  (delegation, non-duplication, identity); the four eval/experiment probes' parentheticals
+  became one table.
 - **Effort:** M · **Source:** `[review]` `[research]`
 
 ### KEEL-B03 — One shared field-extraction parser for Part A, and violations that name the offending token
@@ -137,6 +181,11 @@ recorded here explicitly. `[triage]`
   resolves a row's anchor from the cell that *is* an `artifact:line`, any column, and names the
   offending token and the cell it read on failure; (c) the `§N` resolver skips a References section
   and a `(§N)` riding a cross-doc citation. Escalate to the parser; do not re-prose the template.
+- **Status:** **shipped** 2026-08-11 (wave 1). `_first_path_token` is the one home for
+  path-valued fields (applied to `Certification artifact:`); A12 reads the anchor from
+  whichever cell IS one and names the cell it read on failure, with the column-break
+  diagnostic promoted ahead of the search so it survives the widening; A8 skips a References
+  section and no longer loses a cross-doc cue to an intervening `(`.
 - **Effort:** M · **Source:** `[triage Q2a/b/c]`
 
 ### KEEL-B04 — Accept the anchor form keel's own reviewer emits
@@ -153,6 +202,10 @@ recorded here explicitly. `[triage]`
   the agent's output contract requires repo-root-relative anchors in `evidence:` and in every cited
   line, so the fold stops manufacturing gate failures.
 - **Ordering:** the output-contract half lands after KEEL-B02, as a single-file edit.
+- **Status:** **shipped** 2026-08-11 (wave 1). `_resolve_anchor` applies the unique-basename
+  resolution with a WARN naming the expansion (W3) and still verifies the line range and any
+  snippet against the file it found; ambiguity fails naming the candidates. The paired
+  output-contract half landed once, in the template (ADR-0017's one home).
 - **Effort:** S · **Source:** `[triage Q3a/b]`
 
 ### KEEL-B05 — Turn A10's predicate on the repo itself and close the four enforcement gaps
@@ -179,6 +232,12 @@ recorded here explicitly. `[triage]`
   names a compensating control per blocked hook, is CRAF-B26. Read both before choosing between
   installing and deleting — "install" here means the hooksPath form, and if that is judged too
   house-specific to carry in a consumer-agnostic kit, then delete and name CI is the honest branch.
+- **Status:** **partly shipped** 2026-08-11 (wave 1). Two of the four gaps closed:
+  `hooks.json` deleted (KEEL-B29), and the pre-commit hook installed in the `core.hooksPath` +
+  `uv run python -m pre_commit` form the cross-review note names, widened to three of the four
+  DoD gates. CONTRIBUTING now carries an enforcement-status table — A10's predicate turned on
+  its author — stating all four. The remaining two are `bind-check` (KEEL-B17) and
+  `budget-drift` (KEEL-B30), both still documented stubs that exit 2.
 - **Effort:** M · **Source:** `[review]` `[research]` `[cross-review]`
 
 ### KEEL-B06 — Give the two bodies that only grow an explicit budget
@@ -192,6 +251,10 @@ recorded here explicitly. `[triage]`
 - **Change:** record in CONTRIBUTING a word cap for the pre-mortem directive text and for the
   spec-template contract notes, and the rule that a new directive or note names the one it replaces
   or merges into. A budget is what makes KEEL-B02's compression hold rather than refill.
+- **Status:** **shipped** 2026-08-11 (wave 1). Caps recorded in CONTRIBUTING ("Body budgets")
+  and enforced by `tests/test_body_budgets.py`, which also asserts the doc and the suite carry
+  the same numbers: directive block 2,050 · spec-template contract notes 925 · agent wrapper
+  550. Net-new directive prose still waits on KEEL-B09.
 - **Effort:** S · **Source:** `[review]` `[research]`
 
 ### KEEL-B07 — Instrument gate hit-rate so "is this check sharp or decayed ritual?" is answerable
@@ -221,6 +284,11 @@ recorded here explicitly. `[triage]`
   `agents/**`, `skills/**`, `commands/**`) with `CHANGELOG.md` unchanged fails CI; (b) a
   release-flow assertion that every released version carries a tag, plus a recorded decision on the
   untagged releases.
+- **Status:** **shipped** 2026-08-11 (wave 1). `scripts/changelog_currency.py` + CI's
+  `changelog-currency` job hold (a); `tests/test_release_flow.py` holds (b), and v0.11.1,
+  v0.12.0, v0.13.0, v0.13.1 were tagged retroactively at their release commits on main
+  (0.2.0/0.2.1/0.3.0 are pre-publication history with no commit to tag — recorded in
+  CONTRIBUTING §Release discipline).
 - **Effort:** S · **Source:** `[triage Q9a/b]` `[research]`
 
 ---
@@ -615,14 +683,14 @@ Features the audit sentenced. Each names its replacement; nothing is removed wit
 
 | ID | Claim | Replacement | Evidence | Effort | Source |
 |---|---|---|---|---|---|
-| KEEL-B29 | Delete `hooks/hooks.json` — it ships `{"hooks": {}}`, is absent from the plugin-reference entry-point table, and is not covered by the entry-point coverage test, while the doctrine names hooks as one of the two deterministic machines | Native hooks in `settings.json`; if a hook is wanted, the concrete candidate is a PostToolUse hook on Edit/Write to a bound spec path running `keel check-ready --structure-only` | Feature review; keel's own bindings sheet records it "not bound" | S | `[review]` |
+| KEEL-B29 · **shipped** 2026-08-11 | Delete `hooks/hooks.json` — it ships `{"hooks": {}}`, is absent from the plugin-reference entry-point table, and is not covered by the entry-point coverage test, while the doctrine names hooks as one of the two deterministic machines | Native hooks in `settings.json`; if a hook is wanted, the concrete candidate is a PostToolUse hook on Edit/Write to a bound spec path running `keel check-ready --structure-only` | Feature review; keel's own bindings sheet records it "not bound" | S | `[review]` |
 | KEEL-B30 | Remove `keel budget-drift` — per-wave economic policy is the orchestrator's residual value, not the method layer's, and ADR-0003 records this gate was scaffolded with no cited motivating failure | The bound series orchestrator's per-phase budgets and economy readback, plus one pointer line in the series skeleton | Feature review; ADR-0003 thinness rule | S | `[review]` `[research]` |
 | KEEL-B31 | Delete `scripts/external_review/` — a second bespoke multi-vendor client in a repo whose own ADR-0003 forbids engine-flavoured execution (it is gitignored for that reason), and it saves N independent reviews without comparing source provenance | The operator's existing multi-model research tool, which already does fan-out with an epistemic sidecar; keep the *practice* (a skipped enrichment panel is a recorded decision) in CONTRIBUTING | Feature review; visible drift between its README and its code | S | `[review]` `[research]` |
 | KEEL-B32 | Compress five prose sites to one-line pointers — the same text has four homes, and ADR-0016 §2 already decided the operator close is prescribed once with one-clause references everywhere else | The one authoritative home in each case: `docs/getting-started.md` and doctrine §3 for `apply-method`'s setup and subset-of-phases paragraphs; the `apply-method` skill for `/keel-apply`'s body; doctrine §2 and `definition-of-ready.md` Part B for `/keel-premortem`'s round-economy and operator-close paragraphs; the kit README reduced to its slot→file and upgrade→file tables; doctrine sharpening 5 reduced to naming the axes with a pointer to `pre-mortem-prompt.md`; the series skeleton's `[budget]` block demoted to an orchestrator pointer | Feature review; `/keel-premortem` violates its own governing ADR | M | `[review]` |
 | KEEL-B33 | Cut ambient content from three kit templates — generic review, linter policy and ADR structure are what a strong model and native review produce unprompted | `adr-template.md` → four headings plus the two non-ambient clauses (name the invariant explicitly; never edit an Accepted ADR); `review-checklist.md` → the method-specific and trap-derived items, with generic review explicitly delegated; `definition-of-done.md` → foreground the two non-inferable traps (a wrapped tool must have run to completion; every referenced artifact is `git ls-files`-tracked) and mark the generic block as the bind-your-commands stub it is | Feature review; `[research]` measures lint leakage at 62% and skill leakage at 35% of studied repos | M | `[review]` `[research]` |
 | KEEL-B34 | Fold `docs/phases-reference.md` and `docs/concepts.md` into doctrine — eleven reference docs plus doctrine plus sixteen ADRs for four commands, one skill, one agent, ten templates and six CLI commands | Doctrine §3 as the only home for the phase table; doctrine §5–§6 for the three-scopes framing. The glossary is the counterexample and stays — without it a reader cannot parse the gate's own messages | Feature review | M | `[review]` |
 | KEEL-B35 | Delete `tests/test_gate_contracts.py` once both stubs are resolved — it exists to keep "deferred" honest, and has nothing left to pin when nothing is deferred | The built `bind-check`'s own tests (KEEL-B17); the budget-drift arm goes with the command (KEEL-B30) | Feature review | S | `[review]` |
-| KEEL-B36 | Clear the untracked `.remember/` directory from the checkout — a hand-rolled memory-bank surface (hook error logs, dated memory files, a today/done convention) that ships with nothing and is dead weight in the tree | Native persistent auto-memory | Operator observation; not a keel feature — housekeeping, do it when the enclosing tool is next reviewed | S | `[review]` `[research]` |
+| KEEL-B36 · **shipped** 2026-08-11 | Clear the untracked `.remember/` directory from the checkout — a hand-rolled memory-bank surface (hook error logs, dated memory files, a today/done convention) that ships with nothing and is dead weight in the tree | Native persistent auto-memory | Operator observation; not a keel feature — housekeeping, do it when the enclosing tool is next reviewed | S | `[review]` `[research]` |
 
 The pre-mortem agent body and its 34-marker drift guard are also sentenced; that work is
 **KEEL-B02** in Now, because everything else touching the directive text is sequenced behind it.
