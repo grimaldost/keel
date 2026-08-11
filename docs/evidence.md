@@ -71,6 +71,33 @@ verdict, and the table above is what turns that into a decision the data can mak
 gated spec produces a better wave. It counts opportunity and fires. The rest is §ADR-0015's
 retired claim, and this instrument does not reopen it.
 
+### Amendment, 2026-08-11 — after the retrospective census, before any forward ledger data
+
+Nothing above is rewritten. Two things are added, because a later reader would otherwise inherit a
+base rate that is thinner than it sounds and a widening that was never held to the standard the
+table above sets for A8.
+
+**A5 and R1 are listed "Live" on one historical hit each, and neither hit is strong.** A5's single
+census fire has a robust core of **0** — it does not reproduce in all three trees, and it sits in
+the tree whose known bias is over-firing on targets the wave itself creates. R1's single fire is on
+a document dated 2026-06-10, three days *before* R1 shipped (0.5.0, 2026-06-13); across the 16
+later certifications in the corpus it never fired, which is the same shape as the checks recorded
+as internalised, and every author after that date knew the check existed. Consequence for reading
+the ledger: **a zero-fire forward record for A5 or R1 is consistent with that base and is not a
+regression**, and neither clears the standing three-part bar on the strength of the census alone.
+
+**A check widened to close a false negative is re-run against the control arm before the widening
+is called a fix.** The control arm is the 44 design documents in these repos that were never
+authored to the method. The rule mirrors A8's above, and it was applied retroactively to the three
+widenings shipped on 2026-08-11 — A10's key window (prev/this/next line → the whole paragraph), W1
+to the unstamped case, A12's ledger anchor to ranges. Measured over the 44 documents under the
+pre-widening and post-widening gates: **the fired set is identical, document for document, on all
+19 checks**; the only movement is W1's warnings, 0 → 44, which is the widening's whole point. Two
+of the three, though, have **no material** in that corpus — no control document carries an
+Enforcement-status table or a fold ledger — so A10's and A12's false-positive rates are recorded as
+**unmeasured**, not as zero. A widening whose control corpus cannot exercise it says so in the
+CHANGELOG rather than claiming a clean bill.
+
 ## The comparative claim is retired (ADR-0015)
 
 The controlled experiment against a disciplined baseline (designed 2026-06-06, maintainer-local) never
