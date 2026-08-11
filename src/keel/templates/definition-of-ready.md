@@ -17,36 +17,10 @@ only when the spec is well-formed AND a blind pre-mortem certification is record
 ## Part A — well-formedness checks (a script asserts these)
 
 These assert *form*, not *correctness* — a well-formed spec can still be wrong (that
-is Part B's job).
-
-- [ ] Every section is numbered (§1, §2, …).
-- [ ] Every numbered section has a **non-trivial** acceptance criterion.
-- [ ] No `TBD` / `TODO` / `FIXME` / `???` anywhere in the spec.
-- [ ] PR ↔ section manifest exists; every section is covered by **exactly one** PR
-      and every PR cites **exactly one** section (a bijection) — unless the header declares
-      Decompose skipped, in which case an absent manifest is accepted and a present one is
-      still fully checked.
-- [ ] Every path in the concept→module map exists, or is explicitly marked "to be
-      created" **and** claimed by a numbered section.
-- [ ] The three structural sections above (numbered sections, the manifest, the concept→module
-      map) are required — unless the header declares `Kind: single-change`, which relaxes all
-      three to absent-ok and moves the acceptance-criterion floor to the document. A declared
-      kind sizes the gate to the round; it does not weaken a section that is present.
-- [ ] Every `path:line` anchor resolves (file + line exist) and any quoted snippet — the
-      backticked token right after the anchor — matches.
-- [ ] Every cited `docs/adr/NNNN-…` uses a number free on the base (no collision).
-- [ ] Every `**Model-on:**` / `**Reuse:**` reference present resolves — the path exists
-      (and the symbol, for `path::symbol`) (A9).
-- [ ] Every in-text `§N` reference resolves to a numbered section (A8); the `§` glyph
-      denotes this spec's own sections — a cross-document reference names the document.
-- [ ] When an `Enforcement status` table is present, no prose claims an invariant
-      "enforced" / "guaranteed" that the table marks review-only / planned / absent (A10).
-- [ ] Every `path:lo-hi` range anchor resolves (file + `hi` line exist); for a `.py`/`.pyi`
-      anchor it must additionally close (string/comment-aware) every bracket it opens (A11) —
-      a citation cannot truncate a collection literal mid-structure.
-- [ ] A certification that claims a non-trivial fold carries a `### Fold ledger` with a resolving
-      `artifact:line` row per finding (R1); when rows are present each anchor resolves (A12); a clean
-      certify (folded in: none) dozes.
+is Part B's job). You do not check them by hand: `keel check-ready <spec>` is the script,
+and the block below is the contract it enforces, check by check. A prose restatement of
+that block used to sit here; it was a lossy paraphrase of the same facts, and a reader
+who trusted it over the block trusted the older of two copies.
 
 ### Reference: what `check_spec_ready` asserts
 
@@ -107,34 +81,10 @@ are stateless.
 - [ ] A post-fold coherence re-read was performed and recorded (`Post-fold coherence:` in
       the certification): each folded finding is applied consistently across all sections,
       and any scope-narrowing finding had its dependent counts re-derived.
-- [ ] *(eval/experiment specs)* each measured criterion carries a one-line baseline expectation —
-      will the control / `bare` arm plausibly pass it? — and the reviewer flagged ceiling/floor risk:
-      a procedurally-perfect spec still measures nothing if its criteria cannot vary across arms.
-- [ ] *(eval/experiment specs)* instrument defeatability — the reviewer asked the cheapest way an
-      agent sidesteps the planted difficulty (a tool, a shortcut, a grep) so the run measures nothing;
-      an instrument trivially bypassed yields a null for a reason the design never controlled (distinct
-      from the ceiling/floor question above).
-- [ ] *(eval/experiment specs)* feasibility-grounding ran FIRST — before internal-validity attacks, the
-      reviewer grounded the headline's key variable against the empirical record it needs (prior-run
-      data/ledger, the reused instrument); if that record cannot supply the variation the study measures,
-      the study is null on these instruments and the rest of the review short-circuits.
-- [ ] *(eval/experiment specs)* the experimental design is named, not just the subject: the estimand +
-      unit of analysis (per-item delta vs aggregate); enough reps to detect the minimum effect worth
-      detecting — a 1-rep delta is noise (a power question, distinct from feasibility above: power is
-      whether N can detect the effect, feasibility is whether the record supplies the variable); blinding
-      + held-constant factors; and a correctness oracle distinct from "ran green" (distinct from the
-      baseline-expectation item).
-- [ ] *(eval/experiment specs)* the causal path the study assumes is traced against code from BOTH ends:
-      the measured path actually READS what the treatment changes (a treatment the measured call recomputes
-      live or never reads is inert — mis-built, not null; distinct from feasibility), and the measured
-      unit's capabilities beyond the intended input (tools, network, filesystem + cwd, prior/session state)
-      include no side channel to the ground truth (a side channel CONFOUNDS the result — distinct from
-      defeatability's null).
-- [ ] *(eval/experiment specs)* every isolation / safety / leakage invariant the spec asserts names a
-      buildable enforcement mechanism claimed by a numbered §/PR — not a bare assertion, and not a smoke
-      that tests a jail no PR creates.
-- [ ] *(eval/experiment specs)* the analysis plan is pre-registered — fixed before results are seen, not
-      chosen after (the spec-template advertises this axis as DoR-gated; this is that gate).
+- [ ] *(eval/experiment specs only)* the seven items on the measurement profile
+      (`pre-mortem-profiles.md`) are certified, feasibility first. They gate the axes the spec's
+      `## Experiment design (Part B)` section names, and they are dispatched only for that kind —
+      a code spec neither reads them nor pays for them.
 
 ### The operator close (discharging a CONDITIONAL-CERTIFY)
 

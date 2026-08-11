@@ -51,15 +51,21 @@ gate exists to catch exactly that over-claim in a spec):
 
 ## Body budgets
 
-Three shipped bodies are dispatched or read **in full** every time they are used, and each has
+Four shipped bodies are dispatched or read **in full** every time they are used, and each has
 only ever grown — one clause per finding. Each now carries a number, enforced by
 `tests/test_body_budgets.py`:
 
 | Body | Cap (words) | Why it is capped |
 |---|---|---|
 | The pre-mortem directive block — the fenced prompt in `src/keel/templates/pre-mortem-prompt.md` | 2,050 | dispatched on every pre-mortem; the most expensive prompt in the surface, and since ADR-0017 the only copy of it |
-| The spec-template's italic gate-contract notes (`src/keel/templates/spec-template.md`) | 925 | read by every author the scaffold reaches — 64 of the template's 185 lines |
+| The spec-template's italic gate-contract notes (`src/keel/templates/spec-template.md`) | 500 | read by every author the scaffold reaches. Ratcheted from 925 when the duplicated notes moved to their one home |
 | The bundled agent wrapper (`agents/pre-mortem-review.md`) | 550 | identity + dispatch + output contract only (ADR-0017); the directives live in the template |
+| The Definition-of-Ready sheet (`src/keel/templates/definition-of-ready.md`) | 1,650 | read end-to-end at adoption and by every reviewer. First cap, set at the measured size after the Part-A prose restatement and the measurement-profile items moved out |
+
+The DoR cap is deliberately set where the body actually is, not where it should end up: the
+remaining candidates (Part-B prose beyond the reference block, the certification framing, the
+operator close) are held behind a measurement that has not run, and a cap chosen to force an
+unlicensed cut would be a verdict dressed as a budget.
 
 The rule the caps enforce: **a promotion that adds prose to one of these bodies names the one it
 displaces or merges into**, in the CHANGELOG entry that ships it. That rule was already stated and

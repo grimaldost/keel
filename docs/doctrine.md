@@ -189,6 +189,15 @@ round is typically a Decide+Specify subset and skips Decompose / Implement / Gat
 are named-as-skipped, not faked. The 8 are the menu, not a mandate (the task / series / program scopes
 in Composition below describe the same nesting at larger grain).
 
+Two header declarations in a spec size the gate to the round it actually ran, and both are read at
+adoption time rather than at every authoring: `Kind: single-change` relaxes the three structural
+sections — numbered sections, the PR↔section manifest, the concept→module map — to absent-ok and
+moves the acceptance-criterion floor to the document, because a spec that decomposes into nothing
+has none of the three to write; `Phases: Decide+Specify (Decompose: skipped)` relaxes the manifest
+alone. A section that IS present is still checked in full, everything else in Part A applies
+regardless, and each declaration is content the pre-mortem can challenge — not an escape hatch
+(ADR-0014).
+
 | Phase | Artifact | Entry gate (Ready) | Exit gate (Done) |
 |---|---|---|---|
 | 1 Decide | Numbered ADR | A choice with non-obvious trade-offs is identified | ADR written, numbered, Accepted; alternatives + decision + consequences recorded |

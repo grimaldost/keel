@@ -25,6 +25,7 @@ The method (§7) needs five slots filled in any project. Each maps to a template
 | Close the loop | `reflection-triage.md` |
 | Wave budget | `series-toml-skeleton.md` (`[budget]` block) |
 | Portability | `method-bindings.md` |
+| Kind-selected sheets | `pre-mortem-profiles.md` (measurement/experiment specs today) |
 
 ## Using the kit in a new project
 

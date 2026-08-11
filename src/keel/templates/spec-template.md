@@ -7,12 +7,9 @@
 - **Audience:** <who/what reads this>
 - **Output artifact(s):** <paths>
 
-*`Kind:` is resolved, not a menu — leave `series` unless this spec really is one change with
-nothing to decompose, then write `single-change`, which relaxes the three structural sections
-(numbered sections, the PR↔section manifest, the concept→module map) to absent-ok and moves the
-acceptance-criterion floor to the document. `Phases: Decide+Specify (Decompose: skipped)` relaxes
-the manifest alone. A section that IS present is still fully checked. `Kit:` is the kit version
-this spec was scaffolded from — keep it; `check-ready` (W1) warns on skew, and on its absence.*
+*`Kind:` is resolved, not a menu: leave `series`, or write `single-change` for a spec with nothing
+to decompose — doctrine §3 states what each declaration relaxes. `Kit:` is the kit this spec was
+scaffolded from; keep it, and W1 warns on skew and on its absence.*
 
 ## Context
 
@@ -44,9 +41,8 @@ the ADR first. *Naming these is a DoR requirement.*
 |---|---|---|
 | <invariant key> | enforced \| review-only \| planned \| absent | <the gate, when enforced> |
 
-*check-ready (A10): no prose may claim an invariant is "enforced" / "guaranteed" unless its
-row here is `enforced`. Checked only when this table is present; a claim inside backticks, or
-one negated ("not enforced", "to be enforced later"), does not fire.*
+*A10: no prose may claim an invariant "enforced" or "guaranteed" unless its row here reads
+`enforced`. Checked only when this table is present; a backticked or negated claim does not fire.*
 
 ## Concept → module map
 
@@ -54,9 +50,9 @@ one negated ("not enforced", "to be enforced later"), does not fire.*
 |---|---|
 | <concept> | `path/to/module` |
 
-*Every concept must map to a home. A concept with no module is a DoR failure. Mark a new path
+*Every concept maps to a home; one with no module is a DoR failure. Mark a new path
 "(to be created)" and name it — full path, or bare basename when unique — in the body of the
-§ that creates it (`check-ready` A5); in a greenfield spec that is every row.*
+§ that creates it (A5).*
 
 ## Numbered sections
 
@@ -73,38 +69,24 @@ What changes. **Acceptance criterion:** <...>.
 *(Add sections as needed. Every section needs an acceptance criterion — this is
 both a DoR check and each PR's exit gate.)*
 
-*Ground factual claims with `path:line` anchors, repo-root-relative (`src/pkg/mod.py:NN`). A
-backticked token on the same line right after an anchor IS its snippet: `check-ready` (A6)
-requires it be an exact substring of that line — don't backtick prose emphasis or `...` elision
-there. A bare anchor verifies only that the file and line exist; a claim-supporting anchor SHOULD
-carry its snippet, so the gate verifies the evidence, not just the address. Cite a new ADR as
-`docs/adr/NNNN-slug.md` using the next free number on your base, never a hardcoded guess.*
+*Ground factual claims with `path:line` anchors, repo-root-relative (`src/pkg/mod.py:NN`). The
+backticked token right after an anchor IS its snippet: A6 requires an exact substring of that line,
+so never backtick prose or an elision there. A bare anchor verifies the address; a claim-supporting
+anchor carries its snippet, so the gate verifies the evidence, not just the address.*
 
-*Reuse notation: pin a reuse target as `**Model-on:** <backticked path>` or
-`**Reuse:** <backticked path::symbol>`; `check-ready` (A9) resolves the path, and the symbol
-when given — so a spec cannot say "model-on / reuse X" without X actually existing.*
+*Reuse notation: pin a target as `**Model-on:** <backticked path>` or
+`**Reuse:** <backticked path::symbol>`; A9 resolves the path, and the symbol when given.*
 
-*Anchor ranges: a multi-line citation is `` `path:lo-hi` ``; `check-ready` (A11) resolves the file
-and the `hi` line, and for a `.py`/`.pyi` anchor additionally flags a range that opens a
-bracket/brace/paren it does not close, so a citation cannot silently truncate a collection literal
-mid-structure. Quote a literal complete or not at all.*
+*Anchor ranges: a multi-line citation is `` `path:lo-hi` ``; A11 resolves the file and the `hi`
+line, and for a `.py`/`.pyi` anchor flags a range that opens a bracket it never closes. Quote a
+literal complete or not at all.*
 
-*Gate-adversarial examples: when the spec must QUOTE something the gate itself scans for — a
-literal `Verdict:` line, a bare to-do placeholder token, an example `### heading` — put it inside a
-code fence; fenced content is masked before every check, while the same example unfenced can
-false-fail (A3) or shadow the real certification (B1).*
+*Gate-adversarial examples: when the spec must QUOTE something the gate scans for — a literal
+`Verdict:` line, a to-do placeholder token, an example `### heading` — fence it. Fenced content is
+masked before every check; unfenced, the same example false-fails A3 or shadows the certification.*
 
-*Out-of-wave consumers: when a section MOVES, RENAMES, or RETYPES a symbol, or strips content from a
-file, list every consumer beyond the import graph — scripts that regex/parse the file's TEXT
-(docs-sync checks, doc anchors, tests reading it as data) and every READER of a retyped symbol — and
-add each to that PR's file-list. (Not gated; the pre-mortem attacks it.)*
-
-*Measurement / experiment specs: fill the optional `## Experiment design (Part B)` section below — the
-eval/experiment DoR items (`definition-of-ready.md`, Part B) gate the axes it names.*
-
-*Counting: a test-count tripwire counts pytest ITEMS (post-parametrize collection), not function
-defs, and shows the parametrize expansion; enumerate code constructs by AST, never a bare text grep
-(grep is a superset pre-filter only); pin both the UNIT and the AUTHORITY of any recount.*
+*Measurement / experiment specs: the experiment-design axes, and the DoR items that gate them, live
+in `pre-mortem-profiles.md`. Fill that sheet and name it here.*
 
 ## PR ↔ section manifest
 
@@ -123,36 +105,16 @@ Concrete, checkable conditions for the whole spec (beyond per-section criteria).
 - Generated / mirrored / snapshot artifacts downstream of touched surfaces
   (consumer-reference mirrors, golden fixtures, lockfiles), each with its freshness gate —
   or the word "none": <enumerate them here; the pre-mortem challenges this declaration>
-
-*Release-notes-in-wave: any section that adds public surface or changes behaviour carries its
-CHANGELOG entry (and a migration-guide section, if consumer-facing) in the SAME wave — release-notes
-completeness is a per-wave exit condition, not a terminal-audit cleanup; a consistency gate (e.g. a
-docs-sync check) verifies cross-references, not completeness.*
-
-## Experiment design (Part B)
-
-*(Measurement / experiment specs only — delete this whole section for a code spec. The eval/experiment DoR
-items (`definition-of-ready.md`, Part B) gate these axes; the reviewer certifies the design, `keel
-check-ready` the certification. Fill the `<...>` placeholders; this is a `##` section, so it needs no
-acceptance criterion and carries no anchors.)*
-
-- **Estimand + unit of analysis:** <the effect measured, at what grain — per-item delta vs aggregate>
-- **Reps / power & MEWD:** <N per arm; the minimum effect worth detecting; why N can detect it — a 1-rep delta is noise>
-- **Blinding + held-constant factors:** <what is blinded; what is held equal across arms>
-- **Correctness oracle (not "ran green"):** <what decides "correct", distinct from the run completing>
-- **Measured-unit causal path:** <treatment end — the measured path READS what the treatment changes (not inert); measured-unit end — capabilities beyond the intended input enumerated, no side channel to the ground truth>
-- **Enforcement of isolation invariants:** <each leakage/isolation invariant, and the buildable mechanism that enforces it, claimed by a numbered section/PR>
-- **Pre-registered analysis plan:** <the analysis fixed before results are seen>
+- The `definition-of-done.md` conditions for this project, including release notes in wave.
 
 ## Pre-mortem certification
 
-*The externalized correctness pass (`pre-mortem-prompt.md`), certified by a fresh
-reviewer who did NOT author this spec. `keel check-ready` does not pass until the
-verdict is `CERTIFIED` (ADR-0002). A freshly-scaffolded spec is, correctly, not Ready.
-Save the pass's returned output to the sibling `<spec-stem>.premortem.md` (header: spec path,
-date, reviewer, `Spec-hash:` from `keel spec-hash`) and name it below — `check-ready` B2 verifies
-a named artifact's existence, verdict agreement, and spec-hash currency. B2 raises the cost of
-forging a certification; it does not prove the pass was blind — that residual trust stays named.*
+*The externalized correctness pass (`pre-mortem-prompt.md`), certified by a reviewer who did NOT
+author this spec; the gate does not pass until the verdict is `CERTIFIED` (ADR-0002), so a
+freshly-scaffolded spec is correctly not Ready. Save the pass's output to
+`<spec-stem>.premortem.md` with a `Spec-hash:` from `keel spec-hash` and name it below: B2 then
+verifies existence, verdict agreement and hash currency. That raises the cost of forging a
+certification; it does not prove the pass was blind.*
 
 - **Reviewer:**
 - **Verdict:** not yet certified
@@ -165,22 +127,15 @@ forging a certification; it does not prove the pass was blind — that residual 
 
 ### Fold ledger
 
-*Required when the certification claims a non-trivial fold (R1); a clean certify dozes: one row per folded finding so the post-fold delta is
-reviewable. `check-ready` (A12) holds each `artifact:line` to a resolving anchor — it verifies the
-fold was recorded against a real line, not that it is correct (that is the reviewer's job). A row's
-anchor MAY carry a backticked snippet (`` `path:line` `snippet` ``): A12 then verifies the snippet
-matches that line, so an in-range edit that moves the anchored content no longer decays silently. Leave the
-header only (no data rows) and A12 dozes. The ledger must be the FIRST table under this `### Fold ledger`
-heading — A12 reads only the first contiguous table, so a round-history / disposition table belongs in
-its own section, not after the ledger here.*
+*Required when the certification claims a non-trivial fold (R1); a clean certify dozes. One row per
+folded finding, so the post-fold delta is reviewable. A12 holds each `artifact:line` to a resolving
+anchor — the fold was recorded against a real line, not that it is right — and verifies a backticked
+snippet after it. Header only and A12 dozes; the ledger must be the FIRST table under this heading.*
 
 | Finding | Target section | artifact:line | Confirmed |
 |---|---|---|---|
 
 ---
-*This template is structured so that most of the deterministic Definition-of-Ready
-checks (`definition-of-ready.md`) pass by construction: numbered sections,
-per-section acceptance criteria, the concept→module map, and the PR↔section
-manifest are all required fields. The one field NOT satisfied by construction is the
-pre-mortem certification — a non-author reviewer must sign it, which is the point
-(ADR-0002).*
+*Most Definition-of-Ready checks pass by construction here — numbered sections, per-section
+criteria, the concept→module map, the manifest. The one that cannot is the pre-mortem
+certification: a non-author reviewer must sign it, which is the point (ADR-0002).*

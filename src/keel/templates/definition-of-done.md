@@ -32,6 +32,10 @@ externalized into a blocking checklist. Fail closed — nothing green-lights its
 ## Docs gate
 
 - [ ] Public API / config / contract changes are reflected in docs.
+- [ ] **Release notes in wave** — any section that adds public surface or changes behaviour
+      carries its CHANGELOG entry (and a migration-guide section, if consumer-facing) in the SAME
+      wave. Release-notes completeness is a per-wave exit condition, not a terminal-audit cleanup;
+      a consistency gate (e.g. a docs-sync check) verifies cross-references, not completeness.
 
 ## Per-section gate
 

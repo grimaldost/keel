@@ -2,11 +2,23 @@ import re
 
 from keel import __version__
 from keel.check_ready import _ANCHOR_RE, _anchor_shaped, _declared_kind, _field
+from keel.models import CHECK_IDS
 from keel.templates import list_templates, templates_root
 
 REQUIRED_SECTIONS = {
     'definition-of-ready.md': ['Part A', 'Part B'],
-    'definition-of-done.md': ['Deterministic gates', 'Review gate', 'git ls-files'],
+    'definition-of-done.md': [
+        'Deterministic gates',
+        'Review gate',
+        'git ls-files',
+        'Release notes in wave',  # followed the fact here from spec-template.md (T0.5)
+    ],
+    'pre-mortem-profiles.md': [
+        'Experiment design (Part B)',
+        'Feasibility-grounding ran FIRST',
+        'Instrument defeatability',
+        'pre-registered',
+    ],
     'review-checklist.md': ['Scope', 'Correctness'],
     'reflection-triage.md': [
         'Procedure',
@@ -51,6 +63,57 @@ def test_skeleton_keeps_model_family_tier_names():
     text = (templates_root() / 'series-toml-skeleton.md').read_text(encoding='utf-8')
     assert 'tier = "haiku"' in text, 'skeleton lost the haiku model-family tier example'
     assert 'tier = "sonnet"' in text, 'skeleton lost the sonnet model-family tier example'
+
+
+# T0.5 / the R4 mapping table, kept as data rather than prose so it stays true.
+#
+# `definition-of-ready.md` carried a hand-written Part-A checklist above the fenced reference
+# block, restating the same contract in looser words. When one design called it duplication and
+# another called the claim unproven, the tie-break was mechanical rather than editorial: enumerate
+# the facts in the surviving home and map every deleted line to one of them. A line with no
+# counterpart is not duplication — it moves, or it stays. Every line had one, and the table below
+# is that proof; the test under it asserts the surviving home still names every check, so the
+# mapping cannot rot into a claim about a block that changed.
+DELETED_PART_A_LINES = {
+    'Every section is numbered': 'A1',
+    'Every numbered section has a non-trivial acceptance criterion': 'A2',
+    'No TBD / TODO / FIXME / ??? anywhere in the spec': 'A3',
+    'PR ↔ section manifest exists; every section covered by exactly one PR': 'A4',
+    'Decompose-skipped relaxes an absent manifest': 'A4',
+    'Every concept→module path exists or is "to be created" and claimed': 'A5',
+    'Kind: single-change relaxes the structural trio': 'A0',
+    'Every path:line anchor resolves and its snippet matches': 'A6',
+    'Every cited docs/adr/NNNN- uses a number free on the base': 'A7',
+    'Every Model-on / Reuse reference present resolves': 'A9',
+    'Every in-text §N reference resolves to a numbered section': 'A8',
+    'No prose claims "enforced" against a non-enforced status row': 'A10',
+    'Every path:lo-hi range anchor resolves and closes its brackets': 'A11',
+    'A claimed fold carries a resolving Fold ledger row per finding': 'R1',
+    'When ledger rows are present each anchor resolves': 'A12',
+}
+
+
+def _reference_block() -> str:
+    text = (templates_root() / 'definition-of-ready.md').read_text(encoding='utf-8')
+    return text.split('```')[1]
+
+
+def test_the_reference_block_names_every_check_the_deleted_checklist_covered():
+    block = _reference_block()
+    for line, check in DELETED_PART_A_LINES.items():
+        assert re.search(rf'^{check} ', block, re.MULTILINE), (
+            f'the deleted Part-A line {line!r} mapped to {check}, which the surviving reference '
+            'block no longer names — that line was not duplication after all; restore it or '
+            'give it a home'
+        )
+
+
+def test_the_reference_block_is_the_only_home_for_the_part_a_contract():
+    # The cut is only information-preserving while the block stays complete: a later edit that
+    # drops a letter would silently lose a fact the prose checklist used to carry as well.
+    block = _reference_block()
+    named = set(re.findall(r'^([ABRW]\d+) ', block, re.MULTILINE))
+    assert named == CHECK_IDS, f'reference block and check catalogue disagree: {named ^ CHECK_IDS}'
 
 
 def _spec_template_header() -> str:
