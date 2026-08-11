@@ -1024,7 +1024,9 @@ def test_uncertified_spec_no_currency_warn(tmp_path):
 # --- §4 (0.12.0): unique-basename resolution --------------------------------
 
 
-def test_anchor_unique_basename_gets_did_you_mean_a6(tmp_path):
+def test_anchor_unique_basename_resolves_with_a_warning_a6(tmp_path):
+    # KEEL-B04: the shorthand keel's own reviewer emits. The gate already computed the expansion
+    # and offered it as a hint; it now applies it, and names what it applied.
     (tmp_path / '.git').mkdir()
     pkg = tmp_path / 'src' / 'pkg'
     pkg.mkdir(parents=True)
@@ -1033,13 +1035,11 @@ def test_anchor_unique_basename_gets_did_you_mean_a6(tmp_path):
         'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
     )
     result = check_spec_ready(_write(tmp_path, spec))
-    assert not result.passed
-    hinted = [v for v in result.violations if 'mod.py' in v.message]
-    assert hinted and 'did you mean' in hinted[0].message
-    assert 'src/pkg/mod.py:2' in hinted[0].message
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+    assert any('src/pkg/mod.py:2' in w for w in result.warnings), result.warnings
 
 
-def test_anchor_ambiguous_basename_no_hint_a6(tmp_path):
+def test_anchor_ambiguous_basename_still_fails_and_names_the_candidates_a6(tmp_path):
     (tmp_path / '.git').mkdir()
     for sub in ('a', 'b'):
         d = tmp_path / sub
@@ -1050,12 +1050,22 @@ def test_anchor_ambiguous_basename_no_hint_a6(tmp_path):
     )
     result = check_spec_ready(_write(tmp_path, spec))
     assert not result.passed
-    hinted = [v for v in result.violations if 'mod.py' in v.message]
-    assert hinted and 'did you mean' not in hinted[0].message
+    nv = [v for v in result.violations if 'mod.py' in v.message]
+    assert nv and 'a/mod.py' in nv[0].message and 'b/mod.py' in nv[0].message
+
+
+def test_anchor_no_basename_match_still_fails_a6(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `ghost.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('ghost.py' in v.message for v in result.violations)
 
 
 def test_anchor_vendor_tree_excluded_from_uniqueness_a6(tmp_path):
-    # FM-12: a .venv copy must not defeat exactly-one; the hint points at the real file.
+    # FM-12: a .venv copy must not defeat exactly-one; the expansion names the real file.
     (tmp_path / '.git').mkdir()
     (tmp_path / 'src').mkdir()
     (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
@@ -1066,20 +1076,43 @@ def test_anchor_vendor_tree_excluded_from_uniqueness_a6(tmp_path):
         'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2`.'
     )
     result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+    assert any('src/mod.py:2' in w for w in result.warnings), result.warnings
+
+
+def test_basename_expansion_still_verifies_the_snippet_a6(tmp_path):
+    # The expansion is a resolution, not a pass: the snippet is checked against the file it found.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:2` `three`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
     assert not result.passed
-    hinted = [v for v in result.violations if 'did you mean' in v.message]
-    assert hinted and 'src/mod.py:2' in hinted[0].message
+    assert any('snippet' in v.message.lower() for v in result.violations)
 
 
-def test_fold_ledger_bare_basename_gets_did_you_mean_a12(tmp_path):
+def test_basename_expansion_still_range_checks_the_line_a6(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `mod.py:99`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('out of range' in v.message for v in result.violations)
+
+
+def test_fold_ledger_bare_basename_resolves_with_a_warning_a12(tmp_path):
     (tmp_path / '.git').mkdir()
     (tmp_path / 'src').mkdir()
     (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\n', encoding='utf-8')
     spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
     result = check_spec_ready(_write(tmp_path, spec))
-    assert not result.passed
-    hinted = [v for v in result.violations if 'did you mean' in v.message]
-    assert hinted, [v.message for v in result.violations]
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+    assert any('src/mod.py:2' in w for w in result.warnings), result.warnings
 
 
 def test_to_be_created_basename_claim_passes_a5(tmp_path):

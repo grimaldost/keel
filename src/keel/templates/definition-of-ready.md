@@ -75,6 +75,7 @@ B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED 
 B2 when the certification names a `Certification artifact:`: the field's LEADING path token is the artifact (trailing prose — a round note, a prior-round path — is ignored); fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict; WARN (not fail) on a Spec-hash mismatch ("certified against an earlier revision" — suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY) and when no artifact is named (adoption nudge)
 W1 (warn) a spec stamped `<!-- keel kit X.Y.Z -->` from a different kit MAJOR.MINOR than the running gate warns of kit<->gate skew; a patch difference and an unstamped spec are silent
 W2 (warn) a header `Status:` still reading `draft` while a CERTIFIED / CONDITIONAL-CERTIFY certification is recorded warns that the coordinate system is stale; silent when there is no Status field, when Status has moved past draft, or when nothing is certified
+W3 (warn) an anchor that does not resolve as written but whose basename matches exactly ONE repo file (vendor trees excluded) resolves to that file and warns, naming the expansion — the shorthand a fresh reviewer emits stops manufacturing gate failures; ambiguity or no match still fails (A6/A11/A12)
 ```
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*

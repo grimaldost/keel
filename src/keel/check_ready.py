@@ -285,13 +285,19 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     if concept_body is not None or not single_change:
         violations += _check_paths(concept_body, subsections, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
-    violations += _check_anchors(text, spec_path)
-    violations += _check_anchor_ranges(text, spec_path)
+    anchor_violations, anchor_warnings = _check_anchors(text, spec_path)
+    violations += anchor_violations
+    warnings += anchor_warnings
+    range_violations, range_warnings = _check_anchor_ranges(text, spec_path)
+    violations += range_violations
+    warnings += range_warnings
     violations += _check_adr_numbers(text, spec_path)
     violations += _check_references(text, spec_path)
     violations += _check_section_refs(text, prose, section_ids)
     violations += _check_enforcement_claims(sections, text)
-    violations += _check_fold_ledger(cert, spec_path)
+    ledger_violations, ledger_warnings = _check_fold_ledger(cert, spec_path)
+    violations += ledger_violations
+    warnings += ledger_warnings
     if not structure_only:
         premortem_violations, premortem_warnings = _check_premortem(cert)
         violations += premortem_violations
@@ -460,49 +466,71 @@ def _declared_kind(header: str) -> tuple[str, Violation | None]:
 _VENDOR_DIRS = frozenset({'.git', '.venv', 'node_modules', '__pycache__', 'site-packages'})
 
 
-def _unique_basename_match(base: Path, path: str) -> Path | None:
-    """The single repo file matching the path's basename, or None (zero or many).
+def _basename_matches(base: Path, path: str) -> list[Path]:
+    """Every repo file matching the path's basename, vendor/VCS trees excluded.
 
-    Vendor/VCS trees are excluded from the population — an in-tree virtualenv must not defeat
-    exactly-one (0.12.0 §4). Called only on the failure path, so the rglob cost is paid only when
-    an anchor already failed to resolve.
+    An in-tree virtualenv must not defeat exactly-one (0.12.0 §4). Called only when the anchor
+    failed to resolve as written, so the rglob cost is paid only on that path.
     """
     name = path.replace('\\', '/').rsplit('/', 1)[-1]
     if not name:
-        return None
-    matches = [
+        return []
+    return [
         candidate
         for candidate in base.rglob(name)
         if candidate.is_file() and not (_VENDOR_DIRS & set(candidate.relative_to(base).parts[:-1]))
     ]
-    return matches[0] if len(matches) == 1 else None
 
 
 def _resolve_anchor(
     base: Path, path: str, line_no: int, where: str
-) -> tuple[list[str] | None, Violation | None]:
-    """Resolve a `path:line` anchor: (file lines, None) if it resolves, else (None, Violation).
+) -> tuple[list[str] | None, Violation | None, list[str]]:
+    """Resolve a `path:line` anchor: (file lines, None, warnings), else (None, Violation, []).
 
-    On a non-resolving path, a unique repo basename match is offered as a "did you mean" hint —
-    the guess-the-path loop the field hit three times in one session becomes a one-line fix.
+    KEEL-B04: a path that does not resolve as written but whose basename matches exactly one repo
+    file resolves to that file, with a WARN naming the expansion — the gate already computed that
+    resolution and offered it only as a hint, so a fold of keel's own reviewer's shorthand anchors
+    manufactured gate failures. The expansion is a resolution, not a pass: the line range and any
+    snippet are still verified against the file it found. Ambiguity (or no match) still fails, and
+    the ambiguous message names the candidates.
     """
     target = base / path
+    warnings: list[str] = []
     if not target.is_file():
-        hint = ''
-        match = _unique_basename_match(base, path)
-        if match is not None:
-            hint = f" — did you mean '{match.relative_to(base).as_posix()}:{line_no}'?"
-        return None, Violation(
-            where,
-            f'anchor path {path!r} does not exist as a file '
-            f'(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).{hint}',
+        matches = _basename_matches(base, path)
+        if len(matches) != 1:
+            candidates = ''
+            if matches:
+                shown = ', '.join(
+                    sorted(match.relative_to(base).as_posix() for match in matches)[:5]
+                )
+                candidates = (
+                    f' {len(matches)} files share that basename ({shown}) — name the one you mean.'
+                )
+            return (
+                None,
+                Violation(
+                    where,
+                    f'anchor path {path!r} does not exist as a file '
+                    f'(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).{candidates}',
+                ),
+                [],
+            )
+        target = matches[0]
+        expanded = target.relative_to(base).as_posix()
+        warnings.append(
+            f'WARN: anchor {path}:{line_no} resolved by unique basename match to '
+            f'{expanded}:{line_no} — write anchors repo-root-relative (A6); the expansion is '
+            'unique today and a second file of that name would turn this WARN into a failure.'
         )
     lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
     if line_no < 1 or line_no > len(lines):
-        return None, Violation(
-            where, f'anchor line {line_no} is out of range ({len(lines)} lines).'
+        return (
+            None,
+            Violation(where, f'anchor line {line_no} is out of range ({len(lines)} lines).'),
+            [],
         )
-    return lines, None
+    return lines, None, warnings
 
 
 def _bracket_balance(lines: list[str]) -> tuple[int, bool]:
@@ -772,10 +800,11 @@ def _check_paths(
     return violations
 
 
-def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
+def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[str]]:
     """Code-grounding: every `path:line` anchor resolves, and any quoted snippet matches."""
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
+    warnings: list[str] = []
     for match in _ANCHOR_RE.finditer(text):
         path, line_text, snippet = match.group(1), match.group(2), match.group(3)
         if not _anchor_shaped(path):
@@ -786,7 +815,8 @@ def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
             violations.append(Violation(where, f'anchor path {path!r} is not portable ({reason}).'))
             continue
         line_no = int(line_text)
-        lines, violation = _resolve_anchor(base, path, line_no, where)
+        lines, violation, resolve_warnings = _resolve_anchor(base, path, line_no, where)
+        warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
@@ -801,10 +831,10 @@ def _check_anchors(text: str, spec_path: Path) -> list[Violation]:
                         'substring of that line.',
                     )
                 )
-    return violations
+    return violations, warnings
 
 
-def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
+def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], list[str]]:
     """A11: a `path:lo-hi` range anchor must close every bracket it opens (string/comment-aware).
 
     A range whose `hi` line leaves a bracket opened inside the range unclosed is a truncated
@@ -815,6 +845,7 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
     """
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
+    warnings: list[str] = []
     for match in _ANCHOR_RANGE_RE.finditer(text):
         path, lo, hi = match.group(1), int(match.group(2)), int(match.group(3))
         if not _anchor_shaped(path):
@@ -824,7 +855,8 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
         if reason is not None:
             violations.append(Violation(where, f'anchor path {path!r} is not portable ({reason}).'))
             continue
-        lines, violation = _resolve_anchor(base, path, hi, where)
+        lines, violation, resolve_warnings = _resolve_anchor(base, path, hi, where)
+        warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
@@ -841,7 +873,7 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> list[Violation]:
                         'one opened before it) — quote the literal complete or not at all.',
                     )
                 )
-    return violations
+    return violations, warnings
 
 
 _FOLD_NONE = frozenset({'', 'none', 'noneoutstanding', 'na', 'nil'})
@@ -884,7 +916,7 @@ def _fold_claimed(cert_body: str) -> bool:
     return False
 
 
-def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation]:
+def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> tuple[list[Violation], list[str]]:
     """A12 + R1: a claimed fold carries a ledger, and every ledger row's anchor resolves.
 
     R1 (a deliberate DoR tightening, NOT verify-when-present): a certification whose 'folded in'
@@ -896,7 +928,7 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
     A6 does not catch.
     """
     if cert_body is None:
-        return []
+        return [], []
     ledger = next(
         (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
     )
@@ -910,10 +942,11 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
                     'the certification claims a fold but carries no `### Fold ledger` rows; '
                     'record one row (finding, target, artifact:line, confirmed) per finding (R1).',
                 )
-            ]
-        return []
+            ], []
+        return [], []
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
+    warnings: list[str] = []
     for cells in rows:
         where = f'Fold ledger {cells[0].strip() if cells else "(row)"}'
         if len(cells) < 3:
@@ -952,7 +985,8 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
             )
             continue
         line_no = int(match.group(2))
-        lines, violation = _resolve_anchor(base, match.group(1), line_no, where)
+        lines, violation, resolve_warnings = _resolve_anchor(base, match.group(1), line_no, where)
+        warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
@@ -967,7 +1001,7 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> list[Violation
                         '(in-range drift: the anchored content moved — re-anchor the row).',
                     )
                 )
-    return violations
+    return violations, warnings
 
 
 def _check_adr_numbers(text: str, spec_path: Path) -> list[Violation]:

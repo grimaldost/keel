@@ -135,6 +135,11 @@ SERIES-pass checklist (when this is the SERIES pass over a decomposed PR set, at
 
 ## Output handling
 
+**Anchor form.** Every `path:line` you cite — in `evidence:`, in a `smallest_fix`, in the prose —
+is repo-root-relative (`src/pkg/mod.py:42`), never a bare basename. The fold copies these anchors
+into the spec, where `check-ready` resolves them; a shorthand anchor there resolves only while its
+basename stays unique, and warns when it does.
+
 You are read-only: RETURN your findings, ending with a machine-greppable last line
 `PREMORTEM-VERDICT: <CERTIFIED | CONDITIONAL-CERTIFY | NEEDS-REVISION>` so a caller can gate without
 parsing prose — do not write the spec yourself. State your reviewer identity after the verdict
