@@ -111,13 +111,18 @@ and 0.3.0 are pre-publication history squashed into that commit, so there is not
 exempts the newest CHANGELOG heading, which is tagged when its release merges rather than when its
 section is written.
 
-A release bumps **eight version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
+A release bumps **nine version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
 (inserted above the previous one, never replacing it): `.claude-plugin/plugin.json`,
 `pyproject.toml`, `src/keel/__init__.py`, the newest `CHANGELOG.md` heading,
 `agents/pre-mortem-review.md` (the agent identity line), `src/keel/templates/spec-template.md`
 (the header `- **Kit:**` stamp), and `skills/apply-method/SKILL.md` are the seven the version-consistency test
 asserts; `uv.lock` is the eighth — bump it with `uv lock` after `pyproject.toml`, and CI's
-`uv lock --check` reds a stale committed lock.
+`uv lock --check` reds a stale committed lock. The ninth is
+`src/keel/templates/core/spec-template.md`, whose stamp line is coupled to the template's by a
+different test (`tests/test_core_variants.py`: every core line appears, in order, in the body it
+was cut from) — bump it with the template, or the strict-subset assertion fails and the ablation
+arms stop differing by deletion alone. It is not a consumer-facing site: `keel init` cannot reach
+the `core/` subdirectory.
 
 ## Quality gates (Definition of Done)
 
@@ -154,7 +159,7 @@ planned or absent. Turned on the repo itself:
 | ruff-format, ruff and `ty check src` hold before a commit lands | enforced | `.githooks/pre-commit` + `.pre-commit-config.yaml`, once `core.hooksPath` is set — a clone that skips that one command is covered by CI only |
 | `uv run pytest` before a commit | review-only | CI's by choice: the one gate whose cost belongs on a push. Run it yourself before you push |
 | The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
-| The three capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
+| The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
 | Every released version carries a tag | enforced where tags are present | `tests/test_release_flow.py`; it skips a checkout with no tags at all, which is what CI's default checkout is — so today this bites locally and on any clone that fetched tags |
 | All method-binding slots filled (`keel bind-check`) | absent | the command is a documented stub that exits 2 (ADR-0003; the build is backlog KEEL-B17) |

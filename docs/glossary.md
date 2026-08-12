@@ -4,7 +4,7 @@ The working vocabulary keel's docs, gates, and templates use. One line each; the
 stay the source of truth.
 
 - **Part A / Part B** — the DoR gate's two halves: deterministic well-formedness checks a script
-  asserts (A1–A12, R1) vs. correctness externalized to a blind reviewer's recorded certification
+  asserts (A0–A12, R1) vs. correctness externalized to a blind reviewer's recorded certification
   (B1, B2). ADR-0002.
 - **A0…A12, R1, B1, B2, W1…W5** — the individual checks `keel check-ready` runs (the W-letters are
   WARN-only: they report, they never fail the gate); the authoritative list is
