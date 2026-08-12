@@ -2,6 +2,214 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.15.0] - 2026-08-12
+
+The gate-empiricism release: the spec gate stops being a catalogue of checks nobody had counted.
+Every finding now names the check that raised it, a local ledger records opportunity as well as
+fires, every check carries a positive control, and the reshaped gate is proved against the frozen
+census cell for cell. The measurement bought to license the one remaining prose cut did not
+license it, so no prose is cut here — the candidate bodies ship as measurement assets `keel init`
+cannot reach. Design register: `docs/evidence.md` (the KEEL-B07 pre-registration and its dated
+amendment, both written before any forward data).
+
+### Added
+
+- **Check ids on every finding** (T0.1, `models.py`): `Violation.check`, a `Warning(check,
+  message)` type replacing the bare string in `GateResult`, and `models.CHECK_IDS` as the closed
+  catalogue — A0–A12, R1, B1, B2, W1–W5, of which **W4** (B2's adoption nudge) and **W5** (B2's
+  spec-hash mismatch) are new letters for warnings B2 already emitted and nobody could count.
+  Identity is a field, never a `W1: ` message prefix: `where` is a coordinate and collides by
+  design (`line N` from A3 and A8, `path:line` from A6, A11 and A12, `Pre-mortem certification`
+  from four B1 conditions), so any count keyed on it fuses distinct checks. Nothing downstream is
+  countable without this, which is why it came first.
+- **The gate hit-rate ledger, in three states** (KEEL-B07, `src/keel/gate_ledger.py`,
+  `keel gate-health`, `docs/cli-reference.md`): each check reports a `Probe(check, candidates,
+  fired, causes)` — `candidates == 0` is *n/a*, `candidates > 0` with no fires is *clean*, and
+  only the second is evidence. A two-state count cannot distinguish *inert* from *never had an
+  opportunity*, which is the distinction eleven verify-when-present or conditionally-relaxed
+  checks turn on. Privacy is a type boundary rather than a habit: the writer only ever sees a
+  `LedgerLine` whose every field is an int, bool, closed enum, hex digest or slug, so a free-text
+  field is unrepresentable and `Violation.message` cannot reach it by any path; the spec is a
+  digest, never a stem, because stems name a project's roadmap. Local only, nothing uploaded,
+  `KEEL_GATE_LEDGER=off` disables it, and writing is fail-open — the 0/1/2 exit codes are
+  unchanged and pinned. `keel gate-health` reads it back per check, split by author-loop
+  (`--structure-only`) and full-gate runs.
+- **A positive control for every check** (T0.2, `tests/fixtures/adversarial/`): one realistic spec
+  over a staged mini-repo that fires **nothing** — the false-positive floor — plus one minimal
+  edit per check that must make exactly that check fire. The assertion is set equality, never
+  membership: a mutant that trips three checks is a bad fixture, not a strong one. The corpus is
+  not a keel document and names no keel concept, because an oracle sharing vocabulary with the
+  artifact under study cannot report on it. A check that has never fired in the field is either
+  sharp and internalised or broken, and from outside those are the same observation; this is what
+  tells them apart, for the price of a pytest run rather than a paid trial. A coverage assertion
+  requires a control per catalogued check (A3 the recorded exception — its power is already proven
+  in the field).
+- **`pre-mortem-profiles.md`** — the kind-selected sheet (partial KEEL-B10): material dispatched
+  only for the spec kind that needs it, opening with the measurement/experiment design sheet and
+  the seven Part-B reviewer items that gate it. A code spec never pays for it. Partial on purpose:
+  the DoR sheet's copies moved here and were deleted, but the pre-mortem prompt's own
+  eval/experiment lenses are not folded yet — that is a directive-body edit, and it waits behind
+  KEEL-B09. Until it lands, those three probes have two homes, which `docs/backlog.md` records.
+- **Candidate core bodies** (`src/keel/templates/core/`, `tests/test_core_variants.py`): the
+  ablation arms for "is the kit's prose necessary?", built by **deletion only** — every line of a
+  core body appears, in order, in the body it was cut from, so the diff is the independent
+  variable and cannot quietly become a rewrite that measures wording. They are **candidates, not
+  templates**: `keel init` globs the kit directory non-recursively and cannot reach the
+  subdirectory, and a test pins that, because a later refactor to a recursive glob would ship two
+  competing spec templates to every adopting project.
+- **The pre-registration for the ledger** (`docs/evidence.md`): what each count is expected to
+  show, and the dispositions the ledger fires by itself, fixed before any data arrived. Two
+  demotions argued for during the instrument's design are explicitly **not** taken — A7 has 33–34
+  material units across 18 specs and A9 has 12 across 7, against a standing bar of ≥40 across ≥15
+  revisions in ≥3 repos.
+
+### Changed
+
+- **The kit stamp survives authoring, and W1 widens to the case that occurs** (T0.3): the stamp
+  moves from an HTML comment below the closing rule to the visible header (`- **Kit:** X.Y.Z`)
+  beside Date and Status, because a hand-copied spec dropped the comment silently — no authored
+  spec in the census carried one, so W1 had zero material forever. W1 now also warns on an
+  **unstamped** spec. The legacy comment form is still read: retiring it from the template does
+  not retire it from the specs already carrying it. The version-consistency test follows the stamp
+  to its new home.
+- **`Kind:` ships resolved, not as a menu** (T0.3): the scaffold shipped `series | single-change`
+  while the parser reads the leading token, so an untouched scaffold silently declared whichever
+  kind was written first — reorder the menu and every untouched scaffold silently relaxes A1/A4/A5.
+  The template now declares one resolved kind (`series`, which relaxes nothing) and names the
+  alternative in prose; doctrine §3 carries the adoption-time rationale.
+- **W2 stops invalidating the certification it warns about** (T0.4, KEEL-B25/W8): the header
+  `Status:` line leaves the hashed span, exactly as the certification section already had — the
+  exclusion is the header *field*, not the word, so a `Status:` line inside a numbered section is
+  content and still binds. Obeying W2's advice used to move `spec_hash` and invalidate the
+  `Spec-hash:` in the artifact the same run had just verified. **Migration:** every `Spec-hash:`
+  already recorded in a saved pre-mortem artifact is invalidated, surfacing as a one-time wave of
+  W5 "certified against an earlier revision" warnings — the expected state, not a defect, cleared
+  by re-running `keel spec-hash`. The hash's scope is now documented as pinned per gate MINOR, the
+  contract W1's kit-skew semantics already carried (`docs/cli-reference.md`).
+- **A10's three reproduced defeats are closed** (T1.3): the invariant-key window becomes the
+  claim's own paragraph (it was prev/this/next line, so a claim three lines below its subject was
+  invisible), and the negation lookback stops at the nearest sentence or clause boundary (it ran
+  back four words across them, so an ordinary aside — "is, once again, enforced" — read as a
+  deferral). Real deferrals put their negation next to the claim and still suppress. The widening
+  is fenced three ways, per the 0.11.0/0.13.0 lesson: the corpus's clean spec must stay silent,
+  every mutant must still fire exactly its own check, and A10 runs over this repo's own shipped
+  prose — which is where window logic tuned on synthetic fixtures goes wrong.
+- **A fold-ledger confirmation may name a range** (T1.4): `artifact:lo-hi` in an A12 cell, so a
+  reviewer confirming a fix that spans lines no longer has to drop the range or record a line the
+  fix does not live on. A `.py`/`.pyi` range must close every bracket it opens, as A11 already
+  requires, and a snippet is matched against the range rather than one line. *Displacement:* the
+  two spec-template notes this widened were compressed in the same edit, not waived — the
+  gate-adversarial-examples note and the fold-ledger note, so the 500-word contract-note cap held.
+- **The report unit: one edit is one cause** (T1.2): a `Violation` carries a `cause` key and
+  violations sharing it are one defect. One insertion above a self-anchored fold ledger produced
+  **57 A12 violations** at a uniform shift; counting those as 57 findings made A12 look like the
+  noisiest check in the surface and left "how many things are actually wrong here?" unanswerable.
+  Anchors failing against the same target group; where a snippet lets the shift be computed, only
+  anchors sharing the delta group. A violation with no key is its own cause, so nothing is silently
+  merged — the grouping deliberately **under**-groups, because over-reporting is honest and
+  over-grouping hides. The CLI lists every violation and adds one line naming the cause count, with
+  the instruction the field asked for: re-anchor the block, do not delete the rows. `fired` still
+  counts every violation; the ledger schema moves to **v2** and marks the boundary — `fired` is
+  comparable across it, `causes` is not.
+- **One home per fact, and the ratchets that keep it** (T0.5): eight relocations down the frequency
+  gradient plus two deletions of verbatim second homes. A clause costs its words every time the
+  body carrying it is dispatched, so the default disposition for prose is relocation, not deletion —
+  and a relocation is information-preserving and owes no measurement. Out of the spec-template: the
+  `Kind:`/`Phases:` rationale → doctrine §3; the ADR "next free number on your base" trap →
+  `adr-template.md`; release-notes-in-wave → `definition-of-done.md` (it is a *done* condition); the
+  experiment-design section → `pre-mortem-profiles.md`. Out of the DoR sheet: the hand-written
+  Part-A checklist and the seven eval/experiment Part-B items. Contract notes **918 → 499 words**,
+  the DoR sheet **2,242 → 1,619**. *Ratchets:* the contract-note cap goes **925 → 500** and the DoR
+  sheet gets its first cap, at the measured **1,650** rather than the 1,300 the reshape aimed at —
+  the remaining candidates are held behind a measurement that has not run, and a cap chosen to
+  force an unlicensed cut would be a verdict dressed as a budget (`CONTRIBUTING.md`,
+  `tests/test_body_budgets.py`).
+- **The two consumed checklists foreground what they add** (T0.6, partial KEEL-B33): both files now
+  have external consumers by reference, so **nothing is removed** — what changes is order and one
+  framing sentence each. `definition-of-done.md` leads with the two field-derived traps (a wrapped
+  tool must have RUN TO COMPLETION; every referenced artifact is `git ls-files`-tracked), neither
+  inferable from a project's own toolchain, and marks the generic block as the bind-your-commands
+  stub it is. `review-checklist.md` moves Gate completion to the top and states that ordinary code
+  review is **delegated** to the reviewer and the linters — without that sentence a later collapse
+  of the generic items reads as amputation. The ordering effect itself is unprovable here and is
+  taken as a judgement with a bounded downside: zero words removed, reversal is one revert.
+- **A non-change, recorded** (T0.7): a pre-mortem ablation measured *danger framing* inert in
+  agent-directed prose. The kit's only agent-directed blast-radius text is not danger framing — it
+  names what else the fix reaches, which is target naming, the highest-value measured property in
+  that same body — and doctrine's blast-radius language routes a human decision the study never
+  scoped. A measured null is scoped to what was measured; `tests/test_consumed_lines.py` pins the
+  field's target-naming form so the register cannot drift later into the thing the null was about
+  (`CONTRIBUTING.md`, gate-health 3a).
+- **Docs against the code**: `docs/cli-reference.md` gains `keel gate-health`, the ledger section
+  and the corrected `spec-hash` scope; `docs/glossary.md` carries the current check catalogue
+  (A0–A12, R1, B1, B2, W1–W5), the finding-identity rule and the stamp's new home;
+  `docs/doctrine.md` §3 carries the `Kind:`/`Phases:` rationale; `CONTRIBUTING.md` records the
+  positive-control obligation (1a), the ledger as machine-recorded with the three-part standing bar
+  for a cut, and the scoped-null rule (3a). The release-cut sweep corrected four claims this wave
+  invalidated: the release now bumps **nine** version sites (the candidate core's stamp is coupled
+  to the template's by the strict-subset test, and a missed bump reds the suite), **four** capped
+  bodies rather than three, Part A is `A0–A12, R1` in `README.md` and `docs/glossary.md`, and the
+  kit is eleven templates behind seven CLI commands in `docs/backlog.md`'s fold row.
+
+### Removed
+
+- **Two verbatim second homes in the spec-template** (T0.5): "Out-of-wave consumers", which declares
+  itself ungated and whose home is the pre-mortem directive body, and "Counting", a verbatim copy of
+  that body's own line.
+- **The DoR sheet's hand-written Part-A checklist** (T0.5), which restated the fenced reference
+  block in looser words. The deletion is proved rather than asserted:
+  `tests/test_templates_valid.py` maps every deleted line to the check that carries it and asserts
+  the surviving block still names every letter in the catalogue.
+
+### Measured
+
+Stated in the three-way vocabulary — proven / not-proven / not-measurable — because a gate that
+holds consumer specs to "every cited referent resolves" owes its own claims the same bar.
+
+- **A $0 retrospective census**, run before anything was built: **19 specs against three trees**,
+  with a **44-document control arm** of design documents in these repos that were never authored to
+  the method. It is what turned "which checks matter" from an opinion into a base rate.
+- **Zero regression, proved rather than asserted**: the reshaped gate re-run against the frozen
+  census — **1,083 (spec, tree, check) cells compared, 0 mismatches**, all 19 specs byte-stable
+  since the census. Intended movement only: W1 material **0 → 19 specs** (0 → 57 warnings, and
+  0 → 44 documents in the control arm), A10 **0 → 3 cells** on 1 spec.
+- **Every widening was re-run against the control arm before being called a fix** — the standard
+  the pre-registration already set for A8, applied to this wave's three (A10's paragraph window,
+  W1's unstamped case, A12's ranges). Over the 44 documents the fired set is **identical, document
+  for document, on all 19 checks**; the only movement is W1's intended 0 → 44.
+- **The kit-core ablation is bought at stage 1 only**: **24 of 48 planned trials, $9.7572**, every
+  trial completed and valid. The saturation gate passed — the deciding note-only class *was*
+  exercised, so the "no arm ever fails, so no power" branch of the pre-registered cut rule does not
+  fire — and **stage 2 is unbought**. So "the kit's core is sufficient" is **not measured**, not
+  null: only five discordant pairs were realised, which caps the attainable evidence at p = 0.0625
+  before any pair is looked at, and the observed 4:1 discordance runs *toward* the full body
+  (10/18 vs 13/18 overall). One pre-registered signal runs the other way on `behaviour/unstated`
+  (10/12 core vs 7/12 full, discordance 0:3) — two underpowered signals in opposite directions,
+  which describes an instrument without power rather than a tie to break by preference. No
+  non-inferiority margin was ever registered, so "matches" has no numeric meaning to fall back on;
+  choosing one now would mean choosing it against the data. **Nothing is cut on it.**
+- **What stays unmeasured**, recorded rather than papered over: **12 of 19 checks never fired under
+  either gate**, so a regression in them is undetectable in this corpus — A8 the sharpest instance
+  at 1,230 `§N` references across 19 specs with zero fires. A10's and A12's false-positive rates
+  have **no material** in the control arm (no control document carries an Enforcement-status table
+  or a fold ledger) and are recorded as *unmeasured*, not zero. A5's and R1's SHARP status each
+  rests on one weak hit — A5's has a robust core of 0, R1's is dated three days *before* R1 shipped
+  — so a zero-fire forward record for either is consistent with that base and is **not** a
+  regression. And whether a check is worth its author-side cost remains the comparative claim
+  ADR-0015 retired; this instrument counts opportunity and fires, and does not reopen it.
+
+### Origin
+
+- The gate audit and the $0 retrospective census over the existing spec corpus (maintainer-local —
+  see `docs/evidence.md`), plus KEEL-B07 from the 2026-08-11 improvement backlog. Built on
+  `feat/gate-empiricism` (PR #18); the companion eval report lives with the harness that ran it
+  (`grimaldost/fathom`, `eval/keel-gate`). Regression tests **214 → 317**; every behaviour-changing
+  section ships at least one, and every check ships a positive control.
+- The cross-vendor enrichment panel (standing non-blocking practice since 0.9.0) **did not run** for
+  this release — a recorded decision, not an omission. The adversarial read it substitutes for was
+  an in-arc critique pass over the evidence write-up, which confirmed fifteen defects; three claims
+  moved as a result, two of them by splitting into a proven half and an unmeasured half.
+
 ## [0.14.0] - 2026-08-11
 
 The backlog-wave-1 release: nine items from the 2026-08-11 improvement backlog

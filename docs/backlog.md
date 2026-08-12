@@ -5,6 +5,29 @@
   recorded in `CHANGELOG.md` when they ship. Each item below carries its own **Status** line once
   worked; an item with none is untouched.
 
+## Wave 2 — 2026-08-12, branch `feat/gate-empiricism` (released as 0.15.0)
+
+The gate-empiricism wave. **KEEL-B07** shipped whole (the hit-rate ledger in three states, plus the
+finding-identity work it turned out to need first), and three further rows moved without being
+finished: **KEEL-B10** and **KEEL-B12** landed their kit half (`pre-mortem-profiles.md` and the DoR
+items that moved into it) and left their pre-mortem-prompt half held behind KEEL-B09;
+**KEEL-B33** landed in the form its cross-review note asked for — nothing cut, the delegation made
+explicit — because two sibling projects now point at those files by reference. **KEEL-B25/W8** and
+**KEEL-B26** were recorded in the wave's own commits and are unchanged here.
+
+Two measurements were bought and both are recorded honestly rather than as verdicts:
+
+- **The kit-core ablation, stage 1 of two.** 24 of 48 trials, $9.7572, saturation gate passed,
+  stage 2 unbought. It does not license the cut it was bought to license, so nothing is cut — the
+  candidate bodies ship as measurement assets `keel init` cannot reach. The reading is in
+  `CHANGELOG.md` 0.15.0 §Measured; the short version is *two underpowered signals in opposite
+  directions*, which is an instrument without power, not a null.
+- **The pre-mortem directive ablation (KEEL-B09).** Run, read, and **gated** — see its Status row.
+  Until the adjudication it waits on lands, the item still holds net-new directive prose.
+
+Deliberately not taken here: everything the wave-1 table above still holds, plus **KEEL-B13**,
+**KEEL-B21** and **KEEL-B23**, none of which had a reason to ride this branch's files.
+
 ## Wave 1 — 2026-08-11, branch `backlog/wave-1`
 
 Nine items, chosen as those gated on neither a re-run of the suite's eval harness nor a sibling
@@ -21,6 +44,8 @@ Two things the wave leaves for the operator, both deliberate:
   changes are therefore unrecorded in `CHANGELOG.md` — which KEEL-B08's own new CI job will fail
   on when this branch is opened as a PR. That is the gate working: the release entry and the
   version bump are the merge step, and they have to reconcile with the in-flight 0.14.0 first.
+  *Reconciled:* the wave merged as **0.14.0** on main (PR #17), claiming the number on main's line;
+  the unmerged branch renumbers when it lands.
 - **Tags are local.** v0.11.1, v0.12.0, v0.13.0 and v0.13.1 were created at their release commits
   on main; `git push --tags` publishes them.
 
@@ -28,7 +53,7 @@ Deliberately **not** taken in this wave, each with the gate that holds it:
 
 | Item | Gate |
 |---|---|
-| KEEL-B07, KEEL-B09 | a measurement on the suite's eval harness, which is being repaired; KEEL-B09 additionally has to be built as a bank on that harness (its cross-review note) rather than as a bespoke three-arm run |
+| KEEL-B09 | has to be built as a bank on the eval harness (its cross-review note) rather than as a bespoke three-arm run. **KEEL-B07 no longer waits on it** — the hit-rate question turned out to need no agent at all, and shipped (below) |
 | KEEL-B28 | the skills collection's CRAF-B29 holdout finding; only the specificity half is keel's either way |
 | KEEL-B31 | the research runner's MANT-B01/B02 — deleting `scripts/external_review/` before those land replaces a working client with one that aborts |
 | KEEL-B30, KEEL-B32 (series-skeleton half) | the bound orchestrator's live measurement window (CONV-B18/CONV-B33): editing the skeleton mid-window would make a near-zero reading a record of our own edit |
@@ -267,6 +292,14 @@ recorded here explicitly. `[triage]`
 - **Change:** `check_spec_ready` appends one line per run (spec stem, date, check ids that fired,
   verdict) to a local, gitignored ledger. After ~20 real runs, cut or sharpen any check with zero
   fires and record the outcome in the CHANGELOG.
+- **Status:** **shipped**. Three corrections the build made to the item as written: (a) a finding
+  had no stable id — `where` collides across checks — so `Violation.check`, a `Warning` type and a
+  closed catalogue came first, or nothing was countable; (b) two states are not enough, because a
+  zero-fire count cannot tell *inert* from *never had an opportunity*, so each check reports a
+  `Probe(candidates, fired, causes)`; (c) the spec is identified by a digest, not a stem — stems
+  name the project's roadmap. `keel gate-health` reads it back, `docs/evidence.md` carries the
+  pre-registration written before any data arrived, and the "cut a zero-fire check" instruction is
+  superseded by the standing three-part bar (opportunity, a positive control, no open defeat).
 - **Effort:** S · **Source:** `[review]` `[research]`
 
 ### KEEL-B08 — Machine-enforce CONTRIBUTING step 4, and tag released versions
@@ -331,6 +364,18 @@ recorded here explicitly. `[triage]`
   reproduction rather than a surprise.
 - **Ordering:** after KEEL-B02, so there is one body to ablate. This item **gates net-new directive
   prose**; a rewrite that displaces (KEEL-B13) may land without waiting for it.
+- **Status:** **measured; the compression it licenses is gated, and the gate has not cleared.** The
+  ablation ran on the harness as the cross-review note required. A **225-word core** scored
+  identical to the full **2,429-word** body on all nine shared-ask and citation-grounding criteria,
+  at **80% of the cost**, and separated on one criterion the core was never told to emit
+  (a convention criterion, p = 0.0022) — which is a result about what the reviewer supplies
+  unprompted, not a licence on its own. The compression is **held on the owner's blinded
+  adjudication of the 18 existing finding-lists**, which is **pending**: the criteria are proxies
+  for finding quality, and cutting 2,204 words of directive on a proxy without reading what the two
+  arms actually found would be the same error this item exists to prevent. So: **licensed-but-gated,
+  not done.** Until the adjudication lands, the body is unchanged, this row still gates net-new
+  directive prose, and the 2,050-word cap in CONTRIBUTING stands where it is — the measurement is
+  not a reason to raise it and not yet a reason to lower it.
 - **Effort:** L · **Source:** `[review]` `[research]` `[cross-review]`
 
 ### KEEL-B10 — Move the domain lenses out of the always-on bodies into a selected profile file
@@ -351,6 +396,14 @@ recorded here explicitly. `[triage]`
   one text living in four homes is the surface's dominant defect. Both hold only if the profile file
   is the *sole* home for what it absorbs — the deletions are the load-bearing half of this item, not
   the addition. KEEL-B06's budget covers the file from the day it lands.
+- **Status:** **partly shipped** 2026-08-12 (wave 2, 0.15.0). `src/keel/templates/pre-mortem-profiles.md`
+  exists and is selected by kind; the DoR sheet's seven inline eval/experiment Part-B items moved
+  into it and were **deleted** from Part B, which is the half that carries the load. The
+  pre-mortem prompt's own eval/experiment lenses (`pre-mortem-prompt.md:67-70` — baseline
+  expectation, instrument defeatability, experimental-design validity) are **not** folded yet: the
+  profile sheet restates them, so that text currently has two homes, which is exactly what this
+  item exists to end. The fold is a directive-body edit and waits on **KEEL-B09**'s pending
+  adjudication.
 - **Effort:** M · **Source:** `[triage Q7a]` `[review]`
 
 ### KEEL-B11 — A data-migration profile with a data-level gate
@@ -376,6 +429,13 @@ recorded here explicitly. `[triage]`
 - **Change:** into KEEL-B10's file — a bounded real pilot before the full paid run asserting every
   arm (baselines, controls, decoys) produces well-formed non-degenerate output, and a decision rule
   that reports "no verdict" when no arm discriminates rather than a false negative.
+- **Status:** **partly shipped** 2026-08-12 (wave 2, 0.15.0). `pre-mortem-profiles.md` carries the
+  reviewer items that detect a degenerate design *before* the spend — feasibility-grounding first,
+  a per-criterion baseline expectation with the ceiling/floor flag, and instrument defeatability.
+  The two halves still missing are the ones that change what happens **after** the spend: the
+  bounded real pilot as a required step, and the explicit "no verdict" terminal state. This wave's
+  own kit-core ablation is the worked case for why they are wanted — it stopped at stage 1 and had
+  to report an instrument without power in prose, because no sheet gave that outcome a name.
 - **Effort:** S · **Source:** `[triage Q7c]`
 
 ### KEEL-B13 — Widen the population clause from the author's cleanliness claim to the design's own domain
@@ -573,7 +633,12 @@ recorded here explicitly. `[triage]`
   certification the same run just verified, narrowest fix being to exclude the header `Status:` line
   from `spec_hash` (`check_ready.py:185`) exactly as the certification section already is; W9
   multi-round pre-mortem artifacts — state that only the newest round's `Spec-hash:` binds.
-- **Change:** none yet. Promote on a second report, with W8's fix named above.
+- **Change:** none yet on the remaining rows. Promote each on a second report.
+- **Status:** **W8 shipped** ahead of a second report — it was not a preference but a self-defeat:
+  the warning's own instruction invalidated the certification the run had just verified, so the
+  header `Status:` line left `spec_hash`. The recorded-hash migration it forces (a one-time W5
+  wave across sibling repos) is named in `docs/cli-reference.md`, and the hash's scope is now
+  pinned per gate minor, as W1's kit-skew semantics already were.
 - **Effort:** S · **Source:** `[triage W1/W2/W4/W6/W7/W8/W9]`
 
 ### KEEL-B26 — Publish the ratio of author-loop runs to full-gate rejections
@@ -587,7 +652,10 @@ recorded here explicitly. `[triage]`
   (expected to fail often and cheaply) versus full-gate runs on a spec submitted as ready. Publish
   the ratio in `docs/evidence.md`. It is the one number that strengthens the observational claim
   without reopening the comparative one ADR-0015 retired.
-- **Ordering:** needs ~20 real runs after KEEL-B07.
+- **Ordering:** unblocked — KEEL-B07 shipped and `keel gate-health` already prints the split. What
+  is missing is only the runs: ~20 real ones, which is a matter of using the gate, not building
+  anything. Publishing the ratio before then would be publishing a number about this repo's own
+  test suite.
 - **Effort:** S · **Source:** `[review]` `[research]`
 
 ### KEEL-B27 — State the design contrast against the named alternatives, artifact by artifact
@@ -687,8 +755,8 @@ Features the audit sentenced. Each names its replacement; nothing is removed wit
 | KEEL-B30 | Remove `keel budget-drift` — per-wave economic policy is the orchestrator's residual value, not the method layer's, and ADR-0003 records this gate was scaffolded with no cited motivating failure | The bound series orchestrator's per-phase budgets and economy readback, plus one pointer line in the series skeleton | Feature review; ADR-0003 thinness rule | S | `[review]` `[research]` |
 | KEEL-B31 | Delete `scripts/external_review/` — a second bespoke multi-vendor client in a repo whose own ADR-0003 forbids engine-flavoured execution (it is gitignored for that reason), and it saves N independent reviews without comparing source provenance | The operator's existing multi-model research tool, which already does fan-out with an epistemic sidecar; keep the *practice* (a skipped enrichment panel is a recorded decision) in CONTRIBUTING | Feature review; visible drift between its README and its code | S | `[review]` `[research]` |
 | KEEL-B32 | Compress five prose sites to one-line pointers — the same text has four homes, and ADR-0016 §2 already decided the operator close is prescribed once with one-clause references everywhere else | The one authoritative home in each case: `docs/getting-started.md` and doctrine §3 for `apply-method`'s setup and subset-of-phases paragraphs; the `apply-method` skill for `/keel-apply`'s body; doctrine §2 and `definition-of-ready.md` Part B for `/keel-premortem`'s round-economy and operator-close paragraphs; the kit README reduced to its slot→file and upgrade→file tables; doctrine sharpening 5 reduced to naming the axes with a pointer to `pre-mortem-prompt.md`; the series skeleton's `[budget]` block demoted to an orchestrator pointer | Feature review; `/keel-premortem` violates its own governing ADR | M | `[review]` |
-| KEEL-B33 | Cut ambient content from three kit templates — generic review, linter policy and ADR structure are what a strong model and native review produce unprompted | `adr-template.md` → four headings plus the two non-ambient clauses (name the invariant explicitly; never edit an Accepted ADR); `review-checklist.md` → the method-specific and trap-derived items, with generic review explicitly delegated; `definition-of-done.md` → foreground the two non-inferable traps (a wrapped tool must have run to completion; every referenced artifact is `git ls-files`-tracked) and mark the generic block as the bind-your-commands stub it is | Feature review; `[research]` measures lint leakage at 62% and skill leakage at 35% of studied repos | M | `[review]` `[research]` |
-| KEEL-B34 | Fold `docs/phases-reference.md` and `docs/concepts.md` into doctrine — eleven reference docs plus doctrine plus sixteen ADRs for four commands, one skill, one agent, ten templates and six CLI commands | Doctrine §3 as the only home for the phase table; doctrine §5–§6 for the three-scopes framing. The glossary is the counterexample and stays — without it a reader cannot parse the gate's own messages | Feature review | M | `[review]` |
+| KEEL-B33 · **partly shipped** 2026-08-12 (the two consumed files, in the cross-review's form: nothing cut, ordering and delegation made explicit; `adr-template.md` untouched and now *gained* the ADR-numbering trap relocated out of the spec-template, so its cut needs re-arguing against a fuller file) | Cut ambient content from three kit templates — generic review, linter policy and ADR structure are what a strong model and native review produce unprompted | `adr-template.md` → four headings plus the two non-ambient clauses (name the invariant explicitly; never edit an Accepted ADR); `review-checklist.md` → the method-specific and trap-derived items, with generic review explicitly delegated; `definition-of-done.md` → foreground the two non-inferable traps (a wrapped tool must have run to completion; every referenced artifact is `git ls-files`-tracked) and mark the generic block as the bind-your-commands stub it is | Feature review; `[research]` measures lint leakage at 62% and skill leakage at 35% of studied repos | M | `[review]` `[research]` |
+| KEEL-B34 | Fold `docs/phases-reference.md` and `docs/concepts.md` into doctrine — eleven reference docs plus doctrine plus sixteen ADRs for four commands, one skill, one agent, eleven templates and seven CLI commands | Doctrine §3 as the only home for the phase table; doctrine §5–§6 for the three-scopes framing. The glossary is the counterexample and stays — without it a reader cannot parse the gate's own messages | Feature review | M | `[review]` |
 | KEEL-B35 | Delete `tests/test_gate_contracts.py` once both stubs are resolved — it exists to keep "deferred" honest, and has nothing left to pin when nothing is deferred | The built `bind-check`'s own tests (KEEL-B17); the budget-drift arm goes with the command (KEEL-B30) | Feature review | S | `[review]` |
 | KEEL-B36 · **shipped** 2026-08-11 | Clear the untracked `.remember/` directory from the checkout — a hand-rolled memory-bank surface (hook error logs, dated memory files, a today/done convention) that ships with nothing and is dead weight in the tree | Native persistent auto-memory | Operator observation; not a keel feature — housekeeping, do it when the enclosing tool is next reviewed | S | `[review]` `[research]` |
 

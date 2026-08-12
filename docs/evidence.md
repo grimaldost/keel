@@ -34,6 +34,70 @@ consumer boundary ADR-0003 keeps keel behind. So a public reader **cannot** inde
 
 Treat these as the maintainer's honest field notes, not as independently checkable public evidence.
 
+## Pre-registration for the gate hit-rate ledger (KEEL-B07)
+
+Written before any data arrived, so a later reading cannot be fitted to the numbers it finds.
+`keel gate-health` reports the counts; this section fixes in advance what each count would mean.
+
+**What the ledger will show, expected.** Zero fires *with* material: A7, A9, A1, A4, A2. Zero
+*material* until the header stamp and resolved kind reach real specs: A0, W1. Live: A6, A12, R1,
+A5; W2, W3, B2, and B1 as a record rather than a rejecter. Uninformative by construction until
+A10's three reproduced defeats are fixed: A10. Directional: W3 arriving should lower A6 fires per
+run, and cause-grouping should pull violations-per-cause below 3.
+
+**The report-unit criterion, stated before its data.** Cause-grouping ships with the ledger, so
+`fired` and `causes` are recorded separately from the first run. It is judged forward, on two
+figures: median violations-per-cause below 3, and round-trips-to-green falling against the
+pre-change baseline. Neither is claimed today. The ledger's `v` field marks the boundary — `fired`
+is comparable across it, `causes` is not, and reading `causes` across a version bump would be
+measuring the change with a ruler the change moved.
+
+**Dispositions the ledger fires on its own** — pre-registered, so they are not re-argued later:
+
+| trigger | disposition |
+|---|---|
+| A7 or A9 reaches ≥40 candidates across ≥15 distinct revisions in ≥3 repos with zero fires, **and** its positive control passes | demote to WARN, recorded with the ledger figures |
+| either fires once in the field | the demotion rule is cancelled and the row returns to KEEP |
+| A0 or W1 material stays 0 after 10 forward runs | the authoring surface is the defect, not the check — reopen the header stamp, do not touch the check |
+| B1's certify rate reaches 100% **and** the fraction of certifications followed by a further spec edit falls | the reviewer, not the check, has stopped working — a reviewer that never returns a non-certify verdict is measuring nothing, and nothing would otherwise notice |
+| A8 needs a third false-positive widening | A8 re-enters review as fitted-to-noise |
+
+Two demotions were argued for during the design of this instrument and are **not** taken here:
+A7 has 33–34 material units across 18 specs and A9 has 12 across 7, and the standing bar is ≥40
+across ≥15 revisions in ≥3 repos. Neither clears it. Honest still-unmeasured beats a forced
+verdict, and the table above is what turns that into a decision the data can make by itself.
+
+**What the ledger cannot answer.** Whether a check is *worth* its author-side cost, and whether a
+gated spec produces a better wave. It counts opportunity and fires. The rest is §ADR-0015's
+retired claim, and this instrument does not reopen it.
+
+### Amendment, 2026-08-11 — after the retrospective census, before any forward ledger data
+
+Nothing above is rewritten. Two things are added, because a later reader would otherwise inherit a
+base rate that is thinner than it sounds and a widening that was never held to the standard the
+table above sets for A8.
+
+**A5 and R1 are listed "Live" on one historical hit each, and neither hit is strong.** A5's single
+census fire has a robust core of **0** — it does not reproduce in all three trees, and it sits in
+the tree whose known bias is over-firing on targets the wave itself creates. R1's single fire is on
+a document dated 2026-06-10, three days *before* R1 shipped (0.5.0, 2026-06-13); across the 16
+later certifications in the corpus it never fired, which is the same shape as the checks recorded
+as internalised, and every author after that date knew the check existed. Consequence for reading
+the ledger: **a zero-fire forward record for A5 or R1 is consistent with that base and is not a
+regression**, and neither clears the standing three-part bar on the strength of the census alone.
+
+**A check widened to close a false negative is re-run against the control arm before the widening
+is called a fix.** The control arm is the 44 design documents in these repos that were never
+authored to the method. The rule mirrors A8's above, and it was applied retroactively to the three
+widenings shipped on 2026-08-11 — A10's key window (prev/this/next line → the whole paragraph), W1
+to the unstamped case, A12's ledger anchor to ranges. Measured over the 44 documents under the
+pre-widening and post-widening gates: **the fired set is identical, document for document, on all
+19 checks**; the only movement is W1's warnings, 0 → 44, which is the widening's whole point. Two
+of the three, though, have **no material** in that corpus — no control document carries an
+Enforcement-status table or a fold ledger — so A10's and A12's false-positive rates are recorded as
+**unmeasured**, not as zero. A widening whose control corpus cannot exercise it says so in the
+CHANGELOG rather than claiming a clean bill.
+
 ## The comparative claim is retired (ADR-0015)
 
 The controlled experiment against a disciplined baseline (designed 2026-06-06, maintainer-local) never

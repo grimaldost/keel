@@ -20,11 +20,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONTRIBUTING = ROOT / 'CONTRIBUTING.md'
 
-# body -> (cap, what it measures)
+# body -> cap (words)
 BUDGETS = {
     'pre-mortem directive block': 2050,
-    'spec-template contract notes': 925,
+    'spec-template contract notes': 500,
     'pre-mortem agent wrapper': 550,
+    'definition-of-ready': 1650,
 }
 
 
@@ -55,10 +56,20 @@ def _agent_words() -> int:
     return len((ROOT / 'agents' / 'pre-mortem-review.md').read_text(encoding='utf-8').split())
 
 
+def _dor_words() -> int:
+    """The whole DoR sheet — read end-to-end by every adopting reader and every reviewer."""
+    return len(
+        (ROOT / 'src' / 'keel' / 'templates' / 'definition-of-ready.md')
+        .read_text(encoding='utf-8')
+        .split()
+    )
+
+
 MEASURED = {
     'pre-mortem directive block': _directive_block_words,
     'spec-template contract notes': _contract_note_words,
     'pre-mortem agent wrapper': _agent_words,
+    'definition-of-ready': _dor_words,
 }
 
 

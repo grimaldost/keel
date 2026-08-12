@@ -27,6 +27,14 @@ gate exists to catch exactly that over-claim in a spec):
    passes after the fix — no gate lands without the test that proves it bites. *Machine-enforced:*
    the suite (and CI) runs it; the version-consistency and cli-reference-coverage tests are the
    same idea applied to cross-artifact drift.
+1a. **Every check carries a positive control** — `tests/fixtures/adversarial/` holds one realistic
+   spec that fires nothing plus one minimal edit per check that must make exactly that check fire
+   (set equality, not membership). A check that has never fired in the field is either sharp and
+   internalised or broken, and those look identical from outside; the corpus is what tells them
+   apart, and it costs a pytest run rather than a measured trial. A mutant that does NOT fire is a
+   reproduced defeat, marked `xfail(strict=True)` with its mechanism — until it passes, that
+   check's silence is uninformative and no keep-or-cut argument may rest on it. *Machine-enforced:*
+   the suite, including a coverage assertion that every catalogued check has a control.
 2. **A tool-wrapping gate asserts the tool ran to completion**, not just error-count ≤
    baseline (a fatal early-exit emits fewer errors and would false-pass). *Machine-enforced where
    the gate is wired.*
@@ -35,23 +43,41 @@ gate exists to catch exactly that over-claim in a spec):
    fixtures false-fires (or dozes) on the very template the kit ships. *Maintainer discipline at
    review time.*
 3. **Track each gate's hit-rate** — a gate that has fired zero times across N series is a triage
-   input: sharpen it, or cut it as decayed ritual. *Maintainer discipline, not yet mechanized:*
-   there is no hit-rate ledger in the tree today; treat this as a review question, not a guarantee.
+   input: sharpen it, or cut it as decayed ritual. *Machine-recorded:* `keel check-ready` appends
+   one line per run to a local ledger and `keel gate-health` reads it back
+   (`docs/cli-reference.md`). Read it in three states, not two — a check with **no applicable
+   runs** never had an opportunity and its silence says nothing in either direction; only a check
+   with applicable runs and no fires is evidence of anything. The ledger records the counts; the
+   disposition is still a judgement, and the standing bar for a cut is opportunity **and** a
+   positive control **and** no open defeat, all three.
+3a. **A measured null is scoped to what was measured.** A pre-mortem ablation found *danger
+   framing* inert in agent-directed prose. That is not a licence to delete the `blast_radius:`
+   field, whose text names *what else the fix reaches* — target naming, the highest-value measured
+   property in that same body — nor to touch doctrine's blast-radius language, which routes a
+   human's second-pass decision and was never in the study's scope. Recorded here as a
+   **non-change**, with `tests/test_consumed_lines.py` pinning the field's target-naming form so
+   the register cannot drift later into the thing the null was actually about.
 4. **Reflection-triage should gate the next series** — recurring traps promoted before the next
    DoR. *Maintainer discipline, not yet mechanized:* `check-ready` does not read a triage state, so
    nothing blocks a spec on an untriaged backlog; the operator holds this by hand.
 
 ## Body budgets
 
-Three shipped bodies are dispatched or read **in full** every time they are used, and each has
+Four shipped bodies are dispatched or read **in full** every time they are used, and each has
 only ever grown — one clause per finding. Each now carries a number, enforced by
 `tests/test_body_budgets.py`:
 
 | Body | Cap (words) | Why it is capped |
 |---|---|---|
 | The pre-mortem directive block — the fenced prompt in `src/keel/templates/pre-mortem-prompt.md` | 2,050 | dispatched on every pre-mortem; the most expensive prompt in the surface, and since ADR-0017 the only copy of it |
-| The spec-template's italic gate-contract notes (`src/keel/templates/spec-template.md`) | 925 | read by every author the scaffold reaches — 64 of the template's 185 lines |
+| The spec-template's italic gate-contract notes (`src/keel/templates/spec-template.md`) | 500 | read by every author the scaffold reaches. Ratcheted from 925 when the duplicated notes moved to their one home |
 | The bundled agent wrapper (`agents/pre-mortem-review.md`) | 550 | identity + dispatch + output contract only (ADR-0017); the directives live in the template |
+| The Definition-of-Ready sheet (`src/keel/templates/definition-of-ready.md`) | 1,650 | read end-to-end at adoption and by every reviewer. First cap, set at the measured size after the Part-A prose restatement and the measurement-profile items moved out |
+
+The DoR cap is deliberately set where the body actually is, not where it should end up: the
+remaining candidates (Part-B prose beyond the reference block, the certification framing, the
+operator close) are held behind a measurement that has not run, and a cap chosen to force an
+unlicensed cut would be a verdict dressed as a budget.
 
 The rule the caps enforce: **a promotion that adds prose to one of these bodies names the one it
 displaces or merges into**, in the CHANGELOG entry that ships it. That rule was already stated and
@@ -85,13 +111,18 @@ and 0.3.0 are pre-publication history squashed into that commit, so there is not
 exempts the newest CHANGELOG heading, which is tagged when its release merges rather than when its
 section is written.
 
-A release bumps **eight version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
+A release bumps **nine version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
 (inserted above the previous one, never replacing it): `.claude-plugin/plugin.json`,
 `pyproject.toml`, `src/keel/__init__.py`, the newest `CHANGELOG.md` heading,
 `agents/pre-mortem-review.md` (the agent identity line), `src/keel/templates/spec-template.md`
-(the kit stamp), and `skills/apply-method/SKILL.md` are the seven the version-consistency test
+(the header `- **Kit:**` stamp), and `skills/apply-method/SKILL.md` are the seven the version-consistency test
 asserts; `uv.lock` is the eighth — bump it with `uv lock` after `pyproject.toml`, and CI's
-`uv lock --check` reds a stale committed lock.
+`uv lock --check` reds a stale committed lock. The ninth is
+`src/keel/templates/core/spec-template.md`, whose stamp line is coupled to the template's by a
+different test (`tests/test_core_variants.py`: every core line appears, in order, in the body it
+was cut from) — bump it with the template, or the strict-subset assertion fails and the ablation
+arms stop differing by deletion alone. It is not a consumer-facing site: `keel init` cannot reach
+the `core/` subdirectory.
 
 ## Quality gates (Definition of Done)
 
@@ -128,7 +159,7 @@ planned or absent. Turned on the repo itself:
 | ruff-format, ruff and `ty check src` hold before a commit lands | enforced | `.githooks/pre-commit` + `.pre-commit-config.yaml`, once `core.hooksPath` is set — a clone that skips that one command is covered by CI only |
 | `uv run pytest` before a commit | review-only | CI's by choice: the one gate whose cost belongs on a push. Run it yourself before you push |
 | The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
-| The three capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
+| The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
 | Every released version carries a tag | enforced where tags are present | `tests/test_release_flow.py`; it skips a checkout with no tags at all, which is what CI's default checkout is — so today this bites locally and on any clone that fetched tags |
 | All method-binding slots filled (`keel bind-check`) | absent | the command is a documented stub that exits 2 (ADR-0003; the build is backlog KEEL-B17) |

@@ -2,12 +2,16 @@
 
 import pytest
 
+from keel import __version__
 from keel.check_ready import check_spec_ready, spec_hash
 
-# A well-formed, pre-mortem-certified spec in the spec-template.md shape.
-READY_SPEC = """# Spec — widget
+# A well-formed, pre-mortem-certified spec in the spec-template.md shape. It carries the header
+# `Kit:` stamp the template ships (T0.3), so the W1 unstamped nudge is not the ambient state of
+# every fixture here — the unstamped case has its own tests.
+READY_SPEC = f"""# Spec — widget
 
 - **Status:** ready (DoR passed)
+- **Kit:** {__version__}
 
 ## Numbered sections
 
@@ -194,7 +198,7 @@ def test_conditional_certify_with_operator_passes_b1(tmp_path):
     )
     result = check_spec_ready(_write(tmp_path, good))
     assert result.passed, [v.message for v in result.violations]
-    assert any('grimaldo' in w for w in result.warnings)
+    assert any('grimaldo' in w.message for w in result.warnings)
 
 
 def test_conditional_certify_without_operator_fails_b1(tmp_path):
@@ -213,7 +217,7 @@ def test_clean_certified_emits_only_the_b2_adoption_warn(tmp_path):
     result = check_spec_ready(_write(tmp_path, READY_SPEC))
     assert result.passed
     assert len(result.warnings) == 1
-    assert 'artifact' in result.warnings[0].lower()
+    assert 'artifact' in result.warnings[0].message.lower()
 
 
 def test_b1_error_states_bare_token_contract(tmp_path):
@@ -541,6 +545,62 @@ def test_fold_ledger_resolves_passes_a12(tmp_path):
     spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed, [v.message for v in result.violations]
+
+
+# --- T1.4: a confirmation cell may name a RANGE ------------------------------
+#
+# The standing field ask: a reviewer confirming a fold that spans several lines had to either
+# drop the range or record a single line the fix does not live on. Two independent reports, one
+# behaviour change. Accepting ranges must not accept TRUNCATED ranges, so A11's bracket-balance
+# guarantee comes with it — a citation that stops mid-literal is truncated wherever it sits.
+
+
+def _staged_module(tmp_path):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text(
+        'COLUMNS = (\n    "a",\n    "b",\n)\n\n\ndef total(rows):\n    return sum(rows)\n',
+        encoding='utf-8',
+    )
+
+
+def test_fold_ledger_accepts_a_balanced_range_cell_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:1-4` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_rejects_a_truncated_range_cell_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:1-3` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('bracket' in v.message for v in result.violations), [
+        v.message for v in result.violations
+    ]
+
+
+def test_fold_ledger_range_snippet_matches_anywhere_in_the_range_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:1-4` `"b"` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+
+
+def test_fold_ledger_range_snippet_outside_the_range_still_fails_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:1-4` `def total` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('drift' in v.message for v in result.violations)
+
+
+def test_fold_ledger_backwards_range_cell_is_malformed_a12(tmp_path):
+    _staged_module(tmp_path)
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:4-2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('malformed' in v.message for v in result.violations)
 
 
 def test_fold_ledger_dotfile_anchor_resolves_passes_a12(tmp_path):
@@ -990,12 +1050,14 @@ def test_status_draft_with_certified_warns(tmp_path):
     spec = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft')
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed
-    assert any('status' in w.lower() and 'draft' in w.lower() for w in result.warnings)
+    assert any(
+        'status' in w.message.lower() and 'draft' in w.message.lower() for w in result.warnings
+    )
 
 
 def test_status_ready_no_currency_warn(tmp_path):
     result = check_spec_ready(_write(tmp_path, READY_SPEC))
-    assert not any('draft' in w.lower() for w in result.warnings)
+    assert not any('draft' in w.message.lower() for w in result.warnings)
 
 
 def test_no_status_field_no_currency_warn(tmp_path):
@@ -1003,13 +1065,13 @@ def test_no_status_field_no_currency_warn(tmp_path):
     spec = READY_SPEC.replace('- **Status:** ready (DoR passed)\n', '')
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed
-    assert not any('draft' in w.lower() for w in result.warnings)
+    assert not any('draft' in w.message.lower() for w in result.warnings)
 
 
 def test_status_currency_warn_not_in_structure_only(tmp_path):
     spec = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft')
     result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
-    assert not any('draft' in w.lower() for w in result.warnings)
+    assert not any('draft' in w.message.lower() for w in result.warnings)
 
 
 def test_uncertified_spec_no_currency_warn(tmp_path):
@@ -1018,7 +1080,7 @@ def test_uncertified_spec_no_currency_warn(tmp_path):
     )
     result = check_spec_ready(_write(tmp_path, spec))
     assert not result.passed
-    assert not any('draft' in w.lower() for w in result.warnings)
+    assert not any('draft' in w.message.lower() for w in result.warnings)
 
 
 # --- §4 (0.12.0): unique-basename resolution --------------------------------
@@ -1036,7 +1098,7 @@ def test_anchor_unique_basename_resolves_with_a_warning_a6(tmp_path):
     )
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed, [(v.where, v.message) for v in result.violations]
-    assert any('src/pkg/mod.py:2' in w for w in result.warnings), result.warnings
+    assert any('src/pkg/mod.py:2' in w.message for w in result.warnings), result.warnings
 
 
 def test_anchor_ambiguous_basename_still_fails_and_names_the_candidates_a6(tmp_path):
@@ -1077,7 +1139,7 @@ def test_anchor_vendor_tree_excluded_from_uniqueness_a6(tmp_path):
     )
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed, [(v.where, v.message) for v in result.violations]
-    assert any('src/mod.py:2' in w for w in result.warnings), result.warnings
+    assert any('src/mod.py:2' in w.message for w in result.warnings), result.warnings
 
 
 def test_basename_expansion_still_verifies_the_snippet_a6(tmp_path):
@@ -1112,7 +1174,7 @@ def test_fold_ledger_bare_basename_resolves_with_a_warning_a12(tmp_path):
     spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed, [(v.where, v.message) for v in result.violations]
-    assert any('src/mod.py:2' in w for w in result.warnings), result.warnings
+    assert any('src/mod.py:2' in w.message for w in result.warnings), result.warnings
 
 
 def test_to_be_created_basename_claim_passes_a5(tmp_path):
@@ -1185,14 +1247,14 @@ def _operator_close_spec(ref: str) -> str:
 def test_absent_artifact_field_warns_b2(tmp_path):
     result = check_spec_ready(_write(tmp_path, READY_SPEC))
     assert result.passed
-    assert any('artifact' in w.lower() for w in result.warnings)
+    assert any('artifact' in w.message.lower() for w in result.warnings)
 
 
 def test_empty_artifact_field_is_absent_b2(tmp_path):
     # FM-22: the template ships the field empty-valued; empty ≡ absent (WARN, no violation).
     result = check_spec_ready(_write(tmp_path, _with_artifact_field('').rstrip() + '\n'))
     assert result.passed, [v.message for v in result.violations]
-    assert any('artifact' in w.lower() for w in result.warnings)
+    assert any('artifact' in w.message.lower() for w in result.warnings)
 
 
 def test_artifact_missing_file_fails_b2(tmp_path):
@@ -1234,7 +1296,7 @@ def test_artifact_hash_mismatch_warns_b2(tmp_path):
     )
     result = check_spec_ready(spec)
     assert result.passed, [v.message for v in result.violations]
-    assert any('earlier revision' in w.lower() for w in result.warnings)
+    assert any('earlier revision' in w.message.lower() for w in result.warnings)
 
 
 def test_operator_close_hash_warn_names_the_close_b2(tmp_path):
@@ -1246,7 +1308,7 @@ def test_operator_close_hash_warn_names_the_close_b2(tmp_path):
     )
     result = check_spec_ready(spec)
     assert result.passed, [v.message for v in result.violations]
-    assert any('operator close' in w.lower() for w in result.warnings)
+    assert any('operator close' in w.message.lower() for w in result.warnings)
 
 
 def test_certified_hash_warn_omits_operator_close_b2(tmp_path):
@@ -1257,8 +1319,8 @@ def test_certified_hash_warn_omits_operator_close_b2(tmp_path):
         _artifact_text('PREMORTEM-VERDICT: CERTIFIED', 'deadbeef' * 8), encoding='utf-8'
     )
     result = check_spec_ready(spec)
-    assert any('earlier revision' in w.lower() for w in result.warnings)
-    assert not any('operator close' in w.lower() for w in result.warnings)
+    assert any('earlier revision' in w.message.lower() for w in result.warnings)
+    assert not any('operator close' in w.message.lower() for w in result.warnings)
 
 
 def test_recorded_certified_versus_conditional_artifact_still_fails_b2(tmp_path):
@@ -1298,29 +1360,60 @@ def test_artifact_column_zero_schema_quote_does_not_shadow_b2(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
+def _unstamped(spec: str) -> str:
+    """READY_SPEC without its header `Kit:` stamp — every corpus spec authored before T0.3."""
+    return spec.replace(f'- **Kit:** {__version__}\n', '')
+
+
 def test_kit_stamp_minor_skew_warns_even_structure_only(tmp_path):
     # 0.12.0 §9: a spec stamped from an older kit self-announces — and the author loop
-    # (--structure-only) is where skew bites first, so the WARN reaches it.
-    spec = READY_SPEC + '\n<!-- keel kit 0.10.0 -->\n'
+    # (--structure-only) is where skew bites first, so the WARN reaches it. The legacy HTML-comment
+    # form is still read: T0.3 retires it from the template, not from the specs already carrying it.
+    spec = _unstamped(READY_SPEC) + '\n<!-- keel kit 0.10.0 -->\n'
     result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
     assert result.passed, [v.message for v in result.violations]
-    assert any('kit' in w.lower() for w in result.warnings)
+    assert any('kit' in w.message.lower() for w in result.warnings)
+
+
+def test_header_kit_stamp_minor_skew_warns_w1(tmp_path):
+    # T0.3: the stamp's home is the visible header, so it survives the hand-copy that lost the
+    # HTML comment (no authored spec in the census carried the comment form).
+    spec = _unstamped(READY_SPEC).replace(
+        '- **Status:** ready (DoR passed)', '- **Status:** ready (DoR passed)\n- **Kit:** 0.10.0'
+    )
+    result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
+    assert result.passed, [v.message for v in result.violations]
+    assert any('0.10.0' in w.message for w in result.warnings), result.warnings
 
 
 def test_kit_stamp_current_version_is_silent(tmp_path):
-    from keel import __version__
-
-    spec = READY_SPEC + f'\n<!-- keel kit {__version__} -->\n'
+    spec = _unstamped(READY_SPEC) + f'\n<!-- keel kit {__version__} -->\n'
     result = check_spec_ready(_write(tmp_path, spec), structure_only=True)
     assert result.passed
-    assert not any('kit' in w.lower() for w in result.warnings)
+    assert not any('kit' in w.message.lower() for w in result.warnings)
 
 
-def test_no_kit_stamp_is_silent(tmp_path):
-    # Every pre-0.12.0 spec lacks the stamp; absence stays quiet (verify-when-present).
+def test_header_kit_stamp_current_version_is_silent(tmp_path):
     result = check_spec_ready(_write(tmp_path, READY_SPEC), structure_only=True)
     assert result.passed
     assert result.warnings == ()
+
+
+def test_unstamped_spec_warns_w1(tmp_path):
+    # T0.3 widens W1 to the only case the census actually observed: NO authored spec carries a
+    # stamp, so a check that only fires on a skewed stamp had zero material forever. The WARN names
+    # the missing declaration, and reaches the author loop where the skew bites first.
+    result = check_spec_ready(_write(tmp_path, _unstamped(READY_SPEC)), structure_only=True)
+    assert result.passed, [v.message for v in result.violations]
+    assert any(
+        'unstamped' in w.message.lower() or 'no kit' in w.message.lower() for w in result.warnings
+    ), result.warnings
+
+
+def test_unstamped_warning_names_the_header_field(tmp_path):
+    # An unstamped WARN that does not say what to write is a nag, not a nudge.
+    result = check_spec_ready(_write(tmp_path, _unstamped(READY_SPEC)), structure_only=True)
+    assert any('**Kit:**' in w.message for w in result.warnings), result.warnings
 
 
 def test_structure_only_skips_b2(tmp_path):
@@ -1349,6 +1442,28 @@ def test_spec_hash_changes_on_body_edit(tmp_path):
     before = spec_hash(_write(tmp_path, READY_SPEC))
     after = spec_hash(_write(tmp_path, READY_SPEC.replace('Introduce', 'Rework')))
     assert before != after
+
+
+def test_status_flip_does_not_move_the_spec_hash(tmp_path):
+    # W2's self-defeat (T0.4): the warning tells the author to update the header `Status:`, and
+    # doing so used to move the hash and invalidate the certification the same run just verified.
+    # The header Status line is excluded from the hash exactly as the certification section is.
+    draft = READY_SPEC.replace('- **Status:** ready (DoR passed)', '- **Status:** draft')
+    assert spec_hash(_write(tmp_path, draft)) == spec_hash(_write(tmp_path, READY_SPEC))
+
+
+def test_removing_the_header_status_line_entirely_does_not_move_the_hash(tmp_path):
+    without = READY_SPEC.replace('- **Status:** ready (DoR passed)\n', '')
+    assert spec_hash(_write(tmp_path, without)) == spec_hash(_write(tmp_path, READY_SPEC))
+
+
+def test_a_status_line_in_the_body_still_moves_the_hash(tmp_path):
+    # The exclusion is the HEADER field, not the word: a spec that discusses a `Status:` field in
+    # a numbered section is discussing content, and content still binds the certification.
+    edited = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`.\n- **Status:** rework'
+    )
+    assert spec_hash(_write(tmp_path, edited)) != spec_hash(_write(tmp_path, READY_SPEC))
 
 
 def test_spec_hash_indifferent_to_crlf(tmp_path):

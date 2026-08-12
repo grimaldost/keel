@@ -20,5 +20,5 @@ declare none. All four bodies do reference the `$ARGUMENTS` token — the two th
 hint end on a bare `$ARGUMENTS` line, the intent being that trailing text arrives as free
 context. The substitution itself is Claude Code's, not keel's.
 
-The template kit ships with the plugin too — `docs/templates-reference.md` lists its ten
+The template kit ships with the plugin too — `docs/templates-reference.md` lists its
 files, and `keel init <target>` copies them into a project.

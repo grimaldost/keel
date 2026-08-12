@@ -1,0 +1,260 @@
+# The adversarial positive-control corpus (T0.2).
+#
+# Each row is ONE minimal edit to `clean-series.md`, plus the exact set of check ids that edit
+# must make fire. The assertion is set EQUALITY, never membership: a mutant that trips three
+# checks is a bad fixture, not a strong one, because it no longer isolates the check it claims
+# to prove. `clean-series.md` itself must fire nothing — it is the false-positive floor every
+# mutant is diffed against.
+#
+# What this corpus buys: R1(b), the "power" leg of the cut procedure. A check that has never
+# fired in the field is either sharp-and-internalised or broken, and those look identical from
+# the outside. A mutant that fires proves the check CAN see its defect; a mutant that does not
+# fire is a reproduced defeat, and silence from a defeated check is uninformative in both
+# directions. Routing that question to a paid agent bank would buy the same bit with variance.
+#
+# Fields
+#   id       the fixture name
+#   fires    the exact set of check ids expected (violations and warnings together)
+#   why      what obligation this row discharges
+#   find     literal text in clean-series.md (must match exactly once)
+#   replace  what it becomes; omit both to mutate only the certification artifact
+#   artifact_verdict / artifact_hash   override what the staged pre-mortem artifact records
+#   repeat   render `replace` N times, with {n} (1-based), {true_line} and {shifted_line}
+#   xfail    a REPRODUCED DEFEAT: the check cannot see this defect today, and the reason why
+#
+# The corpus is not a keel document and names no keel concept: an oracle that shares vocabulary
+# with the thing it measures cannot report on it.
+
+[[mutant]]
+id = "A0-unknown-kind"
+fires = ["A0"]
+why = "A0 shipped after every spec in the census, so it has never had material"
+find = "- **Kind:** series"
+replace = "- **Kind:** hotfix"
+
+[[mutant]]
+id = "A1-unnumbered-heading"
+fires = ["A1"]
+why = "A1's claim was downgraded to absence-detection: 165 sections, zero fires. This is the in-document discrimination the docs claim"
+find = "### §6 Record the invariant status table"
+replace = '''### Housekeeping before the wave closes
+
+A short note on ordering. **Acceptance criterion:** the reviewer confirms the order
+of §5 and §6 before the wave opens.
+
+### §6 Record the invariant status table'''
+
+[[mutant]]
+id = "A2-trivial-criterion"
+fires = ["A2"]
+why = "A2's power for the shape it actually tests — absence and triviality. Read together with the row below, the pair says exactly what A2 can and cannot see"
+find = """**Acceptance criterion:** the report lists one line per region, in the vocabulary's
+order, asserted by an integration test."""
+replace = "**Acceptance criterion:** done."
+
+[[mutant]]
+id = "A2-vacuous-passes-wordcount"
+fires = []
+why = "the break-the-oracle fixture. A2 ACCEPTING this is the finding: presence-and-word-count is the shape Goodhart eats, and this same fixture becomes the RED test if A2 migrates to a runnable-oracle form"
+find = """**Acceptance criterion:** the report lists one line per region, in the vocabulary's
+order, asserted by an integration test."""
+replace = "**Acceptance criterion:** The implementation works correctly and all tests pass."
+
+[[mutant]]
+id = "A4-uncovered"
+fires = ["A4"]
+why = "A4's in-document claim: a section no PR implements"
+find = """| PR06 | §6 | yes |
+"""
+replace = ""
+
+[[mutant]]
+id = "A4-double-covered"
+fires = ["A4"]
+why = "A4's in-document claim: two PRs on one section (and the section they left behind)"
+find = "| PR05 | §5 | yes |"
+replace = "| PR05 | §4 | yes |"
+
+[[mutant]]
+id = "A4-pr-cites-two"
+fires = ["A4"]
+why = "A4's in-document claim: the scope-bundling one PR row citing two sections"
+find = "| PR05 | §5 | yes |"
+replace = "| PR05 | §5 and §6 | yes |"
+
+[[mutant]]
+id = "A5-unclaimed-created"
+fires = ["A5"]
+why = "regression cover for the basename fallback: a 'to be created' path no section body claims"
+find = """A new module `src/tinyetl/currency.py` converts an amount to minor units before §2
+totals it."""
+replace = "A new module converts an amount to minor units before §2 totals it."
+
+[[mutant]]
+id = "A6-snippet-drift"
+fires = ["A6"]
+why = "regression: the snippet is what makes in-range drift detectable"
+find = "`src/tinyetl/orders.py:18` `def rollup_by_region`"
+replace = "`src/tinyetl/orders.py:18` `def rollup_by_country`"
+
+[[mutant]]
+id = "A6-nonportable"
+fires = ["A6"]
+why = "regression: a separator that resolves on one OS and dangles on another would make a deterministic gate environment-dependent"
+find = '`src/tinyetl/regions.py:3` `REGION_CODES = {`'
+replace = '`src\tinyetl\regions.py:3` `REGION_CODES = {`'
+
+[[mutant]]
+id = "A7-number-collision"
+fires = ["A7"]
+why = "A7's R1(b): 33-34 material units across 18 specs, zero fires anywhere including the control arm"
+find = "`docs/adr/0002-region-codes-are-closed.md`"
+replace = "`docs/adr/0002-region-vocabulary.md`"
+
+[[mutant]]
+id = "A8-dangling-ref"
+fires = ["A8"]
+why = "regression, and the widening tripwire: A8 was widened twice for false positives, so its power must stay pinned"
+find = "The report calls §2 once per run"
+replace = "The report calls §2 and §9 once per run"
+
+[[mutant]]
+id = "A9-missing-symbol"
+fires = ["A9"]
+why = "A9's R1(b): 12 material units across 7 specs, no genuine fire ever"
+find = "**Reuse:** `src/tinyetl/orders.py::rollup_by_region`"
+replace = "**Reuse:** `src/tinyetl/orders.py::rollup_by_country`"
+
+[[mutant]]
+id = "A10-plain"
+fires = ["A10"]
+why = "A10's baseline: the plain over-claim it was built for, and the control for the three defeats below"
+find = """The status table above gains a row per invariant §3 introduces, with the gate that
+holds it."""
+replace = "The currency codes come from a closed set rule is enforced by the loader today."
+
+[[mutant]]
+id = "A10-wrapped"
+fires = ["A10"]
+why = "reproduced defeat 1, closed: the key was matched over a prev/this/next line window, so a claim three lines below its subject was invisible. The key window is now the paragraph"
+find = """The status table above gains a row per invariant §3 introduces, with the gate that
+holds it."""
+replace = """The rule that currency codes come from a closed set is what §3 lands,
+and every caller depends on it,
+so today it is already enforced."""
+
+[[mutant]]
+id = "A10-backticked"
+fires = ["A10"]
+why = "reproduced defeat 2, closed: deleting the backticked invariant name from the negation lookback made the PREVIOUS sentence's 'not' adjacent to the claim. The lookback now stops at the sentence boundary"
+find = """The status table above gains a row per invariant §3 introduces, with the gate that
+holds it."""
+replace = "The row is not optional. `currency codes come from a closed set` is enforced today."
+
+[[mutant]]
+id = "A10-negated"
+fires = ["A10"]
+why = "reproduced defeat 3, closed: the negation rule matched common words anywhere in the four words before the claim, so an ordinary aside suppressed a real over-claim. It now stops at the clause boundary"
+find = """The status table above gains a row per invariant §3 introduces, with the gate that
+holds it."""
+replace = "The currency codes come from a closed set rule is, once again, enforced today."
+
+[[mutant]]
+id = "A11-truncated-literal"
+fires = ["A11"]
+why = "A11's only non-shared logic: a citation that stops mid-literal"
+find = "`src/tinyetl/orders.py:5-10`"
+replace = "`src/tinyetl/orders.py:5-8`"
+
+[[mutant]]
+id = "A12-range-cell"
+fires = []
+why = "the standing field ask, shipped: a reviewer confirming a fold against a RANGE of lines used to have to drop the range or record a line the fix does not live on. A12 now accepts it"
+find = "`src/tinyetl/orders.py:15`"
+replace = "`src/tinyetl/orders.py:13-15`"
+
+[[mutant]]
+id = "A12-truncated-range-cell"
+fires = ["A12"]
+why = "accepting ranges must not accept TRUNCATED ones: a confirmation that stops mid-literal is a truncated citation in a ledger row exactly as it is in prose. Written unbackticked so the range check that fires is A12's own, not A11's"
+find = "`src/tinyetl/orders.py:15`"
+replace = "src/tinyetl/orders.py:5-8"
+
+[[mutant]]
+id = "A12-drift-57"
+fires = ["A12"]
+why = "the census's own shape: one insertion above a self-anchored ledger produced 57 A12 violations at a uniform shift. Every row here is the same single cause. The confirmation cells are written unbackticked — the ledger anchor form that A12 reads and A6 does not, which is what isolates the two"
+repeat = 57
+find = """| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"""
+replace = "| FM-{n} a finding folded in round one | §1 | src/tinyetl/orders.py:{shifted_line} | yes |"
+
+[[mutant]]
+id = "R1-fold-claimed-empty"
+fires = ["R1"]
+why = "the corpus's cleanest catch: R1 fired on a spec dated three days before R1 existed, so its material carries no survivorship confound"
+find = """
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"""
+replace = ""
+
+[[mutant]]
+id = "B1-forged-verdict"
+fires = ["B1"]
+why = "the reproduced forgery, pinned: a fenced CERTIFIED must never shadow the real verdict"
+artifact_verdict = "REJECTED"
+find = "- **Verdict:** CERTIFIED"
+replace = '''- **Verdict:** REJECTED
+
+```text
+- **Verdict:** CERTIFIED
+```'''
+
+[[mutant]]
+id = "B2-artifact-disagrees"
+fires = ["B2"]
+why = "B2's function is raising forgery cost from one typed line to a consistent saved artifact"
+artifact_verdict = "NEEDS-REVISION"
+
+[[mutant]]
+id = "W1-stale-stamp"
+fires = ["W1"]
+why = "W1's power, which no authored spec has ever supplied: every spec in the census is unstamped"
+find = "- **Kit:** 0.14.0"
+replace = "- **Kit:** 0.9.0"
+
+[[mutant]]
+id = "W1-unstamped"
+fires = ["W1"]
+why = "the case that actually occurs, and the one W1 was silent on until T0.3"
+find = """- **Kit:** 0.14.0
+"""
+replace = ""
+
+[[mutant]]
+id = "W2-status-draft"
+fires = ["W2"]
+why = "W2 has four field fires and is the one warning whose advice used to invalidate the certification it warned about"
+find = "- **Status:** ready (DoR passed)"
+replace = "- **Status:** draft"
+
+[[mutant]]
+id = "W3-basename-expansion"
+fires = ["W3"]
+why = "the best-motivated warning in the surface: the toolchain feeds the gate anchors the gate rejects"
+find = "`src/tinyetl/regions.py:3`"
+replace = "`regions.py:3`"
+
+[[mutant]]
+id = "W4-no-artifact"
+fires = ["W4"]
+why = "B2's adoption nudge, unlettered until T0.1 and therefore uncountable"
+find = """- **Certification artifact:** `clean-series.premortem.md`
+"""
+replace = ""
+
+[[mutant]]
+id = "W5-stale-hash"
+fires = ["W5"]
+why = "B2's hash-currency warning, the other unlettered one"
+artifact_hash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"

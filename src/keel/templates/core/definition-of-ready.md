@@ -74,17 +74,6 @@ are stateless.
       `keel spec-hash`) and named in the certification's `Certification artifact:` field.
       *(`keel check-ready` verifies a named artifact — B2, verify-when-present: existence, verdict
       agreement, hash currency; forgery cost, not blindness proof.)*
-- [ ] Every invariant the work touches is named in "Invariants touched", each with an ADR.
-- [ ] Every concept maps to a module in the concept→module map.
-- [ ] Every non-obvious design choice has an ADR (alternatives recorded).
-- [ ] The spec is internally consistent (no section contradicts another).
-- [ ] A post-fold coherence re-read was performed and recorded (`Post-fold coherence:` in
-      the certification): each folded finding is applied consistently across all sections,
-      and any scope-narrowing finding had its dependent counts re-derived.
-- [ ] *(eval/experiment specs only)* the seven items on the measurement profile
-      (`pre-mortem-profiles.md`) are certified, feasibility first. They gate the axes the spec's
-      `## Experiment design (Part B)` section names, and they are dispatched only for that kind —
-      a code spec neither reads them nor pays for them.
 
 ### The operator close (discharging a CONDITIONAL-CERTIFY)
 

@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 from keel.errors import format_error
-from keel.models import GateResult, Violation
+from keel.models import CHECK_IDS, GateResult, Probe, Violation, Warning, count_causes
 
 # A3 placeholders: the four legacy tokens, plus the spec-template's angle-bracket idiom
 # (`<title>`, `<the observable condition ...>`). The angle-bracket form is matched on the shared
@@ -182,55 +182,151 @@ def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
         ) from exc
 
 
-def spec_hash(spec_path: Path) -> str:
-    """B2's canonical certification hash: sha256 of the spec minus its certification section.
+_HEADER_STATUS_RE = re.compile(r'^[\-*\s]*status[\s*]*:', re.IGNORECASE)
 
-    The `## Pre-mortem certification` section's lines (heading included, through the next `## `
-    heading or EOF) are REMOVED from the ``splitlines()`` sequence and the remainder re-joined
-    with newlines — not blanked: blanked lines still contribute newline bytes, so a growing fold
-    ledger would change the very hash its own recording is part of (ADR-0014). Removal plus
-    splitlines normalization also makes the hash indifferent to CRLF/LF. Fenced text is masked
-    only to LOCATE the section (a fenced example heading cannot shift the span); the hash is
+
+def spec_hash(spec_path: Path) -> str:
+    """B2's canonical certification hash: sha256 of the spec minus the parts that are not content.
+
+    Two spans are REMOVED from the ``splitlines()`` sequence before hashing, and the remainder
+    re-joined with newlines — not blanked: blanked lines still contribute newline bytes, so a
+    growing fold ledger would change the very hash its own recording is part of (ADR-0014).
+    Removal plus splitlines normalization also makes the hash indifferent to CRLF/LF. Fenced text
+    is masked only to LOCATE the spans (a fenced example heading cannot shift them); the hash is
     computed over the raw lines.
+
+    1. The `## Pre-mortem certification` section (heading included, through the next `## ` heading
+       or EOF) — recording a certification must not invalidate it.
+    2. The HEADER `Status:` field, i.e. the one above the first `## ` heading. W2 warns that a
+       recorded certification sits over a header still reading `draft`; obeying that warning moved
+       the hash and invalidated the certification the same run had just verified, so the gate's own
+       advice defeated the gate. A `Status:` line inside a numbered section is content and still
+       binds.
+
+    The hash's scope is pinned per gate MINOR, exactly as W1's kit-skew semantics are: changing
+    what is hashed invalidates every `Spec-hash:` already recorded in a saved pre-mortem artifact,
+    which surfaces as a one-time wave of W5 "certified against an earlier revision" warnings.
     """
     raw = _read_spec_text(spec_path, purpose='spec-hash')
     masked_lines = _mask_fenced(raw).splitlines()
     raw_lines = raw.splitlines()
     keep: list[str] = []
     in_cert = False
+    in_header = True
     for i, masked in enumerate(masked_lines):
         heading = re.match(r'^##[ \t]+(.+?)[ \t]*$', masked)
         if heading is not None:
+            in_header = False
             low = heading.group(1).lower()
             in_cert = 'pre-mortem' in low and 'certification' in low
-        if not in_cert:
-            keep.append(raw_lines[i])
+        if in_cert:
+            continue
+        if in_header and _HEADER_STATUS_RE.match(masked):
+            continue
+        keep.append(raw_lines[i])
     return hashlib.sha256('\n'.join(keep).encode('utf-8')).hexdigest()
 
 
 _KIT_STAMP_RE = re.compile(r'<!--\s*keel kit (\d+)\.(\d+)\.(\d+)\s*-->')
+_KIT_VERSION_RE = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
 
 
-def _kit_skew_warning(text: str) -> list[str]:
-    """§9 (0.12.0): a spec stamped from a different kit MAJOR.MINOR self-announces the skew.
+def _kit_stamp(text: str, header: str) -> str | None:
+    """The kit version a spec declares, from the header `Kit:` field or the legacy HTML comment.
 
-    WARN-only and verify-when-present: pre-0.12.0 specs carry no stamp and stay silent; a patch
-    difference is silent too (gate semantics are pinned per minor). Runs in the Part A path so the
-    author loop (--structure-only) sees it — that is where a stale kit bites first.
+    T0.3 moves the stamp into the visible header, because the HTML comment lived below the closing
+    rule and every authored spec in the census had lost it at hand-copy. The comment form is still
+    read — retiring it from the template does not retire it from the specs already carrying it.
     """
-    match = _KIT_STAMP_RE.search(text)
-    if match is None:
-        return []
+    declared = _field(header, 'kit')
+    if declared and _KIT_VERSION_RE.match(token := _first_path_token(declared)):
+        return token
+    comment = _KIT_STAMP_RE.search(text)
+    return '.'.join(comment.groups()) if comment is not None else None
+
+
+def _kit_skew_warning(text: str, header: str) -> list[Warning]:
+    """W1: a spec stamped from a different kit MAJOR.MINOR — or carrying no stamp — self-announces.
+
+    WARN-only. A patch difference stays silent (gate semantics are pinned per minor). T0.3 widens
+    the check to the UNSTAMPED case, which is the only one the census ever observed: no authored
+    spec carried a stamp at all, so a verify-when-present skew check had zero material forever and
+    could neither fire nor be defended. Runs in the Part A path so the author loop
+    (--structure-only) sees it — that is where a stale kit bites first.
+    """
     from keel import __version__
 
-    own = __version__.split('.')
-    if (match.group(1), match.group(2)) == (own[0], own[1]):
+    stamp = _kit_stamp(text, header)
+    if stamp is None:
+        return [
+            Warning(
+                'W1',
+                f'WARN: this spec is unstamped — it declares no kit version, so kit↔gate skew is '
+                f'undetectable on it. Add `- **Kit:** {__version__}` to the header beside Date '
+                'and Status.',
+            )
+        ]
+    if stamp.split('.')[:2] == __version__.split('.')[:2]:
         return []
-    stamped = '.'.join(match.groups())
     return [
-        f'WARN: spec stamped from kit {stamped}, gate is {__version__} — the kit and the gate '
-        'moved apart; regenerate the spec scaffold or diff the kit before trusting old guidance.'
+        Warning(
+            'W1',
+            f'WARN: spec stamped from kit {stamp}, gate is {__version__} — the kit and the gate '
+            'moved apart; regenerate the spec scaffold or diff the kit before trusting old '
+            'guidance.',
+        )
     ]
+
+
+def _candidate_counts(
+    *,
+    text: str,
+    prose: str,
+    header: str,
+    sections: list[tuple[str, str]],
+    subsections: list[tuple[str, str]],
+    manifest_body: str | None,
+    concept_body: str | None,
+    cert: str | None,
+    structure_only: bool,
+) -> dict[str, int]:
+    """How many constructs of each check's own shape this spec presented (KEEL-B07).
+
+    "Candidates" is the denominator a fire rate needs and the thing that tells `n/a` apart from
+    `clean`. Each count uses the SAME parser its check uses — the regexes and row-extractors are
+    shared, not re-derived — and the suite pins the invariant that a check never fires without a
+    counted candidate, which is what catches drift if a check's shape changes and this does not.
+    """
+    anchors = sum(1 for m in _ANCHOR_RE.finditer(text) if _anchor_shaped(m.group(1)))
+    ranges = sum(1 for m in _ANCHOR_RANGE_RE.finditer(text) if _anchor_shaped(m.group(1)))
+    ledger_rows = len(_ledger_rows(cert))
+    structural = len(subsections) or 1  # an absent required section is itself one construct
+    certified = 0 if structure_only else int(cert is not None)
+    return {
+        'A0': int(bool(_field(header, 'kind'))),
+        'A1': structural,
+        'A2': structural,
+        # A3 scans lines: the construct is a line of prose that could carry a placeholder token.
+        'A3': sum(1 for line in prose.splitlines() if line.strip()),
+        'A4': max(len(_table_rows(manifest_body or '')) - 1, 0) or int(manifest_body is None),
+        'A5': max(len([c for c in _table_rows(concept_body or '') if len(c) >= 2]) - 1, 0)
+        or int(concept_body is None),
+        'A6': anchors,
+        'A7': len(_ADR_REF_RE.findall(text)),
+        'A8': len(_SECTION_REF_RE.findall(prose)),
+        'A9': len(_MODEL_ON_RE.findall(text)) + len(_REUSE_RE.findall(text)),
+        'A10': len(_non_enforced(sections)),
+        'A11': ranges,
+        'A12': ledger_rows,
+        'R1': int(cert is not None),
+        'B1': 0 if structure_only else 1,
+        'B2': certified,
+        'W1': 1,  # every spec either declares a kit version or does not
+        'W2': certified,
+        'W3': anchors + ranges + ledger_rows,
+        'W4': certified,
+        'W5': certified,
+    }
 
 
 def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateResult:
@@ -256,8 +352,8 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     header = text[: first_heading.start()] if first_heading else text
 
     violations: list[Violation] = []
-    warnings: list[str] = []
-    warnings += _kit_skew_warning(text)
+    warnings: list[Warning] = []
+    warnings += _kit_skew_warning(text, header)
     # §11 (0.12.0) + KEEL-B01: two header declarations widen the *absence* tolerance of the
     # Part-A structural trio, and nothing else. `Phases: … (Decompose: skipped)` relaxes the
     # manifest (ADR-0014); `Kind: single-change` relaxes all three, because a spec that decomposes
@@ -308,7 +404,36 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
             warnings += artifact_warnings
         warnings += _status_currency_warning(header, cert)
 
-    return GateResult(passed=not violations, violations=tuple(violations), warnings=tuple(warnings))
+    candidates = _candidate_counts(
+        text=text,
+        prose=prose,
+        header=header,
+        sections=sections,
+        subsections=subsections,
+        manifest_body=manifest_body,
+        concept_body=concept_body,
+        cert=cert,
+        structure_only=structure_only,
+    )
+    fired: dict[str, int] = dict.fromkeys(CHECK_IDS, 0)
+    for finding in (*violations, *warnings):
+        if finding.check:
+            fired[finding.check] += 1
+    probes = tuple(
+        Probe(
+            check=check,
+            candidates=candidates[check],
+            fired=fired[check],
+            causes=count_causes(v for v in violations if v.check == check) or fired[check],
+        )
+        for check in sorted(CHECK_IDS)
+    )
+    return GateResult(
+        passed=not violations,
+        violations=tuple(violations),
+        warnings=tuple(warnings),
+        probes=probes,
+    )
 
 
 # --- parsing -----------------------------------------------------------------
@@ -460,6 +585,7 @@ def _declared_kind(header: str) -> tuple[str, Violation | None]:
         'Kind',
         f'declared spec kind {token!r} is not one of '
         f'{" | ".join(_SPEC_KINDS)} — it relaxes nothing as written.',
+        'A0',
     )
 
 
@@ -482,9 +608,21 @@ def _basename_matches(base: Path, path: str) -> list[Path]:
     ]
 
 
+def _snippet_delta(lines: list[str], snippet: str, claimed: int) -> str:
+    """The uniform shift a drifted snippet implies, as a cause key suffix, or '' when unknowable.
+
+    Two anchors whose content moved by the same number of lines are one edit, not two defects. A
+    snippet found nowhere (or on several lines) gives no delta, and then the violation is its own
+    cause — under-grouping is the safe direction: it over-reports causes rather than hiding one.
+    """
+    wanted = ' '.join(snippet.split())
+    found = [n for n, line in enumerate(lines, 1) if wanted in ' '.join(line.split())]
+    return f'drift{found[0] - claimed:+d}' if len(found) == 1 else ''
+
+
 def _resolve_anchor(
-    base: Path, path: str, line_no: int, where: str
-) -> tuple[list[str] | None, Violation | None, list[str]]:
+    base: Path, path: str, line_no: int, where: str, check: str
+) -> tuple[list[str] | None, Violation | None, list[Warning]]:
     """Resolve a `path:line` anchor: (file lines, None, warnings), else (None, Violation, []).
 
     KEEL-B04: a path that does not resolve as written but whose basename matches exactly one repo
@@ -495,7 +633,7 @@ def _resolve_anchor(
     the ambiguous message names the candidates.
     """
     target = base / path
-    warnings: list[str] = []
+    warnings: list[Warning] = []
     if not target.is_file():
         matches = _basename_matches(base, path)
         if len(matches) != 1:
@@ -513,21 +651,34 @@ def _resolve_anchor(
                     where,
                     f'anchor path {path!r} does not exist as a file '
                     f'(anchors are repo-root-relative, e.g. src/pkg/mod.py:42).{candidates}',
+                    check,
+                    # Every anchor into one missing (or moved) file is the same defect.
+                    f'{check}:{path}:missing',
                 ),
                 [],
             )
         target = matches[0]
         expanded = target.relative_to(base).as_posix()
         warnings.append(
-            f'WARN: anchor {path}:{line_no} resolved by unique basename match to '
-            f'{expanded}:{line_no} — write anchors repo-root-relative (A6); the expansion is '
-            'unique today and a second file of that name would turn this WARN into a failure.'
+            Warning(
+                'W3',
+                f'WARN: anchor {path}:{line_no} resolved by unique basename match to '
+                f'{expanded}:{line_no} — write anchors repo-root-relative (A6); the expansion is '
+                'unique today and a second file of that name would turn this WARN into a failure.',
+            )
         )
     lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
     if line_no < 1 or line_no > len(lines):
         return (
             None,
-            Violation(where, f'anchor line {line_no} is out of range ({len(lines)} lines).'),
+            Violation(
+                where,
+                f'anchor line {line_no} is out of range ({len(lines)} lines).',
+                check,
+                # No delta is measurable past end-of-file, so the target is the whole key: one
+                # insertion above a self-anchored block overflows every row of it at once.
+                f'{check}:{path}:out-of-range',
+            ),
             [],
         )
     return lines, None, warnings
@@ -595,13 +746,14 @@ def _check_numbered(subsections: list[tuple[str, str]]) -> list[Violation]:
                 'Numbered sections',
                 'no numbered sections found: expected a "## Numbered sections" section with '
                 f'"### §N <title>" subsections — {_DECLARE_SMALLER}.',
+                'A1',
             )
         ]
     violations: list[Violation] = []
     for title, _ in subsections:
         if not re.match(r'§\d+\b', title):
             violations.append(
-                Violation('Numbered sections', f'section heading is not numbered: {title!r}.')
+                Violation('Numbered sections', f'section heading is not numbered: {title!r}.', 'A1')
             )
     return violations
 
@@ -613,7 +765,7 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
         where = _id_or_title(title)
         marker = re.search(r'acceptance\s+criterion', sub_body, re.IGNORECASE)
         if marker is None:
-            violations.append(Violation(where, 'missing an acceptance criterion.'))
+            violations.append(Violation(where, 'missing an acceptance criterion.', 'A2'))
             continue
         # Count only the criterion's own paragraph (up to the first blank line), so an EMPTY
         # criterion followed by unrelated prose cannot launder the >=5-word floor (A2).
@@ -622,7 +774,7 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
         if len(words) < _MIN_CRITERION_WORDS:
             violations.append(
                 Violation(
-                    where, f'acceptance criterion is missing or trivial ({len(words)} words).'
+                    where, f'acceptance criterion is missing or trivial ({len(words)} words).', 'A2'
                 )
             )
     return violations
@@ -645,6 +797,7 @@ def _check_document_acceptance(text: str) -> list[Violation]:
             'a spec declared `Kind: single-change` carries no non-trivial acceptance criterion '
             f'(a present criterion of >= {_MIN_CRITERION_WORDS} words) — the declaration relaxes '
             'the structural trio, not the observable condition that means the change is done.',
+            'A2',
         )
     ]
 
@@ -664,7 +817,11 @@ def _check_placeholders(text: str, prose: str) -> list[Violation]:
     ):
         for match in _PLACEHOLDER_RE.finditer(line):
             violations.append(
-                Violation(f'line {lineno}', f'placeholder token {match.group(0)!r} not allowed.')
+                Violation(
+                    f'line {lineno}',
+                    f'placeholder token {match.group(0)!r} not allowed.',
+                    'A3',
+                )
             )
         for match in _ANGLE_PLACEHOLDER_RE.finditer(masked):
             if '://' in match.group(0):  # an autolink <https://...>, not a placeholder
@@ -674,6 +831,7 @@ def _check_placeholders(text: str, prose: str) -> list[Violation]:
                     f'line {lineno}',
                     f'unfilled template placeholder {match.group(0)!r} — replace it with real '
                     'content (angle-bracket placeholders outside `code` are not allowed).',
+                    'A3',
                 )
             )
     return violations
@@ -693,6 +851,7 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
                 'PR ↔ section manifest',
                 f'no "## PR ↔ section manifest" section found — {_DECLARE_SMALLER}, or declare '
                 '`- **Phases:** … (Decompose: skipped)` for a round that stops before Decompose.',
+                'A4',
             )
         ]
     rows = _table_rows(manifest_body)
@@ -714,21 +873,25 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
                     'PR ↔ section manifest',
                     f'PR row {pr!r} cites {len(ids)} sections in its section column; each PR must '
                     'implement exactly one section.',
+                    'A4',
                 )
             )
     if not cited:
-        violations.append(Violation('PR ↔ section manifest', 'manifest has no PR → section rows.'))
+        violations.append(
+            Violation('PR ↔ section manifest', 'manifest has no PR → section rows.', 'A4')
+        )
     for sid in section_ids:
         count = cited.count(sid)
         if count == 0:
             violations.append(
-                Violation('PR ↔ section manifest', f'section {sid} is not covered by any PR.')
+                Violation('PR ↔ section manifest', f'section {sid} is not covered by any PR.', 'A4')
             )
         elif count > 1:
             violations.append(
                 Violation(
                     'PR ↔ section manifest',
                     f'section {sid} is covered by {count} PRs (not a bijection).',
+                    'A4',
                 )
             )
     for sid in dict.fromkeys(cited):
@@ -737,6 +900,7 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
                 Violation(
                     'PR ↔ section manifest',
                     f'manifest cites {sid}, which is not a numbered section.',
+                    'A4',
                 )
             )
     return violations
@@ -757,6 +921,7 @@ def _check_paths(
             Violation(
                 'Concept → module map',
                 f'no "## Concept → module map" section found — {_DECLARE_SMALLER}.',
+                'A5',
             )
         ]
     base = _resolve_base(spec_path)
@@ -788,6 +953,7 @@ def _check_paths(
                         f'"to be created" path {path!r} is not claimed by any section '
                         '(name the path — or its basename, when unique — in the body of the '
                         'section that creates it).',
+                        'A5',
                     )
                 )
         elif not (base / path).exists():
@@ -795,16 +961,17 @@ def _check_paths(
                 Violation(
                     'Concept → module map',
                     f'referenced path {path!r} does not exist (nor marked "to be created").',
+                    'A5',
                 )
             )
     return violations
 
 
-def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[str]]:
+def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[Warning]]:
     """Code-grounding: every `path:line` anchor resolves, and any quoted snippet matches."""
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
-    warnings: list[str] = []
+    warnings: list[Warning] = []
     for match in _ANCHOR_RE.finditer(text):
         path, line_text, snippet = match.group(1), match.group(2), match.group(3)
         if not _anchor_shaped(path):
@@ -812,10 +979,12 @@ def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[st
         where = f'{path}:{line_text}'
         reason = _bad_anchor_platform(path)
         if reason is not None:
-            violations.append(Violation(where, f'anchor path {path!r} is not portable ({reason}).'))
+            violations.append(
+                Violation(where, f'anchor path {path!r} is not portable ({reason}).', 'A6')
+            )
             continue
         line_no = int(line_text)
-        lines, violation, resolve_warnings = _resolve_anchor(base, path, line_no, where)
+        lines, violation, resolve_warnings = _resolve_anchor(base, path, line_no, where, 'A6')
         warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
@@ -829,12 +998,16 @@ def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[st
                         f'interpreted {snippet!r} (the backticked token after the anchor) as a '
                         f'snippet to match against line {line_no}; remove it or make it an exact '
                         'substring of that line.',
+                        'A6',
+                        f'A6:{path}:{delta}'
+                        if (delta := _snippet_delta(lines, snippet, line_no))
+                        else '',
                     )
                 )
     return violations, warnings
 
 
-def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], list[str]]:
+def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], list[Warning]]:
     """A11: a `path:lo-hi` range anchor must close every bracket it opens (string/comment-aware).
 
     A range whose `hi` line leaves a bracket opened inside the range unclosed is a truncated
@@ -845,7 +1018,7 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], l
     """
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
-    warnings: list[str] = []
+    warnings: list[Warning] = []
     for match in _ANCHOR_RANGE_RE.finditer(text):
         path, lo, hi = match.group(1), int(match.group(2)), int(match.group(3))
         if not _anchor_shaped(path):
@@ -853,15 +1026,17 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], l
         where = f'{path}:{lo}-{hi}'
         reason = _bad_anchor_platform(path)
         if reason is not None:
-            violations.append(Violation(where, f'anchor path {path!r} is not portable ({reason}).'))
+            violations.append(
+                Violation(where, f'anchor path {path!r} is not portable ({reason}).', 'A11')
+            )
             continue
-        lines, violation, resolve_warnings = _resolve_anchor(base, path, hi, where)
+        lines, violation, resolve_warnings = _resolve_anchor(base, path, hi, where, 'A11')
         warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
         if lo < 1 or lo > hi or lines is None:
-            violations.append(Violation(where, f'anchor range {lo}-{hi} is malformed.'))
+            violations.append(Violation(where, f'anchor range {lo}-{hi} is malformed.', 'A11'))
             continue
         if path.endswith(('.py', '.pyi')):
             net, ever_negative = _bracket_balance(lines[lo - 1 : hi])
@@ -871,6 +1046,7 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], l
                         where,
                         f'anchor range :{lo}-{hi} does not close every bracket it opens (or closes '
                         'one opened before it) — quote the literal complete or not at all.',
+                        'A11',
                     )
                 )
     return violations, warnings
@@ -878,10 +1054,12 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], l
 
 _FOLD_NONE = frozenset({'', 'none', 'noneoutstanding', 'na', 'nil'})
 
-# Anchor, optionally followed by a backticked snippet (0.12.0 §8): `path:line` `snippet`. The
-# snippet makes in-range drift detectable — a bare line number survives an edit that moves content
-# within range; the snippet does not.
-_LEDGER_ANCHOR_RE = re.compile(r'`?([^`\s]*[./][^`\s]*):(\d+)`?(?:[ \t]+`([^`]+)`)?$')
+# Anchor, optionally a `lo-hi` RANGE, optionally followed by a backticked snippet (0.12.0 §8):
+# `path:line` `snippet`. The snippet makes in-range drift detectable — a bare line number survives
+# an edit that moves content within range; the snippet does not. The range form is the standing
+# field ask (T1.4): a reviewer confirming a fold against several lines had to either drop the
+# range or record a line the fix does not live on.
+_LEDGER_ANCHOR_RE = re.compile(r'`?([^`\s]*[./][^`\s]*):(\d+)(?:-(\d+))?`?(?:[ \t]+`([^`]+)`)?$')
 
 
 def _ledger_anchor(cells: list[str]) -> re.Match[str] | None:
@@ -916,7 +1094,19 @@ def _fold_claimed(cert_body: str) -> bool:
     return False
 
 
-def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> tuple[list[Violation], list[str]]:
+def _ledger_rows(cert_body: str | None) -> list[list[str]]:
+    """The fold ledger's data rows (header dropped) — A12's constructs, and its candidate count."""
+    if cert_body is None:
+        return []
+    ledger = next(
+        (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
+    )
+    return (_first_table_rows(ledger) if ledger else [])[1:]
+
+
+def _check_fold_ledger(
+    cert_body: str | None, spec_path: Path
+) -> tuple[list[Violation], list[Warning]]:
     """A12 + R1: a claimed fold carries a ledger, and every ledger row's anchor resolves.
 
     R1 (a deliberate DoR tightening, NOT verify-when-present): a certification whose 'folded in'
@@ -933,7 +1123,7 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> tuple[list[Vio
         (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
     )
     table = _first_table_rows(ledger) if ledger else []
-    header, rows = (table[0] if table else []), table[1:]
+    header, rows = (table[0] if table else []), _ledger_rows(cert_body)
     if not rows:
         if _fold_claimed(cert_body):
             return [
@@ -941,12 +1131,13 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> tuple[list[Vio
                     'Fold ledger',
                     'the certification claims a fold but carries no `### Fold ledger` rows; '
                     'record one row (finding, target, artifact:line, confirmed) per finding (R1).',
+                    'R1',
                 )
             ], []
         return [], []
     base = _resolve_base(spec_path)
     violations: list[Violation] = []
-    warnings: list[str] = []
+    warnings: list[Warning] = []
     for cells in rows:
         where = f'Fold ledger {cells[0].strip() if cells else "(row)"}'
         if len(cells) < 3:
@@ -955,6 +1146,7 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> tuple[list[Vio
                     where,
                     'fold-ledger row is malformed — it needs finding, target, `artifact:line`, '
                     'and confirmed cells; a short row carries no resolving anchor (R1/A12).',
+                    'A12',
                 )
             )
             continue
@@ -968,6 +1160,7 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> tuple[list[Vio
                     f'fold-ledger row split into {len(cells)} cells where the header has '
                     f'{len(header)} — a bare `|` inside a cell is a column break; backtick the '
                     'cell content or escape it as `\\|`.',
+                    'A12',
                 )
             )
             continue
@@ -978,27 +1171,56 @@ def _check_fold_ledger(cert_body: str | None, spec_path: Path) -> tuple[list[Vio
                 Violation(
                     where,
                     f'no cell in this fold-ledger row is an `artifact:line` confirmation — the '
-                    f'confirmation column reads {read!r}. Anchor the row to `path:line`, e.g. '
-                    '`docs/design/your-spec.md:142`; an optional backticked snippet after it is '
-                    'verified against that line.',
+                    f'confirmation column reads {read!r}. Anchor the row to `path:line` or '
+                    '`path:lo-hi`, e.g. `docs/design/your-spec.md:142`; an optional backticked '
+                    'snippet after it is verified against those lines.',
+                    'A12',
                 )
             )
             continue
-        line_no = int(match.group(2))
-        lines, violation, resolve_warnings = _resolve_anchor(base, match.group(1), line_no, where)
+        path, lo = match.group(1), int(match.group(2))
+        hi = int(match.group(3)) if match.group(3) else None
+        # A range resolves on its LAST line, exactly as A11 does; a single anchor is lo == hi.
+        lines, violation, resolve_warnings = _resolve_anchor(base, path, hi or lo, where, 'A12')
         warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
-        snippet = match.group(3)
-        if snippet is not None and lines is not None:
-            actual = ' '.join(lines[line_no - 1].split())
-            if ' '.join(snippet.split()) not in actual:
+        if lines is None:
+            continue
+        if hi is not None:
+            if lo < 1 or lo > hi:
+                violations.append(Violation(where, f'anchor range {lo}-{hi} is malformed.', 'A12'))
+                continue
+            # A range cell earns A11's guarantee too: a confirmation that stops mid-literal is a
+            # truncated citation whether it sits in prose or in a ledger row.
+            if path.endswith(('.py', '.pyi')):
+                net, ever_negative = _bracket_balance(lines[lo - 1 : hi])
+                if net > 0 or ever_negative:
+                    violations.append(
+                        Violation(
+                            where,
+                            f'fold-ledger range :{lo}-{hi} does not close every bracket it opens '
+                            '(or closes one opened before it) — quote the literal complete or not '
+                            'at all.',
+                            'A12',
+                        )
+                    )
+                    continue
+        snippet = match.group(4)
+        if snippet is not None:
+            window = ' '.join(' '.join(lines[lo - 1 : hi or lo]).split())
+            if ' '.join(snippet.split()) not in window:
+                span = f'{lo}-{hi}' if hi else str(lo)
                 violations.append(
                     Violation(
                         where,
-                        f'fold-ledger snippet {snippet!r} does not match line {line_no} '
+                        f'fold-ledger snippet {snippet!r} does not match line {span} '
                         '(in-range drift: the anchored content moved — re-anchor the row).',
+                        'A12',
+                        f'A12:{path}:{delta}'
+                        if (delta := _snippet_delta(lines, snippet, hi or lo))
+                        else '',
                     )
                 )
     return violations, warnings
@@ -1013,7 +1235,9 @@ def _check_adr_numbers(text: str, spec_path: Path) -> list[Violation]:
         declared = Path(rel).name
         existing = [p.name for p in adr_dir.glob(f'{number}-*.md')] if adr_dir.exists() else []
         if existing and declared not in existing:
-            violations.append(Violation(rel, f'ADR number {number} already used: {existing}.'))
+            violations.append(
+                Violation(rel, f'ADR number {number} already used: {existing}.', 'A7')
+            )
     return violations
 
 
@@ -1040,16 +1264,20 @@ def _check_references(text: str, spec_path: Path) -> list[Violation]:
     for match in _MODEL_ON_RE.finditer(text):
         rel = match.group(1).strip()
         if not (base / rel).exists():
-            violations.append(Violation('Model-on', f'reference path {rel!r} does not exist.'))
+            violations.append(
+                Violation('Model-on', f'reference path {rel!r} does not exist.', 'A9')
+            )
     for match in _REUSE_RE.finditer(text):
         ref = match.group(1).strip()
         rel, _, symbol = ref.partition('::')
         target = base / rel
         if not target.exists():
-            violations.append(Violation(f'Reuse {ref}', f'reference path {rel!r} does not exist.'))
+            violations.append(
+                Violation(f'Reuse {ref}', f'reference path {rel!r} does not exist.', 'A9')
+            )
         elif symbol and not _symbol_defined(target, symbol):
             violations.append(
-                Violation(f'Reuse {ref}', f'symbol {symbol!r} is not defined in {rel}.')
+                Violation(f'Reuse {ref}', f'symbol {symbol!r} is not defined in {rel}.', 'A9')
             )
     return violations
 
@@ -1105,9 +1333,65 @@ def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[V
             sid = f'§{match.group(1)}'
             if sid not in known:
                 violations.append(
-                    Violation(f'line {lineno}', f'reference {sid} resolves to no numbered section.')
+                    Violation(
+                        f'line {lineno}',
+                        f'reference {sid} resolves to no numbered section.',
+                        'A8',
+                    )
                 )
     return violations
+
+
+def _non_enforced(sections: list[tuple[str, str]]) -> dict[str, str]:
+    """The Enforcement-status rows whose status is not `enforced`, keyed by invariant.
+
+    A10's trigger set, and therefore also A10's candidate count: with no such row the check has no
+    opportunity to fire, which is a different fact from looking and finding nothing. One home, so
+    the count cannot drift from the check.
+    """
+    body = _find_section(sections, 'enforcement')
+    if body is None:
+        return {}
+    rows: dict[str, str] = {}
+    for cells in _table_rows(body):
+        if len(cells) < 2:
+            continue
+        key = re.sub(r'[`*]', '', cells[0]).strip()
+        status = cells[1].strip().lower()
+        if key and 'invariant' not in key.lower() and status and status != 'enforced':
+            rows[key] = status
+    return rows
+
+
+def _unwrap_spans(text: str) -> str:
+    """Backtick spans replaced by their inner text — `key` still reads as key, and nothing is lost.
+
+    Distinct from the deletion used to find the claim word: there, a backticked `enforced` is
+    meta-discussion and must vanish. Everywhere the key or its context is read, deleting a span
+    removes the very words the check is looking for.
+    """
+    return re.sub(r'`([^`]*)`', r'\1', text)
+
+
+def _paragraph_bounds(lines: list[str], i: int) -> tuple[int, int]:
+    """The blank-line-delimited paragraph containing line i, as a [start, end) range.
+
+    The author's own unit, rather than a fixed window: a spec that wraps a claim three lines below
+    its subject is ordinary prose, and a fixed prev/this/next window read it as unrelated. A blank
+    line still separates topics, so a paragraph away stays out of reach.
+    """
+    start, end = i, i + 1
+    while start > 0 and lines[start - 1].strip() and not lines[start - 1].lstrip().startswith('|'):
+        start -= 1
+    while end < len(lines) and lines[end].strip() and not lines[end].lstrip().startswith('|'):
+        end += 1
+    return start, end
+
+
+# A negation only negates the clause it is in. Sentence and clause punctuation ends the lookback,
+# so neither an ordinary aside ("is, once again, enforced") nor a negation in the PREVIOUS
+# sentence ("The row is not optional. `X` is enforced.") reads as a deferral of this claim.
+_CLAUSE_BREAK_RE = re.compile(r'[.,;:()–—]')  # noqa: RUF001 (en/em dash are clause breaks)
 
 
 def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> list[Violation]:
@@ -1115,23 +1399,21 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
 
     Keyed off the spec-template 'Enforcement status' table (the convention), not free-text parsing;
     checked only when that table is present. A claim word inside backticks does not fire (a quoted
-    `enforced` is meta-discussion). The invariant key is matched with backtick spans kept as their
-    inner text (so a backticked `key` still counts) across the wrapped neighbourhood (prev+this+next
-    line), so a hard line-wrap between key and claim no longer hides an over-claim; a negation or
-    deferral in the words just before the claim ("not", "never", "n't", "to be", "will be", "yet",
-    "once") suppresses it.
+    `enforced` is meta-discussion).
+
+    Three windows, each scoped to what it is for, and each the fix to a reproduced defeat:
+
+    * the invariant KEY is looked for across the claim's whole paragraph, not a prev/this/next
+      line window — a claim three lines below its subject is ordinary wrapping, not a new topic;
+    * the negation LOOKBACK stops at the nearest sentence or clause boundary, so a negation the
+      claim does not belong to no longer suppresses it. That covers both the aside ("is, once
+      again, enforced") and the previous sentence, whose "not" became adjacent to the claim only
+      because the backticked invariant name between them was deleted from this view.
+
+    A genuine deferral puts its negation next to the claim — "not enforced", "not yet enforced",
+    "to be / will be enforced", "planned to be enforced" — and all of those still suppress.
     """
-    body = _find_section(sections, 'enforcement')
-    if body is None:
-        return []
-    non_enforced: dict[str, str] = {}
-    for cells in _table_rows(body):
-        if len(cells) < 2:
-            continue
-        key = re.sub(r'[`*]', '', cells[0]).strip()
-        status = cells[1].strip().lower()
-        if key and 'invariant' not in key.lower() and status and status != 'enforced':
-            non_enforced[key] = status
+    non_enforced = _non_enforced(sections)
     if not non_enforced:
         return []
     lines = text.splitlines()
@@ -1143,15 +1425,21 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
         claim = _CLAIM_RE.search(bare)
         if claim is None:
             continue
-        # neighbourhood for the wrap fix, excluding table rows (their keys are the status source,
-        # not prose to match a claim against).
-        near = [ln for ln in lines[max(0, i - 1) : i + 2] if not ln.lstrip().startswith('|')]
-        before = re.sub(r'`[^`]*`', '', ' '.join(lines[max(0, i - 1) : i + 1]))
+        # Table rows are excluded from both windows: their keys are the status source, not prose
+        # to match a claim against.
+        start, end = _paragraph_bounds(lines, i)
+        near = [ln for ln in lines[start:end] if not ln.lstrip().startswith('|')]
+        upto = [ln for ln in lines[start : i + 1] if not ln.lstrip().startswith('|')]
+        # Spans are DELETED here, not unwrapped: the claim word was located on the same deleted
+        # view, so a backticked `enforced` elsewhere on the line cannot become the anchor `rfind`
+        # locks onto and shift the lookback off the real claim.
+        before = re.sub(r'`[^`]*`', '', ' '.join(upto))
         cut = before.rfind(claim.group(0))
-        window_before = ' '.join(before[:cut].split()[-4:]).lower() if cut != -1 else ''
+        clause = _CLAUSE_BREAK_RE.split(before[:cut])[-1] if cut != -1 else ''
+        window_before = ' '.join(clause.split()[-4:]).lower()
         if _NEG_RE.search(window_before):
             continue
-        window = re.sub(r'`([^`]*)`', r'\1', ' '.join(near)).lower()
+        window = _unwrap_spans(' '.join(near)).lower()
         for key, status in non_enforced.items():
             if key.lower() in window:
                 violations.append(
@@ -1159,12 +1447,13 @@ def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> lis
                         f'line {i + 1}',
                         f'claims {key!r} is "{claim.group(0)}" but its enforcement status '
                         f'is {status!r}.',
+                        'A10',
                     )
                 )
     return violations
 
 
-def _status_currency_warning(header: str, cert_body: str | None) -> list[str]:
+def _status_currency_warning(header: str, cert_body: str | None) -> list[Warning]:
     """§10 (0.12.0): a recorded certification while the header still says draft is a currency slip.
 
     WARN, not violation — the class recurred on release specs but it is a stale coordinate, not a
@@ -1179,8 +1468,11 @@ def _status_currency_warning(header: str, cert_body: str | None) -> list[str]:
     if _verdict_head(_field(cert_body, 'verdict')) not in ('CERTIFIED', 'CONDITIONAL-CERTIFY'):
         return []
     return [
-        "WARN: the header Status still says 'draft' though a certification is recorded — keep "
-        'the coordinate system current (update the Status field).'
+        Warning(
+            'W2',
+            "WARN: the header Status still says 'draft' though a certification is recorded — keep "
+            'the coordinate system current (update the Status field).',
+        )
     ]
 
 
@@ -1199,7 +1491,7 @@ def _verdict_head(raw: str) -> str:
 
 def _check_certification_artifact(
     cert_body: str, spec_path: Path
-) -> tuple[list[Violation], list[str]]:
+) -> tuple[list[Violation], list[Warning]]:
     """B2 (0.12.0, verify-when-present): the certification's named artifact exists and agrees.
 
     No artifact named (field absent, or present with an empty value — the template ships it
@@ -1215,9 +1507,12 @@ def _check_certification_artifact(
     ref = _first_path_token(_field(cert_body, 'certification artifact'))
     if not ref:
         return [], [
-            'WARN: the certification names no artifact — B2 verifies one when present; save the '
-            "pass's returned output per keel-premortem.md and reference it "
-            '(`Certification artifact:`).'
+            Warning(
+                'W4',
+                'WARN: the certification names no artifact — B2 verifies one when present; save '
+                "the pass's returned output per keel-premortem.md and reference it "
+                '(`Certification artifact:`).',
+            )
         ]
     where = 'Certification artifact'
     target = _resolve_base(spec_path) / ref
@@ -1228,6 +1523,7 @@ def _check_certification_artifact(
                 f'referenced artifact {ref!r} does not exist as a file — that is the leading path '
                 'token of the field; the path is repo-root-relative, like an anchor, and any '
                 'trailing prose (a round note, a prior-round path) is ignored.',
+                'B2',
             )
         ], []
     artifact_text = target.read_text(encoding='utf-8', errors='replace')
@@ -1242,18 +1538,20 @@ def _check_certification_artifact(
                 where,
                 f'artifact {ref!r} carries no line-anchored `PREMORTEM-VERDICT:` line — it does '
                 "not look like a saved pre-mortem pass's output.",
+                'B2',
             )
         ], []
     artifact_head = _verdict_head(anchored[-1].split(':', 1)[1])
     cert_head = _verdict_head(_field(cert_body, 'verdict'))
     violations: list[Violation] = []
-    warnings: list[str] = []
+    warnings: list[Warning] = []
     if artifact_head != cert_head:
         violations.append(
             Violation(
                 where,
                 f'artifact verdict token {artifact_head!r} disagrees with the recorded Verdict '
                 f'{cert_head!r} — the saved pass is the record; re-run or re-record.',
+                'B2',
             )
         )
     recorded_hash = _field(artifact_text, 'spec-hash')
@@ -1274,11 +1572,11 @@ def _check_certification_artifact(
                     'state — a condition discharged after the pass (the operator close, '
                     'definition-of-ready.md Part B).'
                 )
-            warnings.append(warning)
+            warnings.append(Warning('W5', warning))
     return violations, warnings
 
 
-def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]:
+def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warning]]:
     """B1: a blind pre-mortem certification (a verdict + a reviewer) is recorded.
 
     The verdict's leading token must be CERTIFIED, or CONDITIONAL-CERTIFY paired with a named
@@ -1293,10 +1591,11 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]
                 'Pre-mortem certification',
                 'no "## Pre-mortem certification" block; a non-author pre-mortem '
                 'must certify the spec (ADR-0002).',
+                'B1',
             )
         ], []
     violations: list[Violation] = []
-    warnings: list[str] = []
+    warnings: list[Warning] = []
     verdict_lines = [
         ln
         for ln in cert_body.splitlines()
@@ -1308,6 +1607,7 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]
                 'Pre-mortem certification',
                 f'certification records {len(verdict_lines)} Verdict lines; an appended or '
                 'retracted verdict is ambiguous — keep exactly one (edit in place, do not append).',
+                'B1',
             )
         )
     raw = _field(cert_body, 'verdict')
@@ -1318,8 +1618,11 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]
         operator = _field(cert_body, 'operator')
         if operator:
             warnings.append(
-                f'WARN: pre-mortem verdict is CONDITIONAL-CERTIFY, operator-accepted by '
-                f'{operator!r} (ready modulo a named fix) — not a clean CERTIFIED (B1).'
+                Warning(
+                    'B1',
+                    f'WARN: pre-mortem verdict is CONDITIONAL-CERTIFY, operator-accepted by '
+                    f'{operator!r} (ready modulo a named fix) — not a clean CERTIFIED.',
+                )
             )
         else:
             violations.append(
@@ -1328,6 +1631,7 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]
                     'pre-mortem verdict is CONDITIONAL-CERTIFY but names no Operator; an '
                     'operator-accepted conditional certify must record an "Operator:" field (the '
                     'named owner who accepts "ready modulo a named fix").',
+                    'B1',
                 )
             )
     else:
@@ -1338,6 +1642,7 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]
                 f'pre-mortem verdict is {verdict!r}, not "CERTIFIED" — the verdict field must '
                 'lead with the bare token CERTIFIED (trailing prose allowed), or '
                 'CONDITIONAL-CERTIFY with a named Operator.',
+                'B1',
             )
         )
     if not _field(cert_body, 'reviewer'):
@@ -1345,6 +1650,7 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[str]]
             Violation(
                 'Pre-mortem certification',
                 'pre-mortem certification names no reviewer (must be a non-author).',
+                'B1',
             )
         )
     return violations, warnings

@@ -5,11 +5,9 @@ externalized into a blocking checklist. Fail closed — nothing green-lights its
 
 ## Deterministic gates (must pass, in CI and locally)
 
-- [ ] Formatter check passes (e.g. `ruff format --check .`).
-- [ ] Linter passes (e.g. `ruff check .`).
-- [ ] Type check passes (e.g. `mypy .`).
-- [ ] Tests pass (e.g. `pytest`), including new tests for behavior changes.
-- [ ] Project guardrail scripts pass (import boundaries, docs sync, budgets…).
+Two of these are field-derived and are what this list adds; the rest is the
+bind-your-commands stub, which a project fills from its own toolchain.
+
 - [ ] Each tool-wrapping gate asserts the tool **ran to completion** (exit status / no fatal
       halt), not just that error count ≤ baseline — a tool that bails early emits *fewer*
       errors than baseline and would otherwise pass green while checking nothing.
@@ -20,7 +18,13 @@ externalized into a blocking checklist. Fail closed — nothing green-lights its
       script; this line is the project-agnostic floor. A design-only round that names the DoD
       phase skipped defers this predicate to the next execution round's gate.)
 
-*(Bind the concrete commands per project in `method-bindings.md`.)*
+The stub — bind the concrete commands per project in `method-bindings.md`:
+
+- [ ] Formatter check passes (e.g. `ruff format --check .`).
+- [ ] Linter passes (e.g. `ruff check .`).
+- [ ] Type check passes (e.g. `mypy .`).
+- [ ] Tests pass (e.g. `pytest`), including new tests for behavior changes.
+- [ ] Project guardrail scripts pass (import boundaries, docs sync, budgets…).
 
 ## Review gate
 
@@ -32,6 +36,10 @@ externalized into a blocking checklist. Fail closed — nothing green-lights its
 ## Docs gate
 
 - [ ] Public API / config / contract changes are reflected in docs.
+- [ ] **Release notes in wave** — any section that adds public surface or changes behaviour
+      carries its CHANGELOG entry (and a migration-guide section, if consumer-facing) in the SAME
+      wave. Release-notes completeness is a per-wave exit condition, not a terminal-audit cleanup;
+      a consistency gate (e.g. a docs-sync check) verifies cross-references, not completeness.
 
 ## Per-section gate
 

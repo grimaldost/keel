@@ -32,7 +32,11 @@ def test_version_is_consistent_across_all_sites():
     template_src = (ROOT / 'src' / 'keel' / 'templates' / 'spec-template.md').read_text(
         encoding='utf-8'
     )
-    stamp_match = re.search(r'<!-- keel kit ([0-9]+\.[0-9]+\.[0-9]+) -->', template_src)
+    # T0.3: the stamp's home is the visible header (`- **Kit:** x.y.z`). It used to be an HTML
+    # comment below the closing rule, which every hand-copied spec silently dropped.
+    stamp_match = re.search(
+        r'^-\s*\*\*Kit:\*\*\s*([0-9]+\.[0-9]+\.[0-9]+)\s*$', template_src, re.MULTILINE
+    )
     skill_src = (ROOT / 'skills' / 'apply-method' / 'SKILL.md').read_text(encoding='utf-8')
     skill_match = re.search(r'ships with keel ([0-9]+\.[0-9]+\.[0-9]+)', skill_src)
     assert init_match is not None and changelog_match is not None

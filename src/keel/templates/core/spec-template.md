@@ -41,9 +41,6 @@ the ADR first. *Naming these is a DoR requirement.*
 |---|---|---|
 | <invariant key> | enforced \| review-only \| planned \| absent | <the gate, when enforced> |
 
-*A10: no prose may claim an invariant "enforced" or "guaranteed" unless its row here reads
-`enforced`. Checked only when this table is present; a backticked or negated claim does not fire.*
-
 ## Concept → module map
 
 | Concept introduced/changed | Module / file it lives in |
@@ -73,13 +70,6 @@ both a DoR check and each PR's exit gate.)*
 backticked token right after an anchor IS its snippet: A6 requires an exact substring of that line,
 so never backtick prose or an elision there. A bare anchor verifies the address; a claim-supporting
 anchor carries its snippet, so the gate verifies the evidence, not just the address.*
-
-*Reuse notation: pin a target as `**Model-on:** <backticked path>` or
-`**Reuse:** <backticked path::symbol>`; A9 resolves the path, and the symbol when given.*
-
-*Anchor ranges: a multi-line citation is `` `path:lo-hi` ``; A11 resolves the file and the `hi`
-line, and for a `.py`/`.pyi` anchor flags a range that opens a bracket it never closes. Quote a
-literal complete or not at all.*
 
 *Gate-adversarial examples: when the spec must QUOTE something the gate scans for — a literal
 `Verdict:` line, a to-do token, an example `### heading` — fence it. Fenced content is masked before

@@ -27,7 +27,9 @@ later code must respect. Name the invariant explicitly if one is created — it
 will become a guardrail and a review-checklist item.
 
 ---
-*Number ADRs sequentially. Never edit an Accepted ADR's decision; supersede it
-with a new ADR and set this one's status to "Superseded by ADR-MMMM". Keeping the
+*Number ADRs sequentially, taking the next free number **on your base branch** rather than a
+hardcoded guess — two branches that both guessed collide at merge, and `check-ready` (A7) fails a
+spec citing a number already used by a different ADR. Never edit an Accepted ADR's decision;
+supersede it with a new ADR and set this one's status to "Superseded by ADR-MMMM". Keeping the
 ADR log current is what lets stateless workers share one set of global invariants
 (method principle: keep the coordinate system current).*
