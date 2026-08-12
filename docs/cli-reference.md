@@ -40,7 +40,7 @@ home changes what is recorded and never the 0/1/2 exit codes.
 what `spec_hash` covers invalidates every `Spec-hash:` already recorded in a saved pre-mortem
 artifact, which surfaces as a one-time wave of W5 "certified against an earlier revision"
 warnings — expected, not a defect, and re-recorded by re-running `keel spec-hash` on the current
-spec. 0.14.0 → next minor is such a change: the header `Status:` line left the hashed span, so
+spec. 0.14.0 → 0.15.0 is such a change: the header `Status:` line left the hashed span, so
 that W2's advice ("update the Status field") stopped invalidating the certification the same run
 had just verified.
 
