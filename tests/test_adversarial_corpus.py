@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from keel import __version__
-from keel.check_ready import check_spec_ready, spec_hash
+from keel.check_ready import check_spec_ready, spec_hash, spec_hash_without_amendments
 from keel.models import CHECK_IDS
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures' / 'adversarial'
@@ -65,6 +65,21 @@ def _body(mutant: dict) -> str:
     return text.replace(find, replace)
 
 
+def _artifact_hash(mutant: dict, spec: Path) -> str:
+    """What the staged artifact records as `Spec-hash:`.
+
+    Default: the spec exactly as written, so a mutation elsewhere never leaks a B2 hash warning
+    into another mutant's result. The `@without-amendments` sentinel is the one DERIVED form a
+    fixture may ask for, and W7 is why it has to exist: a literal cannot serve, because the hash
+    depends on the running version rewritten into the kit stamp, and W7's claim is a relation
+    between two hashes rather than a value.
+    """
+    asked = mutant.get('artifact_hash')
+    if asked == '@without-amendments':
+        return spec_hash_without_amendments(spec)
+    return asked or spec_hash(spec)
+
+
 def materialize(tmp_path: Path, mutant: dict) -> Path:
     """Stage the mini-repo, write the mutated spec and its pre-mortem artifact; return the spec.
 
@@ -78,7 +93,7 @@ def materialize(tmp_path: Path, mutant: dict) -> Path:
     (tmp_path / ARTIFACT).write_text(
         f'# saved pre-mortem pass\n\n'
         f'PREMORTEM-VERDICT: {mutant.get("artifact_verdict", "CERTIFIED")}\n'
-        f'Spec-hash: {mutant.get("artifact_hash") or spec_hash(spec)}\n',
+        f'Spec-hash: {_artifact_hash(mutant, spec)}\n',
         encoding='utf-8',
     )
     return spec

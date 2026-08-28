@@ -183,6 +183,9 @@ def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
 
 
 _HEADER_STATUS_RE = re.compile(r'^[\-*\s]*status[\s*]*:', re.IGNORECASE)
+# A section whose heading IS `Amendment` (or `Amendments`) — the declared form for a
+# post-certification addition. Matched on the heading, never on a mention of the word.
+_AMENDMENT_HEADING_RE = re.compile(r'^##[ \t]+amendments?[ \t]*$', re.IGNORECASE | re.MULTILINE)
 
 
 def spec_hash(spec_path: Path) -> str:
@@ -207,11 +210,37 @@ def spec_hash(spec_path: Path) -> str:
     what is hashed invalidates every `Spec-hash:` already recorded in a saved pre-mortem artifact,
     which surfaces as a one-time wave of W5 "certified against an earlier revision" warnings.
     """
+    return _hash_over(spec_path, drop_amendments=False)
+
+
+def spec_hash_without_amendments(spec_path: Path) -> str:
+    """The same canonical hash, with every declared `## Amendment` span removed as well.
+
+    Never the hash B2 records or `keel spec-hash` prints — `spec_hash` is unchanged, so an
+    amendment still moves the canonical hash and the block stays tamper-evident. This is a DERIVED
+    comparison, used once, to answer a question the recorded hash alone cannot: did the certified
+    content change, or was something merely ADDED after it? Comparing two literals an author typed
+    would answer neither, and would lower the forgery cost to one copy-paste.
+
+    Every amendment span, not the first: the release discipline makes an amendment section the
+    sanctioned form for EVERY post-certification change, so a once-only rule would revert to the
+    stale-certification warning on the second one, silently.
+
+    It shares `_hash_over` with `spec_hash` deliberately. The first cut reimplemented the removal
+    and dropped the two spans the canonical hash has always removed, so the two could never agree
+    and W7 could never fire.
+    """
+    return _hash_over(spec_path, drop_amendments=True)
+
+
+def _hash_over(spec_path: Path, *, drop_amendments: bool) -> str:
+    """The canonical hash's one implementation — what is removed lives here and nowhere else."""
     raw = _read_spec_text(spec_path, purpose='spec-hash')
     masked_lines = _mask_fenced(raw).splitlines()
     raw_lines = raw.splitlines()
     keep: list[str] = []
     in_cert = False
+    in_amendment = False
     in_header = True
     for i, masked in enumerate(masked_lines):
         heading = re.match(r'^##[ \t]+(.+?)[ \t]*$', masked)
@@ -219,7 +248,8 @@ def spec_hash(spec_path: Path) -> str:
             in_header = False
             low = heading.group(1).lower()
             in_cert = 'pre-mortem' in low and 'certification' in low
-        if in_cert:
+            in_amendment = drop_amendments and _AMENDMENT_HEADING_RE.match(masked) is not None
+        if in_cert or in_amendment:
             continue
         if in_header and _HEADER_STATUS_RE.match(masked):
             continue
@@ -336,6 +366,9 @@ def _candidate_counts(
         'W4': certified,
         'W5': certified,
         'W6': snippet_rows,
+        # W7 has an opportunity only where there is both a certification to compare against
+        # and an amendment section to attribute the difference to.
+        'W7': certified and int(bool(_AMENDMENT_HEADING_RE.search(text))),
     }
 
 
@@ -1889,7 +1922,30 @@ def _check_certification_artifact(
     recorded_hash = _field(artifact_text, 'spec-hash')
     if recorded_hash:
         first = recorded_hash.split()[0].strip('`').lower() if recorded_hash.split() else ''
+        operator_close = cert_head == 'CONDITIONAL-CERTIFY' and bool(_field(cert_body, 'operator'))
         if first != spec_hash(spec_path):
+            # W7: the hash moved, and removing every declared amendment span brings it back — so
+            # the CERTIFIED content is provably intact and what changed is an addition the
+            # reviewer never saw. A different fact from "certified against an earlier revision",
+            # and derived rather than declared: the comparison recomputes, so the only way to
+            # claim it falsely is to leave the certified body genuinely unchanged.
+            #
+            # One state is excluded, and it is the one the DoR sheet already legislates: on an
+            # operator-accepted CONDITIONAL-CERTIFY, a discharged condition moves the hash BY
+            # DESIGN and the sheet calls the resulting mismatch the expected honest state of that
+            # close. Since the release discipline puts a discharging change in an amendment
+            # section, W7 would otherwise eat a signal the method deliberately keeps.
+            if not operator_close and first == spec_hash_without_amendments(spec_path):
+                return violations, [
+                    *warnings,
+                    Warning(
+                        'W7',
+                        'WARN: the spec hash moved by a DECLARED amendment — removing the '
+                        '`## Amendment` section(s) reproduces the hash the artifact recorded, so '
+                        'the certified content is intact and what changed was added after the '
+                        'pass. The reviewer has not seen it (B2).',
+                    ),
+                ]
             warning = (
                 'WARN: the artifact was certified against an earlier revision of this spec '
                 '(Spec-hash mismatch) — re-run the pass on the current spec, or accept knowingly '
@@ -1898,7 +1954,7 @@ def _check_certification_artifact(
             # On an operator close (an operator-accepted CONDITIONAL-CERTIFY), a condition
             # discharged after the pass moves the hash by design, so this mismatch is expected —
             # name it, but only there (a blanket clause would bless arbitrary post-cert edits).
-            if cert_head == 'CONDITIONAL-CERTIFY' and _field(cert_body, 'operator'):
+            if operator_close:
                 warning += (
                     ' On an operator-accepted CONDITIONAL-CERTIFY this mismatch is the expected '
                     'state — a condition discharged after the pass (the operator close, '

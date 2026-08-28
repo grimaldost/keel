@@ -280,3 +280,15 @@ fires = ["W6"]
 why = "the repairable half of A12's snippet check: the content is real and locatable, only the line number is stale — nine field reports wrote a re-anchoring script by hand rather than have the gate say so"
 find = '| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |'
 replace = '| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` `def load_orders(rows: Iterable` | yes |'
+
+[[mutant]]
+id = "W7-declared-amendment"
+fires = ["W7"]
+why = "the hash moved and removing the declared amendment reproduces the recorded one, so the certified content is intact and something was ADDED after the pass — a different fact from a silent post-certification edit, and the one that stops the exclusion list growing a heading per incident"
+artifact_hash = "@without-amendments"
+find = "| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"
+replace = """| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |
+
+## Amendment
+
+The currency normaliser is deferred to the next wave; nothing certified here changes."""

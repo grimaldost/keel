@@ -52,6 +52,7 @@ W3 (warn) an anchor that does not resolve as written but whose basename matches 
 W4 (warn) B2's adoption nudge: the certification names no artifact at all
 W5 (warn) the named artifact's recorded `Spec-hash:` no longer matches ("certified against an earlier revision"), suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY
 W6 (warn) a fold-ledger row whose backticked snippet is not on the line it cites but IS on exactly one other line: the fold is recorded against real content and only the coordinate is stale, so `keel re-anchor` rewrites it. A weak snippet, a range anchor, or a snippet on no line still fails (A12)
+W7 (warn) a certified spec whose hash moved, where removing every `## Amendment` section reproduces the hash the artifact recorded: the certified content is intact and what changed was ADDED after the pass, which the reviewer has not seen. An operator-accepted CONDITIONAL-CERTIFY is excluded — there the mismatch is W5's expected honest state
 ```
 *(Every finding names its check in a field, never as a `W1: ` message prefix — the id is what
 makes a check's fires countable, and `where` collides across checks by design.)*
