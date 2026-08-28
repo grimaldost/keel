@@ -2,6 +2,70 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.16.0] - 2026-08-28
+
+The conformance release: the owner's order becomes an artifact the gate can point at, and the
+gate's own failure messages start naming the form they accept. Both come from the same reading of
+the field round — the method's knowledge reaches a session through the CLI and the scaffold, and
+anything that lives only in a template's prose or a doc page is, empirically, not delivered. A
+periodic post-hoc telemetry pass over this window's session transcripts puts the CLI at 52 of 53
+keel invocations, against one invocation of the skill that carries the method.
+
+### Added
+
+- **The requirements ledger, and DEVIATED as a state a session cannot grant itself** (A13,
+  `src/keel/templates/requirements-register.md`, `check_ready.py`). A programme's opening
+  instruction — the sources are read through the config layer — was replaced by hand-rolled
+  readers as an unlabelled design decision. Three later specs certified Ready and four blind
+  pre-mortems returned about seventy real findings; none could see the substitution, because each
+  attacked the spec against the code and the data contracts and the ask existed nowhere a reviewer
+  could open. The order was the one load-bearing input to this method with no durable artifact.
+  Now: a register in the programme's repo holding the orders **verbatim** with stable `RR-<n>`
+  ids; a `- **Requirements:**` header field naming it; a `## Requirements ledger` disposing every
+  entry to a §N, `DEFERRED — <trigger>`, `OUT-OF-SCOPE`, or `DEVIATED`; and A13 failing a spec
+  that leaves an entry unaccounted. A13 does not judge whether a disposition is RIGHT — that stays
+  Part B (ADR-0002) — only that none is missing. **DEVIATED is the exception:** the other three
+  are the author's call, and a departure from the owner's own order is not, so a DEVIATED row
+  naming no ratification fails. Until the owner answers, the honest state is a spec that does not
+  pass — which is the state that gets the question asked. Silent on a spec that declares no
+  register: candidates 0, `n/a` in the hit-rate ledger, which is a different fact from a pass. The
+  field ran this shape by hand on two specs before it was built and reported ~15 lines per spec,
+  and that it was what let a post-compaction resume re-derive scope without relitigating it.
+  Positive controls: an unaccounted order and a self-ratified deviation, one edit each, firing
+  exactly A13.
+
+### Changed
+
+- **The failure path names the form the parser reads.** Three field classes, one cause: the gate
+  said what was missing and never what it accepts, so the accepted form was learned by grepping a
+  sibling spec. A2 now names the literal marker it searches (`acceptance criterion`) and the
+  paragraph rule that makes a criterion split from its marker read as empty — a section that named
+  the same idea in other words read as absent, with nothing in the message to say so. A8 names the
+  cross-document escape it has honoured since 0.14.0 (a `.md` cue, a standards id); three reports
+  rewrote the typographic convention out of their prose to satisfy the linter instead.
+- **A unique basename match inside a vendored tree is refused, not expanded** (W3, A6/A11/A12).
+  KEEL-B04 made expansion possible; in an estate that vendors its dependencies the copy is the
+  likeliest unique match, so the WARN read "resolved, carry on" over the wrong file — an anchor
+  that resolves to a file that exists and is wrong is worse than one that fails, because the
+  warning closes the question. `dbt_packages` and `vendor` join the vendor set, and the violation
+  names the twin and its directory class.
+- **The invocation is a binding, and it resolves instead of pinning** (`method-bindings.md`). A
+  consumer's bindings pinned `…/cache/keel/keel/0.15.0` against a cache holding 0.13.1 and 0.14.0:
+  the prescribed command failed on a path that did not exist. The template never showed how to
+  write that line, so every consumer improvised one, and the improvised form is the one that rots.
+  Three forms that resolve — `${CLAUDE_PLUGIN_ROOT}` in-session, a newest-installed-copy
+  resolution outside one, and the module form for a machine whose application-control policy
+  blocks console-script executables. That last is also the second field report to hunt for a
+  recipe shipped in `docs/installation.md` since 0.12.0, so it moves to the artifact the consumer
+  keeps, with installation.md holding the reasons. Both forms were run from a neutral working
+  directory before being written down.
+- **The Part-A reference block gained a check and lost four restatements.** *Displacement*, as the
+  promotion rule requires: A0's line is now the only home for what `Kind: single-change` relaxes —
+  A1, A2, A4 and A5 each restated it — and W1's and W3's rationale clauses moved to the CHANGELOG
+  entries that shipped them, A12 stopped repeating A11's bracket rule. The Definition-of-Ready
+  sheet is 1,648 words against its 1,650 cap: one check richer, four duplications lighter, no cap
+  raised.
+
 ## [0.15.0] - 2026-08-12
 
 The gate-empiricism release: the spec gate stops being a catalogue of checks nobody had counted.

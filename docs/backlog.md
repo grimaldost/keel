@@ -5,6 +5,36 @@
   recorded in `CHANGELOG.md` when they ship. Each item below carries its own **Status** line once
   worked; an item with none is untouched.
 
+## Wave 3 — 2026-08-28, branch `backlog/wave-3` (released as 0.16.0)
+
+The conformance wave, opened by a delta triage of fifteen field reports (2026-08-11 → 08-28)
+against the post-0.13.1 baseline. Three items shipped, all of them promotions this round's
+evidence cleared outright: **KEEL-B46** (the requirements ledger and the DEVIATED state),
+**KEEL-B47** (the gate's failure path names the form it accepts) and **KEEL-B48** (the invocation
+becomes a resolved binding). Ten further rows are opened below and not taken; the gates are named
+on each.
+
+The round's own reading, which decided what was worth building:
+
+- **The method reaches a session through the CLI, and almost nowhere else.** A periodic post-hoc
+  telemetry pass over the window's session transcripts records 52 of 53 keel invocations as CLI
+  runs across ten sessions, against a single invocation of the skill that carries the method in
+  129 sessions. The count is a floor, not a total — it sees what an agent invoked, never what the
+  operator ran in their own terminal — and it has no control arm, so it sizes nothing. It is
+  enough for one negative inference: a prescription placed where nobody looks is prose.
+- **Three field asks turned out to be already shipped, and re-asked anyway.** The round-≥2 re-gate
+  posture ships at `pre-mortem-prompt.md:129` and was hand-typed into each round's mandate; the
+  one-verdict-per-artifact idiom ships in the spec template's `Certification artifact:` field and
+  was discovered by violating it, twice; the module-form invocation recipe has shipped in
+  `docs/installation.md` since 0.12.0 and was hunted for anyway. Not absences — deliveries that
+  never arrive. That is what KEEL-B47 and KEEL-B48 attack, and it is why the remaining
+  message-quality rows are ranked above several higher-severity ones.
+- **Nothing was added to the pre-mortem directive.** It stands at 2,005 words against its 2,050
+  cap, and CONTRIBUTING holds net-new directive prose behind KEEL-B09's pending adjudication.
+  Eight of this round's proposals want a line in that body; the strongest of them (KEEL-B50, four
+  hits in four rounds with no false fire) is opened and held rather than smuggled in under the
+  headroom.
+
 ## Wave 2 — 2026-08-12, branch `feat/gate-empiricism` (released as 0.15.0)
 
 The gate-empiricism wave. **KEEL-B07** shipped whole (the hit-rate ledger in three states, plus the
@@ -326,6 +356,123 @@ recorded here explicitly. `[triage]`
 
 ---
 
+### KEEL-B46 — The requirements ledger: the owner's order becomes an artifact a gate can point at
+
+- **Cause / evidence:** a programme's opening instruction ("the sources are abstracted via the
+  config layer") was replaced by hand-rolled readers as an unlabelled design decision. Three later
+  specs certified Ready and four blind pre-mortems returned ~70 real findings; none could see the
+  substitution, because each attacked the spec against the code and the data contracts and the
+  order existed nowhere a reviewer could open (`2026-08-24-…-corrective-wave` BLOCKER;
+  maintainer-local, unpublished). Routed in from the skills collection's cross-cutting pass as its
+  own `meta-requirements#1` [HIGH], whose dependency — a verbatim-orders slot in the session anchor
+  that survives compaction — landed there first. Independently validated by hand: two specs in the
+  same estate carried a Requirements ledger citing the order verbatim, at ~15 lines each, and it is
+  what let a post-compaction resume re-derive scope without relitigating it
+  (`2026-08-25-wave-ab-specs`). Grounded: no requirements concept existed anywhere in the tree.
+- **Change:** a `requirements-register.md` kit template (orders verbatim, stable `RR-<n>` ids, in
+  the programme's own repo); a `- **Requirements:**` spec-header field naming it; a
+  `## Requirements ledger` section disposing each entry to a §N, `DEFERRED — <trigger>`,
+  `OUT-OF-SCOPE`, or `DEVIATED`; and A13 failing a spec that leaves an entry unaccounted or
+  ratifies its own deviation.
+- **Status:** **shipped** 2026-08-28 (wave 3, 0.16.0). Three calls the build made: (a) the gate
+  reads the register the spec declares, not a fixed path — the omission case is the whole point,
+  and a ledger checked only against itself cannot see it; (b) `OUT-OF-SCOPE` is a fourth
+  disposition, so "in scope" is an explicit decision rather than an absence; (c) A13 is silent
+  where no register is declared, so it presents zero candidates and reads `n/a` rather than clean.
+  The displacement it owed is in the DoR reference block: A0 is now the single home for the
+  `Kind: single-change` relaxation that four other lines restated.
+- **Effort:** M · **Source:** `[triage D3]` `[routed: skills-collection meta-requirements#1]`
+
+### KEEL-B47 — The gate's failure path names the form it accepts, not only what is missing
+
+- **Cause / evidence:** five reports learned an accepted form by grepping a sibling spec or by
+  violating a rule that ships. A section carrying its criterion under another heading read as
+  absent with nothing in the message to say why; three reports rewrote `§N` cross-document
+  references into prose to satisfy A8 rather than use the cue the check already honours; the
+  fold-ledger form was found by copying another spec's ledger
+  (`2026-08-25-rrw3-range-spec`, `2026-08-26-serving-respec`, `2026-08-27-serving-wave`,
+  `2026-08-27-spec12`, `2026-08-28-spec13`; maintainer-local, unpublished). The same shape one
+  level out: a consumed library's own consumer guide was installed the whole time and the recon
+  read its source instead (`2026-08-24-…-corrective-wave` [HIGH]) — which is KEEL-B56.
+- **Change:** each structural violation names the textual pattern the parser reads, or the escape
+  it honours. One line per message; no method body grows.
+- **Status:** **partly shipped** 2026-08-28 (wave 3, 0.16.0). A2 (the `acceptance criterion`
+  marker, and the paragraph rule that makes a criterion split from its marker read as empty) and
+  A8 (the cross-document cue) carry theirs. A12's already did, since 0.15.0 (T1.2). The rest of
+  the catalogue is unswept; it is cheap and it is not free, so it waits for a message a report
+  actually stumbled on.
+- **Effort:** S · **Source:** `[triage D1]`
+
+### KEEL-B48 — The invocation is a binding, and it resolves instead of pinning a cache version
+
+- **Cause / evidence:** a consumer's `method-bindings.md` prescribed
+  `uvx --from ~/.claude/plugins/cache/keel/keel/0.15.0` against a cache holding 0.13.1 and 0.14.0;
+  the command failed on a path that did not exist and the operator guessed the correction
+  mid-session (`2026-08-26-serving-respec` [MED]). The template never showed how to write that
+  line, so every consumer improvised one. Carries the baseline's **W7** on its second report: the
+  module-form recipe for a machine whose application-control policy blocks console-script
+  executables has shipped in `docs/installation.md` since 0.12.0 and was hunted for anyway
+  (`2026-08-28-spec13` [LOW]) — the baseline's own promotion condition was "if a second report
+  hunts, surface it in the path the operator is on".
+- **Change:** an `## Invoking the kit` binding in the template and in keel's own bindings, with
+  three resolving forms and no version pin; `docs/installation.md` keeps the reasons (one home).
+- **Status:** **shipped** 2026-08-28 (wave 3, 0.16.0). Both forms were run from a neutral working
+  directory before being written down, and `tests/test_templates_valid.py` pins the section.
+- **Effort:** S · **Source:** `[triage D1]` `[triage W7]`
+
+### KEEL-B49 — The fold ledger's line anchors are re-paid on every body edit
+
+- **Cause / evidence:** the most reinforced open row in the corpus — five reports across four
+  arcs, every one of them writing the same throwaway re-anchoring script. Anchors are
+  line-number-primary while the snippet is already a verified unique identifier, so each post-fold
+  edit wave invalidates the whole ledger: three re-anchor cycles in one session over 16 rows, one
+  of them producing a malformed row from a slipped `sed`; five cycles across two specs the next
+  day; 21 rows after a rev-2 rewrite (`2026-08-23-stg1-shell-phase2`, `2026-08-23-calc-run-phase3`,
+  `2026-08-24-swap-report-pipe`, `2026-08-24-…-corrective-wave`, `2026-08-25-rrw3-range-spec`;
+  maintainer-local, unpublished). Carries the baseline's **Q10a**, which was already four reports
+  when it was written. Grounded: `cli.py` exposes check-ready / gate-health / spec-hash /
+  bind-check / budget-drift / init / new-spec — no repair verb; A12 already verifies the snippet
+  against its line, which is exactly the datum a repair pass re-resolves from.
+- **Change:** one of two, and the choice is the item. Either the check resolves a row by its
+  snippet and treats the line as advisory (cheaper for the author, weaker as a drift detector), or
+  `keel re-anchor <spec>` rewrites the numbers mechanically and refuses on ambiguity (keeps the
+  detector, adds a verb). The field asked for both by name, three times for the second.
+- **Ordering:** the semantics decision comes first and is not a coin flip: making the line advisory
+  retires a check that has caught real drift (three drifts across edit waves in one session alone).
+- **Effort:** M · **Source:** `[triage D4]` `[triage Q10a]`
+
+### KEEL-B50 — The one directive obligation the field proved, held behind the body's own gate
+
+- **Cause / evidence:** "for every gate the spec introduces, enumerate the writes the spec and its
+  named siblings introduce and state whether the gate admits each; a gate that would fail on the
+  spec's own mechanism is a BLOCKER." Proposed from a miss (`2026-08-16-fin-model-review`), then
+  injected by hand into every subsequent round and hit **four times in four rounds with no false
+  fire** — including a reviewer building the enumeration table and showing 8 of a spec's 9 gates
+  failing on its own planned writes (`2026-08-23-stg1-shell-phase2`, `2026-08-24-swap-report-pipe`,
+  `2026-08-24-…-corrective-wave`, `2026-08-25-wave-ab-specs`; maintainer-local, unpublished).
+- **Change:** one convention line in `pre-mortem-prompt.md`.
+- **Ordering:** **gated by KEEL-B09.** The directive is 2,005 words against its 2,050 cap and
+  CONTRIBUTING holds net-new directive prose behind that item's pending adjudication. There is
+  headroom for this line, and using it would be exactly the "one clause per finding" growth the cap
+  exists to stop — the ablation is precisely the measurement of whether such clauses buy anything.
+  It lands the day the adjudication does, or as a rewrite that displaces.
+- **Effort:** S · **Source:** `[triage D5]`
+
+### KEEL-B51 — `spec-hash` cannot tell an amendment from an edit
+
+- **Cause / evidence:** three reports, of which the first half shipped. Recording a certification
+  required changing the header `Status:` line, which sat inside the hashed span, so every certified
+  spec cost an extra re-stamp round — twice in two waves (`2026-08-27-serving-wave`,
+  `2026-08-27-spec12`) — and that is fixed in 0.15.0 (T0.4). The residual is a **new form**: an
+  additive block (a declared partial abandonment) on a CERTIFIED spec moved the hash and emitted the
+  same "certified against an earlier revision" warning that a silent rewrite of certified content
+  would (`2026-08-28-spec13` [MED]). The author wrote the distinction by hand in a `Hash note`.
+- **Change:** the report's own proposal, and it **displaces** rather than adds: stop widening the
+  list of hash-excluded headings — which the lineage already records as undocumented and growing —
+  and recognise a named amendment block (`## Amendment`) whose content enters the hash but whose
+  presence makes B2 say "hash changed by declared amendment" instead.
+- **Effort:** S · **Source:** `[triage D6]`
+
 ## Next
 
 ### KEEL-B09 — Measure the pre-mortem directive body's marginal effect before it grows again
@@ -559,6 +706,76 @@ recorded here explicitly. `[triage]`
 
 ---
 
+### KEEL-B52 — Gate authoring: green certifies what the gate observes, and nothing says what it must observe
+
+- **Cause / evidence:** a blind post-execution audit of seven series (68 findings, 3 BLOCKER,
+  ~30 minutes, static-only) found that a wrong PR could have gone green, and that the causes were
+  gate-**authoring** classes the method does not constrain: a red companion accepted as prose in
+  four series (a reverted mutation that came back green, still cited as proof); no gate observing
+  presence, so a pinned deliverable vanished entirely with both checks green; and the oracle being
+  the product in four series (drift gates regenerating the corpus in place over the worktree, so
+  any red self-heals on the second run). `2026-08-25-rrw3-gate-review` [HIGH ×4]; maintainer-local,
+  unpublished. The uncomfortable half: the 12/15 first-attempt green rate was partly a symptom.
+- **Change:** three doctrine sharpenings where the spec's acceptance criteria are authored — a red
+  companion is a committed artifact the gate executes, never a NOTES transcript; a PR that adds to a
+  counted set pins that set's inventory, so a vanished deliverable goes red; and a check never
+  regenerates in place what it validates, with "observed baseline" distinguished from "verified
+  invariant".
+- **Ordering:** behind KEEL-B50's gate for anything that lands in the directive. The
+  spec-template's contract notes are at 499 of their 500-word cap, so the DoD is the affordable
+  home and the displacement has to be named.
+- **Effort:** M · **Source:** `[triage D7]`
+
+### KEEL-B53 — The invocation trigger is prose that depends on memory at the moment memory is worst
+
+- **Cause / evidence:** an entire phase with a clear blast radius — 6+ PRs, three repositories,
+  shared contracts — was specified in four hand-written documents with no DoR and no pre-mortem,
+  and nothing accused: not doctrine §6, whose trigger exists only as prose to be remembered, and not
+  `method-bindings.md`, which lived in a fourth repository and is read by no mechanism at phase
+  start. One of the four specs was later condemned whole by a rigour review; the spec that used the
+  method survived its implementation without a red (`2026-08-26-serving-respec` [HIGH],
+  `2026-08-27-serving-wave`; maintainer-local, unpublished). Extends `2026-06-05-review-panel#6`
+  with new evidence: even with bindings written and maintained, the binding answers when asked and
+  never fires.
+- **Change:** something cheap that makes the binding active. The CLI-reachable form is a
+  directory-scoped `keel check-ready` ("design documents here with no certification: N") a session
+  can run at phase open or close — which is where the telemetry says a keel surface is actually
+  reached. `check-ready` currently exits 2 on a directory.
+- **Effort:** M · **Source:** `[triage D8]`
+
+### KEEL-B54 — The executor is a binding, not a judgement the session makes at execution time
+
+- **Cause / evidence:** routed in as the skills collection's `meta-requirements#3` [MED] — "the
+  method prescribes the executor" — against `apply-method`'s conditional, which a session resolves
+  by "the context is already loaded" so the harness-native path wins on presence. The cause is
+  real and keel-owned. **The proposal as written is declined:** naming a specific orchestrator in
+  the method layer is the portability leak ADR-0003 decided against ("the doctrine names roles;
+  specific tools are reference bindings, bound per project"), and `apply-method` already states the
+  boundary. The tool-specific half belongs to the orchestrator, which has the same finding in its
+  own routing.
+- **Change:** the keel-shaped form. The **series orchestration** slot in `method-bindings.md` is a
+  binding like any other: a spec whose manifest carries two or more PRs and whose bindings leave
+  that slot empty is a method-not-fully-applied state, and running without the bound executor is a
+  recorded waiver rather than a silent default. The mechanical rung is `keel bind-check`, which is
+  a documented stub exiting 2 (KEEL-B17) — the same unfilled machine this round's KEEL-B53 wants.
+- **Ordering:** behind KEEL-B17. ADR-0003 defers `check_bindings` until a real failure demands it;
+  this round supplies one, so the deferral's own condition is met and the un-deferral is now an
+  ADR-recordable decision rather than speculative generality.
+- **Effort:** M · **Source:** `[triage D1]` `[routed: skills-collection meta-requirements#3]`
+
+### KEEL-B55 — Cross-repo anchors are neither resolved nor verified, and multi-repo is the normal case
+
+- **Cause / evidence:** two reports plus a third of the same family. A `../fin-vault/…:97` anchor is
+  not verified at all, and both pre-mortems in that wave found line drift in the author's own
+  cross-repo citations (`2026-08-25-wave-ab-specs` [MED], `2026-08-25-rrw3-range-spec §Misses`
+  [LOW]); the vendored-twin mis-resolution 0.16.0 just closed is the same ambiguity read from the
+  other end (`2026-08-28-spec13`). Carries the baseline's **Q4a** (a declared external-evidence
+  form), which this evidence sharpens from "inexpressible" to "expressible and unchecked".
+- **Change:** resolve `../` against sibling repositories when they exist on disk, WARN-only, in the
+  same lenient direction as the basename expansion. Q4a's `ext:<alias>` grammar is the alternative
+  and the two should be decided together, not stacked.
+- **Effort:** M · **Source:** `[triage D11]` `[triage Q4a]`
+
 ## Later
 
 ### KEEL-B20 — An anchor grammar that can express a legitimately non-resolving referent
@@ -634,6 +851,7 @@ recorded here explicitly. `[triage]`
   from `spec_hash` (`check_ready.py:185`) exactly as the certification section already is; W9
   multi-round pre-mortem artifacts — state that only the newest round's `Spec-hash:` binds.
 - **Change:** none yet on the remaining rows. Promote each on a second report.
+- **W7 promoted** 2026-08-28 on its second report — an operator hunted for the module-form invocation recipe again, and it shipped as **KEEL-B48** in the artifact the consumer keeps, not in more plugin docs. W9 (only the newest round's `Spec-hash:` binds) gained a second report of a **different** form and is now **KEEL-B51**.
 - **Status:** **W8 shipped** ahead of a second report — it was not a preference but a self-defeat:
   the warning's own instruction invalidated the certification the run had just verified, so the
   header `Status:` line left `spec_hash`. The recorded-hash migration it forces (a one-time W5
@@ -744,6 +962,50 @@ recorded here explicitly. `[triage]`
 - **Effort:** S · **Source:** `[cross-review]`
 
 ---
+
+### KEEL-B56 — The spec's Context cites the consumer-facing guide of every library it consumes
+
+- **Cause / evidence:** the corrective wave's recon read a library's SOURCE and never opened the
+  consumer guide that shipped with it — a plugin installed the whole time, carrying a dedicated
+  section on the exact serving-mode question the wave later got wrong and had corrected only by the
+  owner asking (`2026-08-24-…-corrective-wave` [HIGH]; maintainer-local, unpublished). Source
+  reading buries intent; the guide exists to carry it.
+- **Change:** one clause where the spec's Context is authored: a consumed library that ships a
+  consumer-facing guide has it read first and cited, and source recon verifies mechanism rather
+  than substituting for it.
+- **Ordering:** the spec template's contract notes are at 499 of 500 words, so this owes a
+  displacement before it can land there; the Definition of Done is the alternative home.
+- **Effort:** S · **Source:** `[triage D1]`
+
+### KEEL-B57 — Round shapes have no vocabulary, so a converging series pays full price per round
+
+- **Cause / evidence:** four LOW/MED reports naming three shapes the field invented and the method
+  does not sanction: a **targeted re-gate** by the resumed reviewer, scoped to the last round's
+  folds and their dependent counts, which caught a real prior-round residue at a fraction of a full
+  round (`2026-08-23-calc-run-phase3`); a **round-2 policy** discriminating a fold that inserts
+  verified constants (value-verification suffices) from one that adds mechanisms (round 2 warranted)
+  — with both arms observed the same day (`2026-08-24-swap-report-pipe`); and a **pivot fold**, where
+  a finding refutes the premise of a workaround and the fold adopts the avoided mechanism
+  (`2026-08-24-swap-calc-wave2`). Plus one intake-README line: from round 3 on, a summarised round
+  record is acceptable if the full text is retrievable and the deviation is stamped
+  (`2026-08-23-calc-run-phase3`, on a ~150KB artifact trail).
+- **Ordering:** the first three are directive or doctrine prose and sit behind KEEL-B50's gate. The
+  intake-README line is not, and is the cheap half.
+- **Effort:** S · **Source:** `[triage D9]`
+
+### KEEL-B58 — The blind post-execution gate audit, offered as a closing phase
+
+- **Cause / evidence:** the audit that produced KEEL-B52's evidence — one fresh reviewer per series
+  given only spec, PR prompts, integrated diffs, the series file and its notes, never the session
+  context, plus a cross-series synthesiser — returned 68 findings that seven rounds of the method's
+  own self-reported reflection did not, for ~30 minutes of wall-clock and no execution
+  (`2026-08-25-rrw3-gate-review#7`). keel's reflection loop is self-reported, and self-reports
+  missed all 68.
+- **Change:** the shape as an optional closing phase for multi-series programmes, with its six
+  fixed per-PR questions. That report's Context block is already its specification.
+- **Ordering:** a singleton, and an expensive one to prescribe. Held for a second programme that
+  runs the shape and reports what it caught — the same bar every other singleton here carries.
+- **Effort:** M · **Source:** `[triage D7]`
 
 ## Retire / fold candidates
 
