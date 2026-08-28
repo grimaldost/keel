@@ -12,6 +12,28 @@ against one release section; this entry grows as they land.
 
 ### Added
 
+- **`keel bind-check` is built, and `check_budget_drift` is not** (ADR-0018, `bindings.py`).
+  ADR-0003 deferred both "until a real failure demands it", and deferral was the live state for
+  fourteen releases. Two field failures now meet that condition, both the same shape — the binding
+  sheet answers when asked and never fires: a phase with a six-plus-PR blast radius across three
+  repositories was specified with no Definition-of-Ready and no pre-mortem and nothing accused
+  ("the bindings sheet lived in a fourth repository and is read by no mechanism at phase start"),
+  and the executor was left to a conditional the session resolved by what was already in context.
+  The binding column is resolved by **header** — `This project` when the table has one, else the
+  last column — because the sheets that exist are three-, four- and two-column and a positional
+  rule reads a worked example as a binding. **Three states, not two**: an empty cell fails, and
+  `not bound — <reason>` WARNs, which is the declared idiom this repo's own sheet uses for three
+  slots. An emptiness-only predicate would have failed the blank scaffold and PASSED the one real
+  record — the exact inverse. Findings carry no check letter, and ADR-0018 records why: `CHECK_IDS`
+  is the spec gate's catalogue, and the corpus that would have to control a new letter stages
+  specs. `check_budget_drift` stays stubbed; no failure cites it and its backlog disposition is
+  removal.
+- **`keel survey <dir>`** (`src/keel/survey.py`): the phase-boundary sweep — which spec-shaped
+  documents in a design directory carry no certification? `check-ready` cannot answer it (it gates
+  one spec, and its 0/1/2 contract is pinned), so this is its own verb. **Spec-shaped** is stated
+  rather than implied — a numbered-sections or PR-manifest heading — because a design directory
+  also holds triage documents, ADR drafts, saved pre-mortem artifacts and requirements registers,
+  and without the predicate the sweep either false-fails on all of them or becomes advisory prose.
 - **`keel re-anchor <spec>`** (`src/keel/reanchor.py`, `docs/cli-reference.md`): the correction
   the gate already computes, applied instead of described. Defaults to the fold ledger, which sits
   inside the span `spec_hash` removes — so a repair cannot invalidate the certification it serves,
@@ -81,6 +103,10 @@ against one release section; this entry grows as they land.
   violations. Whether a finding blocks and how many defects it represents are independent
   questions. Caught by the round-2 re-gate of this wave's own spec, in code that had already
   shipped to a branch.
+- **The shipped bindings template's Orchestrator table gains its `This project` column.** It
+  carried only the worked example while the sheet's closing line said "bind every row", so those
+  four rows were slots no gate could read. An existing adopter's copied two-column table is
+  unaffected: the header rule reads its last column correctly.
 - **A fold-ledger row has one owner.** A6 and A11 scan the whole document, so they were
   re-checking the ledger's anchors under prose semantics — the same defect reported twice, by a
   check that cannot repair it, with a second fire in the hit-rate ledger. The ledger sub-table is

@@ -14,6 +14,7 @@ from keel.gate_ledger import ledger_path, read_lines, record_run
 from keel.models import CHECK_IDS, GateResult
 from keel.reanchor import reanchor
 from keel.show import available, body
+from keel.survey import survey
 from keel.templates import copy_templates, stamp_spec
 
 app = typer.Typer(
@@ -239,6 +240,30 @@ def spec_hash_cmd(spec: Path) -> None:
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
     typer.echo(digest)
+
+
+@app.command('survey')
+def survey_cmd(directory: Path) -> None:
+    """Sweep a design directory: which spec-shaped documents carry no certification?"""
+    try:
+        results = survey(directory)
+    except NotADirectoryError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2) from exc
+    uncertified = [row for row in results if row.spec_shaped and not row.certified]
+    for row in results:
+        if not row.spec_shaped:
+            typer.echo(f'{row.path.name}: not a spec (no numbered sections, no PR manifest)')
+        elif row.certified:
+            typer.echo(f'{row.path.name}: {row.verdict}')
+        else:
+            typer.echo(f'{row.path.name}: SPEC, no certification recorded')
+    specs = [row for row in results if row.spec_shaped]
+    typer.echo(
+        f'{len(specs)} spec-shaped document(s), {len(uncertified)} without a recorded '
+        f'certification; {len(results) - len(specs)} other document(s) not counted.'
+    )
+    raise typer.Exit(code=1 if uncertified else 0)
 
 
 @app.command('bind-check')
