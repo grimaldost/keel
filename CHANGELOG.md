@@ -34,6 +34,16 @@ against one release section; this entry grows as they land.
 
 ### Changed
 
+- **The Definition-of-Ready sheet's budget is split in two, because it was two bodies sharing one
+  number** (`tests/test_body_budgets.py`, `CONTRIBUTING.md`). A test makes a new check letter
+  MANDATORY in the sheet's reference block, while the whole sheet was capped at the size it
+  happened to be — so every check the gate gains cost prose budget forever, for a lookup table
+  nobody reads end to end, and the two rules would eventually deadlock. The sheet's **prose** keeps
+  a word cap (950, set at what it measures); the block is capped **per check entry** at its
+  measured maximum (61 words) instead of in total. A re-aim, not a raise: the catalogue may grow,
+  a line may not sprawl, and a second assertion holds that nothing but a catalogued check parses as
+  an entry, so the per-line cap cannot be dodged by an unlettered line.
+
 ## [0.16.0] - 2026-08-28
 
 The conformance release: the owner's order becomes an artifact the gate can point at, and the

@@ -63,7 +63,7 @@ gate exists to catch exactly that over-claim in a spec):
 
 ## Body budgets
 
-Four shipped bodies are dispatched or read **in full** every time they are used, and each has
+Five budgets cover the four shipped bodies that are dispatched or read **in full** every time they are used, and each has
 only ever grown — one clause per finding. Each now carries a number, enforced by
 `tests/test_body_budgets.py`:
 
@@ -72,12 +72,16 @@ only ever grown — one clause per finding. Each now carries a number, enforced 
 | The pre-mortem directive block — the fenced prompt in `src/keel/templates/pre-mortem-prompt.md` | 2,050 | dispatched on every pre-mortem; the most expensive prompt in the surface, and since ADR-0017 the only copy of it |
 | The spec-template's italic gate-contract notes (`src/keel/templates/spec-template.md`) | 500 | read by every author the scaffold reaches. Ratcheted from 925 when the duplicated notes moved to their one home |
 | The bundled agent wrapper (`agents/pre-mortem-review.md`) | 550 | identity + dispatch + output contract only (ADR-0017); the directives live in the template |
-| The Definition-of-Ready sheet (`src/keel/templates/definition-of-ready.md`) | 1,650 | read end-to-end at adoption and by every reviewer. First cap, set at the measured size after the Part-A prose restatement and the measurement-profile items moved out |
+| The Definition-of-Ready sheet's PROSE (`src/keel/templates/definition-of-ready.md` minus its fenced reference block) | 950 | read end-to-end at adoption and by every reviewer. Set at the measured size |
+| Each entry of that sheet's reference block, per check | 61 | the block's length is a function of the CHECK CATALOGUE, not of prose discipline — a test makes a new letter mandatory there — so capping the sheet as one body made every check the gate gains cost prose budget forever. Capped per line instead, at the measured maximum: the catalogue may grow, a line may not sprawl |
 
-The DoR cap is deliberately set where the body actually is, not where it should end up: the
+The DoR caps are deliberately set where the body actually is, not where it should end up: the
 remaining candidates (Part-B prose beyond the reference block, the certification framing, the
 operator close) are held behind a measurement that has not run, and a cap chosen to force an
-unlicensed cut would be a verdict dressed as a budget.
+unlicensed cut would be a verdict dressed as a budget. The split into prose-and-block is a
+re-aim, not a raise: the sheet measures 948 prose words and 698 block words today, and the
+block half is now bounded per entry rather than in total, because a lookup table whose length
+the check catalogue determines cannot also be a prose budget without one of the two winning.
 
 The rule the caps enforce: **a promotion that adds prose to one of these bodies names the one it
 displaces or merges into**, in the CHANGELOG entry that ships it. That rule was already stated and
