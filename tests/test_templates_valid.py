@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 from keel import __version__
 from keel.check_ready import _ANCHOR_RE, _anchor_shaped, _declared_kind, _field
@@ -170,3 +171,14 @@ def test_spec_template_has_no_gate_parseable_anchor():
     text = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
     live = [m.group(0) for m in _ANCHOR_RE.finditer(text) if _anchor_shaped(m.group(1))]
     assert not live, f'spec-template.md carries gate-parseable anchor tokens: {live}'
+
+
+def test_templates_reference_documents_every_packaged_template():
+    # The third of the three coverage gates, and the one that was missing: the CLI reference and
+    # the plugin reference each have one, so a new command or entry point cannot land undocumented
+    # — but a new kit TEMPLATE could, and `keel init` ships it to every adopting project. Same
+    # shape as the other two: glob the shipped set, never a hand-kept list.
+    root = Path(__file__).resolve().parents[1]
+    reference = (root / 'docs' / 'templates-reference.md').read_text(encoding='utf-8')
+    missing = [p.name for p in list_templates() if f'`{p.name}`' not in reference]
+    assert not missing, f'templates-reference.md is missing: {missing}'
