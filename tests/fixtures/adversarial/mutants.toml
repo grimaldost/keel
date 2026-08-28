@@ -300,3 +300,10 @@ why = "the sheet said its material was dispatched only for the kind that needed 
 find = "- **Kind:** series"
 replace = """- **Kind:** series
 - **Profile:** pipeline"""
+
+[[mutant]]
+id = "A6-absent-sibling"
+fires = ["A6"]
+why = "a citation that leaves the repository, where no sibling resolves: the basename search must NOT expand it, because the twin it would find is an unrelated in-repo file of the same name — the vendored-twin trap reached through a different door"
+find = "`src/tinyetl/regions.py:3`"
+replace = "`../fin-vault/src/tinyetl/regions.py:3`"

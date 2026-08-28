@@ -18,8 +18,14 @@ console-script executable.
 | `keel budget-drift <series> <actuals>` | Wave cost drift past threshold | 0 / 1 / 2 | stub |
 | `keel --version` | Print the installed keel version and exit | 0 | **real** |
 
-`check-ready` exit 2 (not-runnable) covers a missing path, a directory, and an undecodable
-(non-UTF-8) spec — distinct from exit 1, which means the spec has real violations.
+`check-ready` exit 2 (not-runnable) covers a missing path, a directory (use `keel survey` for
+a directory) and an undecodable (non-UTF-8) spec — distinct from exit 1, which means the spec
+has real violations.
+
+An anchor that leaves the repository (`../sibling/path.py:12`) resolves normally when the
+sibling is checked out beside this repo. When it is not, it FAILS rather than falling back to
+the basename search: expanding it would repoint the citation at an unrelated in-repo file of
+the same name and warn that the expansion is unique, which reads as resolved.
 
 ## The gate hit-rate ledger
 
