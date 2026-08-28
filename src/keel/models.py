@@ -7,6 +7,7 @@ from dataclasses import dataclass
 # structural checks, B1/B2 the certification pair, W1-W5 the warnings:
 #   W1 kit skew or an unstamped spec · W2 header Status currency · W3 basename expansion
 #   W4 B2's adoption nudge (no artifact named) · W5 B2's spec-hash mismatch
+#   W6 a fold-ledger row whose snippet resolves at one other line — repairable drift
 # The two W4/W5 letters are new: B2's warnings were unlettered, and an uncountable warning can
 # neither be measured nor defended. A13 is the requirements ledger: a spec that declares a
 # register accounts for every order in it, and DEVIATED is the one disposition a session cannot
@@ -35,6 +36,7 @@ CHECK_IDS = frozenset(
         'W3',
         'W4',
         'W5',
+        'W6',
     }
 )
 
@@ -60,27 +62,35 @@ class Violation:
     cause: str = ''
 
 
-def count_causes(violations: Iterable[Violation]) -> int:
-    """How many distinct underlying defects a set of violations represents (the report unit).
-
-    Violations sharing a non-empty `cause` are one defect; a violation with no key is its own.
-    Under-grouping is the safe direction — it over-reports causes, which is honest, where
-    over-grouping hides findings.
-    """
-    listed = list(violations)
-    return len({v.cause for v in listed if v.cause}) + sum(1 for v in listed if not v.cause)
-
-
 @dataclass(frozen=True, slots=True)
 class Warning:
     """A single non-blocking gate finding, with the id of the check that raised it.
 
     The message keeps its `WARN: ` prose prefix and gains no `W1: ` string prefix — identity is a
     field, so nothing downstream re-parses a message to learn which check spoke.
+
+    `cause` is the same report unit `Violation` carries, and for the same reason: one edit above a
+    self-anchored fold ledger drifts every row at once, and reporting that as N findings leaves
+    "how many things are actually wrong here?" unanswerable. It is on BOTH kinds because whether a
+    finding blocks and how many defects it represents are independent questions — a warning that
+    groups is still one thing to fix.
     """
 
     check: str
     message: str
+    cause: str = ''
+
+
+def count_causes(findings: Iterable[Violation | Warning]) -> int:
+    """How many distinct underlying defects a set of findings represents (the report unit).
+
+    Findings sharing a non-empty `cause` are one defect; one with no key is its own. Under-grouping
+    is the safe direction — it over-reports causes, which is honest, where over-grouping hides
+    findings. Violations and warnings are counted the same way: a repairable drift that moved
+    twenty rows is one edit whether or not it blocks.
+    """
+    listed = list(findings)
+    return len({f.cause for f in listed if f.cause}) + sum(1 for f in listed if not f.cause)
 
 
 @dataclass(frozen=True, slots=True)

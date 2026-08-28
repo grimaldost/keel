@@ -12,6 +12,13 @@ against one release section; this entry grows as they land.
 
 ### Added
 
+- **`keel re-anchor <spec>`** (`src/keel/reanchor.py`, `docs/cli-reference.md`): the correction
+  the gate already computes, applied instead of described. Defaults to the fold ledger, which sits
+  inside the span `spec_hash` removes — so a repair cannot invalidate the certification it serves,
+  and a test asserts the hash is unchanged across a default pass. `--body` also repoints prose
+  anchors and says out loud that the hash has moved; `--check` writes nothing. Every refusal is
+  reported by name: a repair that guesses would be worse than the manual `sed` it replaces,
+  because the row would then pass the gate while pointing somewhere the fold never happened.
 - **`keel show <name>`** (`src/keel/show.py`, `docs/cli-reference.md`): the kit's own bodies,
   printed from the serving bundle. `checks` is the Part-A reference block, `directive` is the
   fenced prompt dispatched on every pre-mortem pass, and any kit template comes back by stem.
@@ -34,6 +41,37 @@ against one release section; this entry grows as they land.
 
 ### Changed
 
+- **A fold-ledger anchor's identity is its snippet; the line is a coordinate** (W6,
+  `check_ready.py`). Nine field reports across two rounds wrote the same throwaway re-anchoring
+  script — three cycles over sixteen rows in one session, one of them producing a malformed row
+  from a slipped `sed`; five cycles across two specs the next day; twenty-one rows after one
+  section rewrite. When a ledger row's snippet is not on the line it cites but IS on exactly one
+  other line, the fold is recorded against real, locatable content and only the coordinate is
+  stale: that is now a warning naming the corrected line, not a failure. Scoped three ways, because
+  each exclusion is a case where the repair would be a guess — a **weak** snippet (under twelve
+  non-space characters) can match a coincidental line, a **range** anchor cannot be repaired at all
+  (the snippet's original offset inside the window is unrecoverable, so the shift is
+  underdetermined), and a snippet on no line or on several has nothing to resolve to. **A6 prose
+  anchors are untouched**: they are the author's own citations rather than a machine-repairable
+  ledger, and `_snippet_delta` returns a delta precisely on the unique-match case, so downgrading
+  them too would have left the drift-delta cause key with no producer at all.
+- **The report unit is about findings, not about violations** (`models.py`, `check_ready.py`).
+  `Warning` gains the `cause` key `Violation` already carried, `count_causes` counts both kinds,
+  and `Probe.causes` is computed over every finding of a check rather than over its violations
+  alone. Without it, W6 moved the census's signature case — N ledger rows drifted by one uniform
+  edit — onto a path where `causes` degenerated to `fired` and the grouped note disappeared
+  entirely: the exact regression 0.15.0's report unit exists to prevent, reintroduced through the
+  warning door, and silent, because the only uniform-drift fixture uses out-of-range rows that stay
+  violations. Whether a finding blocks and how many defects it represents are independent
+  questions. Caught by the round-2 re-gate of this wave's own spec, in code that had already
+  shipped to a branch.
+- **A fold-ledger row has one owner.** A6 and A11 scan the whole document, so they were
+  re-checking the ledger's anchors under prose semantics — the same defect reported twice, by a
+  check that cannot repair it, with a second fire in the hit-rate ledger. The ledger sub-table is
+  masked out of their scan, offsets preserved.
+- **The gate ledger's schema moves to v3.** An A12 failure class became a warning, so A12's and
+  W6's `fired` counts are not comparable across that boundary; the ledger's own contract says a
+  count must never be read across a version boundary silently.
 - **The Definition-of-Ready sheet's budget is split in two, because it was two bodies sharing one
   number** (`tests/test_body_budgets.py`, `CONTRIBUTING.md`). A test makes a new check letter
   MANDATORY in the sheet's reference block, while the whole sheet was capped at the size it

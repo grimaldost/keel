@@ -12,6 +12,7 @@ from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready, spec_hash
 from keel.gate_ledger import ledger_path, read_lines, record_run
 from keel.models import CHECK_IDS, GateResult
+from keel.reanchor import reanchor
 from keel.show import available, body
 from keel.templates import copy_templates, stamp_spec
 
@@ -71,7 +72,7 @@ def _emit(
         # mechanism their finding does not have.
         advice = (
             ' — anchors failing against the same target, or sharing one drift delta, are one '
-            'cause. Re-anchor the block; do not delete the rows.'
+            'cause. Re-anchor the block (`keel re-anchor <spec>`); do not delete the rows.'
             if any(probe.check in _ANCHOR_CHECKS for probe in grouped)
             else ' — findings sharing a cause are one defect, not that many.'
         )
@@ -82,7 +83,7 @@ def _emit(
 
 
 # The checks whose cause keys group by a moved or missing anchor.
-_ANCHOR_CHECKS = frozenset({'A6', 'A11', 'A12', 'W3'})
+_ANCHOR_CHECKS = frozenset({'A6', 'A11', 'A12', 'W3', 'W6'})
 _STRUCTURAL_WHERES = frozenset(
     {'Numbered sections', 'PR ↔ section manifest', 'Concept → module map'}
 )
@@ -198,6 +199,35 @@ def show_cmd(
     except LookupError as exc:
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
+
+
+@app.command('re-anchor')
+def reanchor_cmd(
+    spec: Path,
+    check: bool = typer.Option(False, '--check', help='Report what would change; write nothing.'),
+    body: bool = typer.Option(
+        False, '--body', help='Also repoint prose anchors — this MOVES the spec hash.'
+    ),
+) -> None:
+    """Repoint a spec's drifted anchors from the snippets that identify them."""
+    try:
+        report = reanchor(spec, body=body, write=not check)
+    except FileNotFoundError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2) from exc
+    for repair in report.applied:
+        verb = 'would repoint' if check else 'repointed'
+        typer.echo(f'line {repair.line_no}: {verb} {repair.anchor} -> {repair.corrected}')
+    for repair in report.refused:
+        typer.echo(f'line {repair.line_no}: left {repair.anchor} alone — {repair.refused}')
+    if not report.applied and not report.refused:
+        typer.echo('nothing to repoint: every anchor with a snippet is on the line it cites.')
+    if report.applied and body and not check:
+        typer.echo(
+            'NOTE: --body rewrote anchors outside the certification span, so `keel spec-hash` has '
+            'moved and the recorded certification now reads as stale (B2/W5). Re-stamp it.'
+        )
+    raise typer.Exit(code=0)
 
 
 @app.command('spec-hash')

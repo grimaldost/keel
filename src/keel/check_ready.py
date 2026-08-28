@@ -301,6 +301,13 @@ def _candidate_counts(
     anchors = sum(1 for m in _ANCHOR_RE.finditer(text) if _anchor_shaped(m.group(1)))
     ranges = sum(1 for m in _ANCHOR_RANGE_RE.finditer(text) if _anchor_shaped(m.group(1)))
     ledger_rows = len(_ledger_rows(cert))
+    # W6's opportunity is a ledger row carrying a snippet: a row without one has nothing to
+    # resolve from, so its silence says nothing. Shares `_ledger_anchor` with the check.
+    snippet_rows = sum(
+        1
+        for cells in _ledger_rows(cert)
+        if (anchor := _ledger_anchor(cells)) is not None and anchor.group(4)
+    )
     structural = len(subsections) or 1  # an absent required section is itself one construct
     certified = 0 if structure_only else int(cert is not None)
     return {
@@ -328,6 +335,7 @@ def _candidate_counts(
         'W3': anchors + ranges + ledger_rows,
         'W4': certified,
         'W5': certified,
+        'W6': snippet_rows,
     }
 
 
@@ -388,10 +396,12 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     requirement_ids = _declared_requirement_ids(header, spec_path)
     violations += _check_requirements_ledger(header, sections, section_ids, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
-    anchor_violations, anchor_warnings = _check_anchors(text, spec_path)
+    # A12 owns the fold ledger's anchors; A6/A11 must not re-report them under prose semantics.
+    outside_ledger = _mask_fold_ledger(text)
+    anchor_violations, anchor_warnings = _check_anchors(outside_ledger, spec_path)
     violations += anchor_violations
     warnings += anchor_warnings
-    range_violations, range_warnings = _check_anchor_ranges(text, spec_path)
+    range_violations, range_warnings = _check_anchor_ranges(outside_ledger, spec_path)
     violations += range_violations
     warnings += range_warnings
     violations += _check_adr_numbers(text, spec_path)
@@ -432,7 +442,8 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
             check=check,
             candidates=candidates[check],
             fired=fired[check],
-            causes=count_causes(v for v in violations if v.check == check) or fired[check],
+            causes=count_causes(f for f in (*violations, *warnings) if f.check == check)
+            or fired[check],
         )
         for check in sorted(CHECK_IDS)
     )
@@ -629,6 +640,25 @@ def _basename_matches(base: Path, path: str) -> tuple[list[Path], list[Path]]:
     return clean, vendored
 
 
+# A snippet shorter than this (non-space characters, after normalization) is too weak to
+# REPAIR from: the uniqueness test is a whitespace-normalized substring match, so a short generic
+# token — `return None`, `import re` — can match exactly one line that is a comment or an
+# unrelated call site. Such a row is still reported; it is simply never rewritten.
+_STRONG_SNIPPET_CHARS = 12
+
+
+def _snippet_line(lines: list[str], snippet: str) -> int | None:
+    """The one line carrying this snippet, or None when it is on none or on several."""
+    wanted = ' '.join(snippet.split())
+    found = [n for n, line in enumerate(lines, 1) if wanted in ' '.join(line.split())]
+    return found[0] if len(found) == 1 else None
+
+
+def _strong_snippet(snippet: str) -> bool:
+    """Long enough that a unique match is evidence rather than coincidence."""
+    return len(''.join(snippet.split())) >= _STRONG_SNIPPET_CHARS
+
+
 def _snippet_delta(lines: list[str], snippet: str, claimed: int) -> str:
     """The uniform shift a drifted snippet implies, as a cause key suffix, or '' when unknowable.
 
@@ -636,9 +666,8 @@ def _snippet_delta(lines: list[str], snippet: str, claimed: int) -> str:
     snippet found nowhere (or on several lines) gives no delta, and then the violation is its own
     cause — under-grouping is the safe direction: it over-reports causes rather than hiding one.
     """
-    wanted = ' '.join(snippet.split())
-    found = [n for n, line in enumerate(lines, 1) if wanted in ' '.join(line.split())]
-    return f'drift{found[0] - claimed:+d}' if len(found) == 1 else ''
+    found = _snippet_line(lines, snippet)
+    return f'drift{found - claimed:+d}' if found is not None else ''
 
 
 def _resolve_anchor(
@@ -1012,6 +1041,25 @@ def _check_paths(
                 )
             )
     return violations
+
+
+def _mask_fold_ledger(text: str) -> str:
+    """Space-fill the `### Fold ledger` sub-table, offsets preserved.
+
+    A ledger row's anchor is A12's construct, and A12 reads it with the ledger's own semantics —
+    including W6's repairable drift. A6 and A11 scan the whole document, so without this they
+    re-check the same rows under prose semantics and report the SAME defect twice, under a check
+    that cannot repair it and with a second fire in the hit-rate ledger. One row, one owner.
+    """
+    lines = text.splitlines(keepends=True)
+    inside = False
+    for index, line in enumerate(lines):
+        if re.match(r'^#{2,6}[ \t]+', line):
+            inside = 'fold ledger' in line.lower()
+            continue
+        if inside:
+            lines[index] = re.sub(r'[^\n]', ' ', line)
+    return ''.join(lines)
 
 
 def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[Warning]]:
@@ -1470,17 +1518,40 @@ def _check_fold_ledger(
             window = ' '.join(' '.join(lines[lo - 1 : hi or lo]).split())
             if ' '.join(snippet.split()) not in window:
                 span = f'{lo}-{hi}' if hi else str(lo)
-                violations.append(
-                    Violation(
-                        where,
-                        f'fold-ledger snippet {snippet!r} does not match line {span} '
-                        '(in-range drift: the anchored content moved — re-anchor the row).',
-                        'A12',
-                        f'A12:{path}:{delta}'
-                        if (delta := _snippet_delta(lines, snippet, hi or lo))
-                        else '',
+                delta = _snippet_delta(lines, snippet, hi or lo)
+                found = _snippet_line(lines, snippet)
+                # W6: the fold IS recorded against real, locatable content and only the coordinate
+                # is stale, so this is a repair, not a defect. Scoped three ways, because each
+                # exclusion is a case where the repair would be a guess: a weak snippet can match a
+                # coincidental line; a RANGE cannot be repaired at all (the snippet's original
+                # offset inside the window is unrecoverable, so the shift is underdetermined); and
+                # a snippet on no line or on several has nothing to resolve to. A6 prose anchors
+                # keep failing outright — they are the author's citations, not a machine-repairable
+                # ledger, and `_snippet_delta` would lose its last producer if they moved too.
+                if found is not None and hi is None and _strong_snippet(snippet):
+                    warnings.append(
+                        Warning(
+                            'W6',
+                            f'WARN: {where} — snippet {snippet!r} is not on line {span} but is on '
+                            f'line {found} ({path}:{found}); the fold is recorded against real '
+                            'content and the line number is stale. `keel re-anchor <spec>` '
+                            'rewrites it.',
+                            # The same grouping the violation path had: one insertion above a
+                            # self-anchored ledger drifts every row by one delta, and that is one
+                            # edit to make, not N findings to read.
+                            f'W6:{path}:{delta}' if delta else '',
+                        )
                     )
-                )
+                else:
+                    violations.append(
+                        Violation(
+                            where,
+                            f'fold-ledger snippet {snippet!r} does not match line {span} '
+                            '(in-range drift: the anchored content moved — re-anchor the row).',
+                            'A12',
+                            f'A12:{path}:{delta}' if delta else '',
+                        )
+                    )
     return violations, warnings
 
 
