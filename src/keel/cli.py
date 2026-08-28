@@ -12,6 +12,7 @@ from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready, spec_hash
 from keel.gate_ledger import ledger_path, read_lines, record_run
 from keel.models import CHECK_IDS, GateResult
+from keel.reanchor import reanchor
 from keel.show import available, body
 from keel.templates import copy_templates, stamp_spec
 
@@ -198,6 +199,35 @@ def show_cmd(
     except LookupError as exc:
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
+
+
+@app.command('re-anchor')
+def reanchor_cmd(
+    spec: Path,
+    check: bool = typer.Option(False, '--check', help='Report what would change; write nothing.'),
+    body: bool = typer.Option(
+        False, '--body', help='Also repoint prose anchors — this MOVES the spec hash.'
+    ),
+) -> None:
+    """Repoint a spec's drifted anchors from the snippets that identify them."""
+    try:
+        report = reanchor(spec, body=body, write=not check)
+    except FileNotFoundError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2) from exc
+    for repair in report.applied:
+        verb = 'would repoint' if check else 'repointed'
+        typer.echo(f'line {repair.line_no}: {verb} {repair.anchor} -> {repair.corrected}')
+    for repair in report.refused:
+        typer.echo(f'line {repair.line_no}: left {repair.anchor} alone — {repair.refused}')
+    if not report.applied and not report.refused:
+        typer.echo('nothing to repoint: every anchor with a snippet is on the line it cites.')
+    if report.applied and body and not check:
+        typer.echo(
+            'NOTE: --body rewrote anchors outside the certification span, so `keel spec-hash` has '
+            'moved and the recorded certification now reads as stale (B2/W5). Re-stamp it.'
+        )
+    raise typer.Exit(code=0)
 
 
 @app.command('spec-hash')

@@ -51,6 +51,7 @@ W2 (warn) a header `Status:` still reading `draft` while a CERTIFIED / CONDITION
 W3 (warn) an anchor that does not resolve as written but whose basename matches exactly ONE repo file OUTSIDE a vendored tree resolves to that file and warns, naming the expansion; ambiguity, no match, or a match only inside a vendored tree still fails, naming the twin (A6/A11/A12)
 W4 (warn) B2's adoption nudge: the certification names no artifact at all
 W5 (warn) the named artifact's recorded `Spec-hash:` no longer matches ("certified against an earlier revision"), suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY
+W6 (warn) a fold-ledger row whose backticked snippet is not on the line it cites but IS on exactly one other line: the fold is recorded against real content and only the coordinate is stale, so `keel re-anchor` rewrites it. A weak snippet, a range anchor, or a snippet on no line still fails (A12)
 ```
 *(Every finding names its check in a field, never as a `W1: ` message prefix — the id is what
 makes a check's fires countable, and `where` collides across checks by design.)*

@@ -273,3 +273,10 @@ fires = ["A13"]
 why = "DEVIATED is the one disposition a session must not grant itself; with no named ratification the row is a session ratifying its own departure from the owner's order"
 find = '| RR-01 | "convert to minor units before anything sums them, not after" | §3 |'
 replace = '| RR-01 | "convert to minor units before anything sums them, not after" | DEVIATED — the rollup sums first and converts the total |'
+
+[[mutant]]
+id = "W6-ledger-drift-repairable"
+fires = ["W6"]
+why = "the repairable half of A12's snippet check: the content is real and locatable, only the line number is stale — nine field reports wrote a re-anchoring script by hand rather than have the gate say so"
+find = '| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |'
+replace = '| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` `def load_orders(rows: Iterable` | yes |'

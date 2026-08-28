@@ -130,7 +130,7 @@ def test_causes_never_exceed_fires_anywhere_in_the_corpus(tmp_path):
 def test_the_ledger_schema_version_moved_with_the_report_unit():
     # `causes` means something different before and after this change. Without the bump the two
     # eras mix silently in one file and the comparison the ledger exists for is lost.
-    assert SCHEMA_VERSION == 2
+    assert SCHEMA_VERSION == 3
 
 
 @pytest.mark.parametrize('check', ['A6', 'A12'])
