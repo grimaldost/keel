@@ -59,6 +59,12 @@ keel invocations, against one invocation of the skill that carries the method.
   recipe shipped in `docs/installation.md` since 0.12.0, so it moves to the artifact the consumer
   keeps, with installation.md holding the reasons. Both forms were run from a neutral working
   directory before being written down.
+- **The report-unit note stops giving anchor advice to a finding with no anchor.** Adding a check
+  whose violations carry cause keys sent A12's instruction — "re-anchor the block; do not delete
+  the rows" — to a reader whose defect is a requirements ledger. The note now names the count for
+  every grouped check and keeps the re-anchor sentence for the checks that group by a moved
+  anchor. Found by running the new gate end to end rather than by a test, which is the argument
+  for running it.
 - **The Part-A reference block gained a check and lost four restatements.** *Displacement*, as the
   promotion rule requires: A0's line is now the only home for what `Kind: single-change` relaxes —
   A1, A2, A4 and A5 each restated it — and W1's and W3's rationale clauses moved to the CHANGELOG

@@ -225,3 +225,21 @@ def test_register_ids_reads_entries_not_mentions():
         '| RR-03 | a table row |\n'
     )
     assert register_ids(text) == ['RR-01', 'RR-02', 'RR-03']
+
+
+def test_the_cause_note_does_not_give_anchor_advice_for_a_ledger_defect(tmp_path, capsys):
+    # A13 groups its violations by register, so the report-unit note reached a reader with the
+    # A12 instruction "re-anchor the block" about a mechanism their finding does not have.
+    from typer.testing import CliRunner
+
+    from keel.cli import app
+
+    spec = SPEC.replace(
+        '| RR-01 | "the widget has to come out of the CLI, not a library call" | §2 |\n', ''
+    ).replace('| RR-02 | "do it with what is already in the lockfile" | OUT-OF-SCOPE |\n', '')
+    path = _write(tmp_path, spec)
+    result = CliRunner().invoke(app, ['check-ready', str(path), '--structure-only'])
+    assert result.exit_code == 1
+    assert 'A13 2 in 1' in result.output, result.output
+    assert 'Re-anchor the block' not in result.output
+    assert 'one defect' in result.output
