@@ -146,3 +146,31 @@ def test_the_grouped_checks_report_a_cause_summary_on_the_cli(tmp_path, check):
     assert '57' in out.output
     if check == 'A12':
         assert 'cause' in out.output.lower()
+
+
+def test_a_repairable_multi_row_drift_is_one_cause(tmp_path):
+    # FM-22, caught by the round-2 re-gate in code that had already shipped: W6 moved the census's
+    # signature case — N ledger rows drifted by one uniform edit — onto the warning path, where
+    # `Warning` had no cause key and `Probe.causes` fell back to `fired`. Three findings, no
+    # grouping, and silently, because the only uniform-drift fixture uses out-of-range rows that
+    # stay violations. The report unit is about FINDINGS, not about violations.
+    (tmp_path / '.git').mkdir(exist_ok=True)
+    (tmp_path / 'mod.py').write_text(
+        ''.join(f'the anchored content of row {n}\n' for n in range(1, 13)), encoding='utf-8'
+    )
+    rows = ''.join(
+        f'| FM-{n} | §1 | `mod.py:{n}` `the anchored content of row {n + 3}` | yes |\n'
+        for n in (1, 2, 3)
+    )
+    spec = tmp_path / 'spec.md'
+    spec.write_text(
+        BASE.format(body='A body with nothing anchored in it.').replace(
+            '- **Failure modes considered & folded in:** none outstanding',
+            '- **Failure modes considered & folded in:** three\n\n'
+            '### Fold ledger\n\n'
+            '| Finding | Target | Confirmed at | Applied? |\n|---|---|---|---|\n' + rows,
+        ),
+        encoding='utf-8',
+    )
+    probe = _probe(spec, 'W6')
+    assert (probe.fired, probe.causes) == (3, 1)

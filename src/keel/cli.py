@@ -72,7 +72,7 @@ def _emit(
         # mechanism their finding does not have.
         advice = (
             ' — anchors failing against the same target, or sharing one drift delta, are one '
-            'cause. Re-anchor the block; do not delete the rows.'
+            'cause. Re-anchor the block (`keel re-anchor <spec>`); do not delete the rows.'
             if any(probe.check in _ANCHOR_CHECKS for probe in grouped)
             else ' — findings sharing a cause are one defect, not that many.'
         )
@@ -83,7 +83,7 @@ def _emit(
 
 
 # The checks whose cause keys group by a moved or missing anchor.
-_ANCHOR_CHECKS = frozenset({'A6', 'A11', 'A12', 'W3'})
+_ANCHOR_CHECKS = frozenset({'A6', 'A11', 'A12', 'W3', 'W6'})
 _STRUCTURAL_WHERES = frozenset(
     {'Numbered sections', 'PR ↔ section manifest', 'Concept → module map'}
 )

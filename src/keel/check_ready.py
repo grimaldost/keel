@@ -442,7 +442,8 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
             check=check,
             candidates=candidates[check],
             fired=fired[check],
-            causes=count_causes(v for v in violations if v.check == check) or fired[check],
+            causes=count_causes(f for f in (*violations, *warnings) if f.check == check)
+            or fired[check],
         )
         for check in sorted(CHECK_IDS)
     )
@@ -1535,6 +1536,10 @@ def _check_fold_ledger(
                             f'line {found} ({path}:{found}); the fold is recorded against real '
                             'content and the line number is stale. `keel re-anchor <spec>` '
                             'rewrites it.',
+                            # The same grouping the violation path had: one insertion above a
+                            # self-anchored ledger drifts every row by one delta, and that is one
+                            # edit to make, not N findings to read.
+                            f'W6:{path}:{delta}' if delta else '',
                         )
                     )
                 else:

@@ -55,6 +55,16 @@ against one release section; this entry grows as they land.
   anchors are untouched**: they are the author's own citations rather than a machine-repairable
   ledger, and `_snippet_delta` returns a delta precisely on the unique-match case, so downgrading
   them too would have left the drift-delta cause key with no producer at all.
+- **The report unit is about findings, not about violations** (`models.py`, `check_ready.py`).
+  `Warning` gains the `cause` key `Violation` already carried, `count_causes` counts both kinds,
+  and `Probe.causes` is computed over every finding of a check rather than over its violations
+  alone. Without it, W6 moved the census's signature case — N ledger rows drifted by one uniform
+  edit — onto a path where `causes` degenerated to `fired` and the grouped note disappeared
+  entirely: the exact regression 0.15.0's report unit exists to prevent, reintroduced through the
+  warning door, and silent, because the only uniform-drift fixture uses out-of-range rows that stay
+  violations. Whether a finding blocks and how many defects it represents are independent
+  questions. Caught by the round-2 re-gate of this wave's own spec, in code that had already
+  shipped to a branch.
 - **A fold-ledger row has one owner.** A6 and A11 scan the whole document, so they were
   re-checking the ledger's anchors under prose semantics — the same defect reported twice, by a
   check that cannot repair it, with a second fire in the hit-rate ledger. The ledger sub-table is
