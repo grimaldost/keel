@@ -13,7 +13,8 @@ console-script executable.
 | `keel gate-health [--since] [--repo]` | Read back the local hit-rate ledger: per check, applicable runs / distinct revisions it fired on / causes / fire rate, split by author-loop vs full-gate runs | 0 | **real** |
 | `keel show <name> [--list]` | Print a body from the serving kit — `checks` (the Part-A reference block), `directive` (the dispatched pre-mortem prompt), or any template by stem. A projection read at run time, never a copy, so it cannot drift from the shipped file | 0 ok, 2 unknown name | **real** |
 | `keel init <target> [--force]` | Copy the full template kit into a project | 0 ok, 2 exists | **real** |
-| `keel bind-check <bindings>` | All method-binding slots filled | 0 / 1 / 2 | stub |
+| `keel bind-check <bindings>` | Every portability slot in a method-bindings sheet is bound to something concrete. The binding column is resolved by HEADER (`This project` when the table has one, else the last column), and `not bound — <reason>` WARNs rather than fails — a named deferral is a decision, a blank is a gap (ADR-0018) | 0 ok, 1 unbound, 2 no sheet | **real** |
+| `keel survey <dir>` | Sweep a design directory: which spec-shaped documents carry no certification? Spec-shaped means a numbered-sections or PR-manifest heading; triage docs, ADR drafts, pre-mortem artifacts and registers are listed and never counted | 0 ok, 1 an uncertified spec, 2 not a directory | **real** |
 | `keel budget-drift <series> <actuals>` | Wave cost drift past threshold | 0 / 1 / 2 | stub |
 | `keel --version` | Print the installed keel version and exit | 0 | **real** |
 
