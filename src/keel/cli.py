@@ -12,6 +12,7 @@ from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready, spec_hash
 from keel.gate_ledger import ledger_path, read_lines, record_run
 from keel.models import CHECK_IDS, GateResult
+from keel.show import available, body
 from keel.templates import copy_templates, stamp_spec
 
 app = typer.Typer(
@@ -180,6 +181,23 @@ def gate_health_cmd(
 
 def _check_order(check: str) -> tuple[str, int]:
     return check[0], int(check[1:])
+
+
+@app.command('show')
+def show_cmd(
+    name: str = typer.Argument('', help='The body to print; omit with --list to see the names.'),
+    list_names: bool = typer.Option(False, '--list', help='List the bodies this kit serves.'),
+) -> None:
+    """Print a body from the serving kit — the directive, the check reference, any template."""
+    if list_names or not name:
+        for key, description in available().items():
+            typer.echo(f'{key:<24} {description}')
+        raise typer.Exit(code=0)
+    try:
+        typer.echo(body(name))
+    except LookupError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2) from exc
 
 
 @app.command('spec-hash')

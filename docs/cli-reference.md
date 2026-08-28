@@ -10,6 +10,7 @@ console-script executable.
 | `keel spec-hash <spec>` | Print the canonical certification hash (the spec minus its certification section and its header `Status:` line) — what a saved pre-mortem artifact records as `Spec-hash:` (B2) | 0 ok, 2 not-runnable | **real** |
 | `keel new-spec <target> [--force]` | Stamp `spec-template.md` to a new spec path (the author on-ramp) | 0 ok, 2 exists | **real** |
 | `keel gate-health [--since] [--repo]` | Read back the local hit-rate ledger: per check, applicable runs / distinct revisions it fired on / causes / fire rate, split by author-loop vs full-gate runs | 0 | **real** |
+| `keel show <name> [--list]` | Print a body from the serving kit — `checks` (the Part-A reference block), `directive` (the dispatched pre-mortem prompt), or any template by stem. A projection read at run time, never a copy, so it cannot drift from the shipped file | 0 ok, 2 unknown name | **real** |
 | `keel init <target> [--force]` | Copy the full template kit into a project | 0 ok, 2 exists | **real** |
 | `keel bind-check <bindings>` | All method-binding slots filled | 0 / 1 / 2 | stub |
 | `keel budget-drift <series> <actuals>` | Wave cost drift past threshold | 0 / 1 / 2 | stub |
