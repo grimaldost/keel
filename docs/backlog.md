@@ -5,6 +5,51 @@
   recorded in `CHANGELOG.md` when they ship. Each item below carries its own **Status** line once
   worked; an item with none is untouched.
 
+## Wave 4 — 2026-08-28, branches `wave4/*` (released as 0.17.0)
+
+The delivery wave, and the first one authored under the method's own full ceremony end to end: a
+spec gated by `keel check-ready`, certified — or rather NOT certified — by two blind rounds of the
+bundled reviewer, folded, and only then built. It shipped six of the rows the post-0.15.0 triage
+opened: **KEEL-B47** (the rest of the gate's messages, via a different route), **KEEL-B49** (the
+fold ledger's identity), **KEEL-B51** (the declared amendment), **KEEL-B52** (what a gate must
+observe), **KEEL-B53** (the phase-boundary sweep) and **KEEL-B55** (cross-repo anchors), plus
+**KEEL-B17**'s bindings gate and the `Profile:` axis that **KEEL-B11**'s data-pipeline profile
+needed before it could be dispatched at all.
+
+Everything in it attacks the same structural cause the triage named, from two sides: text the
+method dispatches but cannot show you, and machines the method assumes it has and never built.
+
+**The pre-mortem is what makes this wave worth reading.** Thirty-two findings across two rounds —
+six of them BLOCKER — against a spec its author thought was ready. Five would have shipped defects:
+
+- §2's downgrade would have retired the ONLY producer of the drift-delta cause key, reddening two
+  pinned tests and leaving 0.15.0's report unit as dead code.
+- §3's first design compared two literals the author types, which proves nothing and *lowers* the
+  forgery cost below today's W5.
+- §4's bindings rule was inverted on both sheets that exist: it would have failed the blank
+  scaffold and PASSED the one real record with three admittedly unbound slots.
+- §5's A0 widening would have fired a check with a zero denominator and satisfied its
+  positive-control obligation vacuously through an existing mutant.
+- §6's premise was simply false — sibling anchors already resolve; the defect was the other branch.
+
+And the round-2 re-gate found a **live BLOCKER in code that had already been pushed** (FM-22): W6
+moved the census's signature case onto a path where `Probe.causes` degenerates to `fired`, so a
+uniform multi-row drift silently stopped reporting as one cause. Silently, because the only
+uniform-drift fixture uses out-of-range rows that stay violations. It was reproduced, fixed and
+pinned before the record was written.
+
+**One thing this wave got wrong, recorded rather than smoothed over.** §1 was built and pushed to
+an open PR *before* the spec was certified — a gate-order slip against the method this repo binds.
+Three things bound it: nothing was merged, the round-2 reviewer re-grounded against the tree and
+therefore reviewed §1 **as built**, and what it found there was that the implementation was
+*stronger* than the spec described. The certification record says so, and the spec's verdict stays
+NEEDS-REVISION: the author does not certify their own spec.
+
+**Nothing was added to the pre-mortem directive**, again. It is unchanged at 2,005 of 2,050 words.
+**KEEL-B50** — four hits in four rounds with no false fire — is still held behind KEEL-B09's
+pending adjudication, which remains the single highest-value unblocking action available and is a
+reading task rather than a build.
+
 ## Wave 3 — 2026-08-28, branch `backlog/wave-3` (released as 0.16.0)
 
 The conformance wave, opened by a delta triage of fifteen field reports (2026-08-11 → 08-28)
@@ -401,6 +446,12 @@ recorded here explicitly. `[triage]`
   A8 (the cross-document cue) carry theirs. A12's already did, since 0.15.0 (T1.2). The rest of
   the catalogue is unswept; it is cheap and it is not free, so it waits for a message a report
   actually stumbled on.
+- **Status:** **shipped** 2026-08-28 (wave 4, 0.17.0), by a different route than the row
+  proposed. Sweeping every message one at a time was the remedy; the structural answer is that the
+  method's text became REACHABLE — `keel show <name>` prints the Part-A reference block, the
+  dispatched directive, or any kit template from the serving bundle, as a projection read at run
+  time rather than a copy. Three of the five motivating reports were asking for text that already
+  shipped, so a message sweep would not have reached them.
 - **Effort:** S · **Source:** `[triage D1]`
 
 ### KEEL-B48 — The invocation is a binding, and it resolves instead of pinning a cache version
@@ -439,6 +490,12 @@ recorded here explicitly. `[triage]`
   detector, adds a verb). The field asked for both by name, three times for the second.
 - **Ordering:** the semantics decision comes first and is not a coin flip: making the line advisory
   retires a check that has caught real drift (three drifts across edit waves in one session alone).
+- **Status:** **shipped** 2026-08-28 (wave 4, 0.17.0). The semantics decision the row named
+  went the conservative way: a ledger row whose snippet resolves at exactly one other line WARNs
+  (W6) with the corrected line, and `keel re-anchor` applies it — but a weak snippet, a range
+  anchor and a snippet on no line all still fail, because each is a case where the repair would be
+  a guess. A6 prose anchors are untouched. A second defect surfaced during the build: A6 and A11
+  were re-checking the ledger's anchors under prose semantics, so one defect reported twice.
 - **Effort:** M · **Source:** `[triage D4]` `[triage Q10a]`
 
 ### KEEL-B50 — The one directive obligation the field proved, held behind the body's own gate
@@ -471,6 +528,12 @@ recorded here explicitly. `[triage]`
   list of hash-excluded headings — which the lineage already records as undocumented and growing —
   and recognise a named amendment block (`## Amendment`) whose content enters the hash but whose
   presence makes B2 say "hash changed by declared amendment" instead.
+- **Status:** **shipped** 2026-08-28 (wave 4, 0.17.0) as W7, and by recomputation rather than
+  by declaration — the pre-mortem killed the declared-field design as a BLOCKER, since it compares
+  two literals the author types. Every amendment span is removed, not the first; an
+  operator-accepted CONDITIONAL-CERTIFY is excluded, because the DoR sheet already calls that
+  mismatch the expected honest state of the close. The list of spans `spec_hash` removes stays at
+  two, which was the point.
 - **Effort:** S · **Source:** `[triage D6]`
 
 ## Next
@@ -674,6 +737,16 @@ recorded here explicitly. `[triage]`
   consciously-unbound escape marker (keel's own sheet names three unbound slots), and add the
   entry-time reconciliation: house format + kit stamp vs the serving kit, reported before authoring.
   Wire it into `apply-method`'s bindings-first entry step.
+- **Status:** **partly shipped** 2026-08-28 (wave 4, 0.17.0). The bindings-table half is built and
+  ADR-0018 records the un-deferral against ADR-0003's own condition, which two field failures now
+  meet. Two calls the build made that the row did not anticipate: the binding column is resolved by
+  HEADER rather than by position — a last-column rule read the shipped template's worked examples
+  as bindings and would have failed the blank scaffold while passing the one real record — and the
+  consciously-unbound escape is `not bound — <reason>`, which WARNs, with a bare `not bound`
+  failing. The **entry-time reconciliation** half (house format + kit stamp vs the serving kit,
+  reported before authoring, wired into `apply-method`'s entry step) is NOT built: `apply-method`
+  was invoked once in 129 sessions, so wiring a check into it would put the mechanism where the
+  telemetry says nobody looks. That half needs a CLI-reachable home first.
 - **Effort:** M · **Source:** `[triage Q1b]` `[review]`
 
 ### KEEL-B18 — An ADR recording the template-coupling boundary
@@ -724,6 +797,10 @@ recorded here explicitly. `[triage]`
 - **Ordering:** behind KEEL-B50's gate for anything that lands in the directive. The
   spec-template's contract notes are at 499 of their 500-word cap, so the DoD is the affordable
   home and the displacement has to be named.
+- **Status:** **partly shipped** 2026-08-28 (wave 4, 0.17.0). The four authoring rules landed in
+  `definition-of-done.md`, which is where acceptance criteria are written and which is not a capped
+  body. The blind post-execution audit that produced the evidence is still **KEEL-B58**, held for
+  a second programme that runs the shape.
 - **Effort:** M · **Source:** `[triage D7]`
 
 ### KEEL-B53 — The invocation trigger is prose that depends on memory at the moment memory is worst
@@ -741,6 +818,10 @@ recorded here explicitly. `[triage]`
   directory-scoped `keel check-ready` ("design documents here with no certification: N") a session
   can run at phase open or close — which is where the telemetry says a keel surface is actually
   reached. `check-ready` currently exits 2 on a directory.
+- **Status:** **shipped** 2026-08-28 (wave 4, 0.17.0) as `keel survey <dir>`, and as its own
+  verb rather than a `check-ready` mode: `check-ready` gates one spec and its 0/1/2 contract is
+  pinned. The predicate is stated — a numbered-sections or PR-manifest heading — because a design
+  directory also holds triage docs, ADR drafts, artifacts and registers.
 - **Effort:** M · **Source:** `[triage D8]`
 
 ### KEEL-B54 — The executor is a binding, not a judgement the session makes at execution time
@@ -761,6 +842,12 @@ recorded here explicitly. `[triage]`
 - **Ordering:** behind KEEL-B17. ADR-0003 defers `check_bindings` until a real failure demands it;
   this round supplies one, so the deferral's own condition is met and the un-deferral is now an
   ADR-recordable decision rather than speculative generality.
+- **Status:** **partly shipped** 2026-08-28 (wave 4, 0.17.0). `keel bind-check` is built
+  (ADR-0018 records the un-deferral against ADR-0003's own condition), so the series-orchestration
+  slot is now a slot a machine reads, and an unbound one fails. What is NOT built is the coupling:
+  nothing yet blocks a two-or-more-PR spec on that slot being empty. That is deliberate —
+  `check-ready` has no way to find a project's bindings sheet and its exit contract is pinned — and
+  it is the next decision on its own evidence.
 - **Effort:** M · **Source:** `[triage D1]` `[routed: skills-collection meta-requirements#3]`
 
 ### KEEL-B55 — Cross-repo anchors are neither resolved nor verified, and multi-repo is the normal case
@@ -774,6 +861,11 @@ recorded here explicitly. `[triage]`
 - **Change:** resolve `../` against sibling repositories when they exist on disk, WARN-only, in the
   same lenient direction as the basename expansion. Q4a's `ext:<alias>` grammar is the alternative
   and the two should be decided together, not stacked.
+- **Status:** **shipped** 2026-08-28 (wave 4, 0.17.0), rewritten against what the code does. The
+  premise was false: a `../sibling/path:line` anchor already resolved and verified its snippet. The
+  real defect was the absent-sibling branch, where the basename search silently retargeted the
+  citation to an unrelated in-repo twin with a WARN reading "unique today". Q4a's `ext:` grammar is
+  not needed and is closed with it.
 - **Effort:** M · **Source:** `[triage D11]` `[triage Q4a]`
 
 ## Later

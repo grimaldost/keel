@@ -103,6 +103,32 @@ against one release section; this entry grows as they land.
   violations. Whether a finding blocks and how many defects it represents are independent
   questions. Caught by the round-2 re-gate of this wave's own spec, in code that had already
   shipped to a branch.
+- **What a gate must observe** (`definition-of-done.md`). A blind post-execution audit of seven
+  governed series — 68 findings, three BLOCKER, about thirty minutes, no execution — answered YES
+  to "could a wrong PR have gone green?", and the causes were gate-**authoring** classes nothing
+  constrained. Four items join the Definition of Done's field-derived group: a red companion is a
+  committed artifact the gate executes, never a transcript or a commit-message narrative (four
+  series accepted prose, one of them citing a mutation that had come back green); a change that
+  adds to a counted set pins that set's inventory, because a deliverable that never arrives is
+  indistinguishable from one that works (a pinned deliverable vanished with both its checks green,
+  and five production bindings went missing without noise); a check never regenerates in place what
+  it validates (four series' drift gates rewrote the corpus over the worktree, so any red
+  self-heals on the second run); and every command the spec's Gate-commands section names maps to a
+  check that runs or carries a named deferral (an independent oracle existed as a wrapper that
+  skipped always, in two series, and was delivered with a syntax error inside a third). The
+  Definition of Done is not a capped body; these join the two field-derived items already there,
+  and the generic bind-your-commands stub is untouched. The series-file half of that audit —
+  gate derivation, phase-scoping, review budget — is the orchestrator's layer and is routed out
+  (ADR-0003).
+- **An anchor that leaves the repository fails rather than expanding to an in-repo twin**
+  (`check_ready.py`). Half of the backlog row's premise was already true — the filesystem resolves
+  the parent segment, so `../sibling/path.py:12` verifies its snippet when the sibling is checked
+  out beside this repo. The defect was the other branch: when the sibling is absent the basename
+  search rglobs THIS repository and, on a unique hit, silently retargets the citation to an
+  unrelated file of the same name, with a warning reading "the expansion is unique today". That is
+  the vendored-twin trap 0.16.0 closed, reached through a different door. No new letter: the
+  fixture corpus stages one tree and cannot stage a sibling, so the absent-sibling case earns an
+  ordinary A6 mutant instead.
 - **The kind-selected sheet gets a selector** (A14, `check_ready.py`, `pre-mortem-profiles.md`,
   `spec-template.md`). `pre-mortem-profiles.md` opened by saying its material was "dispatched only
   for the kind that needs it", and no selector existed: `Kind:` declares decomposition shape, not

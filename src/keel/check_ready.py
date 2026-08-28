@@ -183,6 +183,9 @@ def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
 
 
 _HEADER_STATUS_RE = re.compile(r'^[\-*\s]*status[\s*]*:', re.IGNORECASE)
+# A citation that leaves the repository, written in either separator — a Windows-authored
+# `..\sibling\mod.py` is the same parent-prefixed citation as `../sibling/mod.py`.
+_PARENT_PREFIX_RE = re.compile(r'^\.\.[\\/]')
 # A section whose heading IS `Amendment` (or `Amendments`) — the declared form for a
 # post-certification addition. Matched on the heading, never on a mention of the word.
 _AMENDMENT_HEADING_RE = re.compile(r'^##[ \t]+amendments?[ \t]*$', re.IGNORECASE | re.MULTILINE)
@@ -756,6 +759,25 @@ def _resolve_anchor(
     target = base / path
     warnings: list[Warning] = []
     if not target.is_file():
+        # A citation that leaves the repository is never a typo the basename search can repair:
+        # expanding it would retarget a sibling's line to an unrelated in-repo file of the same
+        # name, with a WARN that reads "resolved, carry on" — the vendored-twin trap through a
+        # different door. When the sibling IS on disk the anchor resolved above and never reaches
+        # here; when it is not, the honest answer is that the citation left the tree.
+        if _PARENT_PREFIX_RE.match(path):
+            return (
+                None,
+                Violation(
+                    where,
+                    f'anchor {path!r} leaves this repository and no sibling resolves at that '
+                    'path. The basename search is deliberately NOT applied to a `../` citation: '
+                    'expanding it would repoint the anchor at an unrelated file of the same name '
+                    'inside this repo. Cite something in-tree, or check out the sibling beside it.',
+                    check,
+                    f'{check}:{path}:absent-sibling',
+                ),
+                [],
+            )
         matches, vendored = _basename_matches(base, path)
         if len(matches) != 1:
             candidates = ''

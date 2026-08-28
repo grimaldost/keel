@@ -1697,3 +1697,37 @@ def test_the_profile_axis_is_independent_of_the_kind_axis_a14(tmp_path):
     probes = {p.check: p for p in result.probes}
     assert probes['A14'].candidates == 1
     assert probes['A0'].candidates == 0
+
+
+def test_a_parent_prefixed_anchor_resolves_when_the_sibling_is_on_disk_a6(tmp_path):
+    # Half of the backlog row's premise was already true: the filesystem resolves the parent
+    # segment and the file check succeeds, so this passed before the change and still does.
+    repo = tmp_path / 'repo'
+    (repo / '.git').mkdir(parents=True)
+    sibling = tmp_path / 'sibling'
+    sibling.mkdir()
+    (sibling / 'mod.py').write_text('one\ntwo\nthree\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `../sibling/mod.py:2` `two`.'
+    )
+    path = repo / 'spec.md'
+    path.write_text(spec, encoding='utf-8')
+    result = check_spec_ready(path)
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+
+
+def test_an_absent_sibling_is_never_expanded_to_an_in_repo_twin_a6(tmp_path):
+    # The defect that actually existed: the basename search rglobs THIS repo and, on a unique hit,
+    # silently retargets the citation to an unrelated file of the same name — with a WARN reading
+    # "the expansion is unique today", which closes the question.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'mod.py').write_text('one\ntwo\nthree\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `../sibling/mod.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    left = [v for v in result.violations if 'leaves this repository' in v.message]
+    assert left, [(v.where, v.message) for v in result.violations]
+    assert not any('src/mod.py' in w.message for w in result.warnings), result.warnings
