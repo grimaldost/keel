@@ -289,6 +289,7 @@ def _candidate_counts(
     concept_body: str | None,
     cert: str | None,
     structure_only: bool,
+    requirement_ids: int,
 ) -> dict[str, int]:
     """How many constructs of each check's own shape this spec presented (KEEL-B07).
 
@@ -318,6 +319,7 @@ def _candidate_counts(
         'A10': len(_non_enforced(sections)),
         'A11': ranges,
         'A12': ledger_rows,
+        'A13': requirement_ids,
         'R1': int(cert is not None),
         'B1': 0 if structure_only else 1,
         'B2': certified,
@@ -380,6 +382,11 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     concept_body = _find_section(sections, 'concept', 'module')
     if concept_body is not None or not single_change:
         violations += _check_paths(concept_body, subsections, spec_path)
+    # A13 is silent on a spec that declares no register, so its candidate count is the number of
+    # orders the register holds — the denominator that tells `n/a` (no register anywhere in this
+    # project) apart from `clean` (a register, and every order accounted for).
+    requirement_ids = _declared_requirement_ids(header, spec_path)
+    violations += _check_requirements_ledger(header, sections, section_ids, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
     anchor_violations, anchor_warnings = _check_anchors(text, spec_path)
     violations += anchor_violations
@@ -405,6 +412,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
         warnings += _status_currency_warning(header, cert)
 
     candidates = _candidate_counts(
+        requirement_ids=requirement_ids,
         text=text,
         prose=prose,
         header=header,
@@ -1141,6 +1149,217 @@ def _ledger_rows(cert_body: str | None) -> list[list[str]]:
         (sub for title, sub in _subsections(cert_body) if 'fold ledger' in title.lower()), None
     )
     return (_first_table_rows(ledger) if ledger else [])[1:]
+
+
+# A13's register grammar. An order's id is a line-initial `RR-<n>` token, after at most the
+# markdown punctuation a heading, a list item or a table cell puts in front of it — so the ids a
+# register DECLARES are exactly the ones a reader sees as entries, and a mention of `RR-03` inside
+# a paragraph is a reference, not a second declaration.
+_REGISTER_ID_RE = re.compile(r'^[#\-*|>\s]*\*{0,2}(RR-\d+)\*{0,2}\b', re.MULTILINE)
+# The four dispositions a ledger row may carry. `§N` is checked against the spec's own sections;
+# the other three carry their own obligation, and DEVIATED's is the one a session cannot satisfy
+# alone.
+_DEFERRED_RE = re.compile(r'^DEFERRED\b[\s—:-]*(.*)$', re.IGNORECASE | re.DOTALL)
+_DEVIATED_RE = re.compile(r'^DEVIATED\b[\s—:-]*(.*)$', re.IGNORECASE | re.DOTALL)
+_RATIFIED_RE = re.compile(r'ratified\s+by\s+(\S.*)$', re.IGNORECASE | re.DOTALL)
+_OUT_OF_SCOPE_RE = re.compile(r'^OUT[\s-]*OF[\s-]*SCOPE\b', re.IGNORECASE)
+
+
+def register_ids(register_text: str) -> list[str]:
+    """The order ids a requirements register declares, in file order, deduplicated."""
+    seen: dict[str, None] = {}
+    for match in _REGISTER_ID_RE.finditer(register_text):
+        seen.setdefault(match.group(1).upper(), None)
+    return list(seen)
+
+
+def _register_path(header: str) -> str:
+    """The register the header declares, or '' — `none` is a declaration that there is none."""
+    declared = re.sub(r'[`*]', '', _field(header, 'requirements')).strip()
+    if not declared or declared.lower() in {'none', 'n/a', '-', '—'}:
+        return ''
+    # The leading token, exactly as `Certification artifact:` reads its path (KEEL-B03): a field
+    # that carries a path plus a trailing parenthetical still resolves.
+    return declared.split()[0]
+
+
+def _ledger_dispositions(ledger_body: str | None) -> list[tuple[str, str]]:
+    """(order id, disposition) per data row of the `## Requirements ledger` table."""
+    rows: list[tuple[str, str]] = []
+    for cells in _table_rows(ledger_body or ''):
+        if len(cells) < 2:
+            continue
+        ident = re.sub(r'[`*]', '', cells[0]).strip()
+        if not re.fullmatch(r'RR-\d+', ident, re.IGNORECASE):
+            continue  # the header row, and any prose row that is not an order
+        rows.append((ident.upper(), re.sub(r'[`*]', '', cells[-1]).strip()))
+    return rows
+
+
+def _declared_requirement_ids(header: str, spec_path: Path) -> int:
+    """How many orders A13 had the opportunity to check — 0 when no register is declared.
+
+    Shares `_register_path` and `register_ids` with the check itself, so the denominator cannot
+    drift from the numerator when the register's grammar changes.
+    """
+    declared = _register_path(header)
+    if not declared:
+        return 0
+    register = _resolve_base(spec_path) / declared
+    if not register.is_file():
+        return 1  # the declaration itself is the one construct the check reads
+    return len(register_ids(register.read_text(encoding='utf-8', errors='replace'))) or 1
+
+
+def _check_requirements_ledger(
+    header: str, sections: list[tuple[str, str]], section_ids: list[str], spec_path: Path
+) -> list[Violation]:
+    """A13: a spec that declares a requirements register accounts for every order in it.
+
+    The owner's order was the one load-bearing input to this method with no durable artifact: it
+    lived in a chat message, was paraphrased into a compaction summary, and a substituted
+    mechanism then read as a design choice that four blind pre-mortems had nothing to check it
+    against. This check does not judge whether a disposition is RIGHT — that stays Part B — only
+    that every declared order has one, and that the one disposition a session must not write for
+    itself is not written by one.
+
+    Silent unless the header declares a register: a project that keeps none presents no
+    candidates, and saying nothing about it is a different fact from passing it.
+    """
+    declared = _register_path(header)
+    if not declared:
+        return []
+    where = 'Requirements ledger'
+    register = _resolve_base(spec_path) / declared
+    if not register.is_file():
+        return [
+            Violation(
+                where,
+                f'the header declares a requirements register at {declared!r} and no file '
+                'resolves there (the path is repo-root-relative, like an anchor). A declared '
+                'register that cannot be read gates nothing.',
+                'A13',
+                f'A13:{declared}:missing',
+            )
+        ]
+    ids = register_ids(register.read_text(encoding='utf-8', errors='replace'))
+    if not ids:
+        return [
+            Violation(
+                where,
+                f'{declared} declares no orders — an id is a line-initial `RR-<n>` token (in a '
+                'heading, a list item or a table cell). A register with no ids is a declaration '
+                'that checks nothing.',
+                'A13',
+                f'A13:{declared}:empty',
+            )
+        ]
+    ledger_body = _find_section(sections, 'requirements', 'ledger')
+    if ledger_body is None:
+        return [
+            Violation(
+                where,
+                f'{declared} declares {len(ids)} order(s) and this spec carries no '
+                '`## Requirements ledger` section. Each declared order needs a row naming the '
+                '§N that satisfies it, DEFERRED with its trigger, OUT-OF-SCOPE, or DEVIATED.',
+                'A13',
+                f'A13:{declared}:no-ledger',
+            )
+        ]
+    rows = _ledger_dispositions(ledger_body)
+    mapped = {ident for ident, _ in rows}
+    known = set(ids)
+    violations = [
+        Violation(
+            where,
+            f'{ident} is declared in {declared} and has no ledger row. An order this spec '
+            'neither satisfies, defers, nor declares out of scope is exactly the silent '
+            'omission the ledger exists to make impossible.',
+            'A13',
+            f'A13:{declared}:unaccounted',
+        )
+        for ident in ids
+        if ident not in mapped
+    ]
+    for ident, disposition in rows:
+        if ident not in known:
+            violations.append(
+                Violation(
+                    where,
+                    f'ledger row {ident} names no order in {declared} — the id drifted, or the '
+                    'register moved under the spec.',
+                    'A13',
+                    f'A13:{declared}:unknown-id',
+                )
+            )
+            continue
+        violations += _check_disposition(ident, disposition, section_ids, where)
+    return violations
+
+
+def _check_disposition(
+    ident: str, disposition: str, section_ids: list[str], where: str
+) -> list[Violation]:
+    """One ledger row's disposition, against the four legal forms."""
+    if not disposition:
+        return [
+            Violation(
+                where,
+                f'{ident} has an empty disposition — write the §N that satisfies it, '
+                '`DEFERRED — <trigger>`, `OUT-OF-SCOPE`, or '
+                '`DEVIATED — ratified by <operator>: <what they said>`.',
+                'A13',
+            )
+        ]
+    if _OUT_OF_SCOPE_RE.match(disposition):
+        return []
+    if (deviated := _DEVIATED_RE.match(disposition)) is not None:
+        ratified = _RATIFIED_RE.search(deviated.group(1))
+        if ratified is None or not ratified.group(1).strip(' .:—-'):
+            return [
+                Violation(
+                    where,
+                    f'{ident} is DEVIATED and names no ratification. A deviation from the '
+                    "owner's own order is the one disposition the session writing the spec "
+                    'cannot grant itself: record `DEVIATED — ratified by <operator>: <what they '
+                    'said>`, or change the order in the register.',
+                    'A13',
+                    f'A13:{ident}:self-ratified',
+                )
+            ]
+        return []
+    if (deferred := _DEFERRED_RE.match(disposition)) is not None:
+        if not deferred.group(1).strip(' .:—-'):
+            return [
+                Violation(
+                    where,
+                    f'{ident} is DEFERRED with no trigger — name the condition that reopens it, '
+                    'or the deferral is an omission with a label on it.',
+                    'A13',
+                )
+            ]
+        return []
+    refs = re.findall(r'§\d+', disposition)
+    if not refs:
+        return [
+            Violation(
+                where,
+                f'{ident} carries {disposition!r}, which is none of the four dispositions: a '
+                '`§N` that satisfies it, `DEFERRED — <trigger>`, `OUT-OF-SCOPE`, or '
+                '`DEVIATED — ratified by <operator>: <what they said>`.',
+                'A13',
+            )
+        ]
+    numbered = set(section_ids)
+    return [
+        Violation(
+            where,
+            f'{ident} is satisfied by {ref}, which is not a numbered section of this spec.',
+            'A13',
+        )
+        for ref in refs
+        if ref not in numbered
+    ]
 
 
 def _check_fold_ledger(

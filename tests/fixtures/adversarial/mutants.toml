@@ -258,3 +258,18 @@ id = "W5-stale-hash"
 fires = ["W5"]
 why = "B2's hash-currency warning, the other unlettered one"
 artifact_hash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+[[mutant]]
+id = "A13-unaccounted-order"
+fires = ["A13"]
+why = "the omission that motivated A13: an order in the register that no ledger row disposes. The spec reads complete because nothing in it names what is missing"
+find = """| RR-02 | \"one file owns the region codes; nothing else gets to list them\" | §4 |
+"""
+replace = ""
+
+[[mutant]]
+id = "A13-self-ratified-deviation"
+fires = ["A13"]
+why = "DEVIATED is the one disposition a session must not grant itself; with no named ratification the row is a session ratifying its own departure from the owner's order"
+find = '| RR-01 | "convert to minor units before anything sums them, not after" | §3 |'
+replace = '| RR-01 | "convert to minor units before anything sums them, not after" | DEVIATED — the rollup sums first and converts the total |'

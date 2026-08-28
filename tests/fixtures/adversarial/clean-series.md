@@ -6,6 +6,7 @@
 - **Kind:** series
 - **Audience:** the tinyetl maintainers and the reviewer who certifies this spec
 - **Output artifact(s):** src/tinyetl/currency.py, src/tinyetl/orders.py
+- **Requirements:** docs/requirements/orders.md
 
 ## Context
 
@@ -84,6 +85,15 @@ order, asserted by an integration test.
 The status table above gains a row per invariant §3 introduces, with the gate that
 holds it. **Acceptance criterion:** every invariant named in this spec has a status
 row, asserted by a docs-sync check.
+
+## Requirements ledger
+
+| Order | Verbatim | Disposition |
+|---|---|---|
+| RR-01 | "convert to minor units before anything sums them, not after" | §3 |
+| RR-02 | "one file owns the region codes; nothing else gets to list them" | §4 |
+| RR-03 | "no new report format until the totals are trusted" | OUT-OF-SCOPE |
+| RR-04 | "leave the old rows alone for now" | DEFERRED — when the totals are trusted |
 
 ## PR ↔ section manifest
 

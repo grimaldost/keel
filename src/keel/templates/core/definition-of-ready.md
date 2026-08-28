@@ -28,28 +28,27 @@ who trusted it over the block trusted the older of two copies.
 A0 the header's `Kind:` declaration, when present, must read `series` or `single-change` — an
    unknown kind is a violation naming the offending token, and relaxes nothing. `single-change`
    relaxes A1/A4/A5 to absent-ok (a present section is still checked in full) and moves A2 to
-   document scope
-A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered — absent-ok under a
-   declared `Kind: single-change`
-A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words); under a
-   declared `Kind: single-change` with no numbered sections, the same floor is read over the
-   whole document instead
+   document scope — this line is the only home for that relaxation
+A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
+A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words), counted
+   in the paragraph immediately after the marker
 A3 fail on a TBD/TODO/FIXME/??? token, or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view (inline-code spans space-filled, wrapped spans included), so backticked `<target>` syntax is exempt while a bare `<title>` is caught
-A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — relaxed to absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` or `- **Kind:** single-change`; a manifest that IS present is still checked in full (ADR-0014)
-A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §) — absent-ok under a declared `Kind: single-change`
+A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — also absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` (ADR-0014)
+A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
 A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches
 A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
 A10 when an Enforcement-status table is present: fail if prose claims an invariant "enforced"/"guaranteed" whose row is not enforced
 A11 each `path:lo-hi` range anchor: the file and `hi` line must resolve; for a `.py`/`.pyi` anchor it must additionally close (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
-A12 when a `### Fold ledger` sub-table is present: fail unless each row carries an `artifact:line` — or `artifact:lo-hi` — confirmation that resolves, read from whichever cell IS one, so an extra column (round, severity, disposition) does not break it; a `.py`/`.pyi` range must close its brackets; a row wider than its own header is a column break and fails as one
+A12 when a `### Fold ledger` sub-table is present: fail unless each row carries an `artifact:line` — or `artifact:lo-hi` — confirmation that resolves, read from whichever cell IS one rather than a fixed column; A11's bracket rule holds for a range cell; a row wider than its own header is a column break and fails as one
+A13 when the header declares `- **Requirements:** <path>`: that register must resolve, and every `RR-<n>` order it declares needs a `## Requirements ledger` row disposing it to a §N, `DEFERRED — <trigger>`, `OUT-OF-SCOPE`, or `DEVIATED — ratified by <operator>`; silent with no register declared, and a self-ratified DEVIATED fails
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
 B2 when the certification names a `Certification artifact:`: the field's LEADING path token is the artifact (trailing prose — a round note, a prior-round path — is ignored); fail unless the file exists and its last line-anchored PREMORTEM-VERDICT token agrees with the recorded Verdict
-W1 (warn) the header's `- **Kit:** X.Y.Z` stamp (or a legacy `<!-- keel kit X.Y.Z -->` comment) from a different kit MAJOR.MINOR than the running gate warns of kit<->gate skew; a patch difference is silent, and an UNSTAMPED spec warns too — a spec that declares no kit version is one on which skew is undetectable
+W1 (warn) the header's `- **Kit:** X.Y.Z` stamp (or a legacy `<!-- keel kit X.Y.Z -->` comment) from a different kit MAJOR.MINOR than the running gate warns of kit<->gate skew; a patch difference is silent, and an UNSTAMPED spec warns too
 W2 (warn) a header `Status:` still reading `draft` while a CERTIFIED / CONDITIONAL-CERTIFY certification is recorded warns that the coordinate system is stale; silent when there is no Status field, when Status has moved past draft, or when nothing is certified. The header `Status:` line is excluded from `spec_hash`, so obeying this warning cannot invalidate the certification the same run verified
-W3 (warn) an anchor that does not resolve as written but whose basename matches exactly ONE repo file (vendor trees excluded) resolves to that file and warns, naming the expansion — the shorthand a fresh reviewer emits stops manufacturing gate failures; ambiguity or no match still fails (A6/A11/A12)
+W3 (warn) an anchor that does not resolve as written but whose basename matches exactly ONE repo file OUTSIDE a vendored tree resolves to that file and warns, naming the expansion; ambiguity, no match, or a match only inside a vendored tree still fails, naming the twin (A6/A11/A12)
 W4 (warn) B2's adoption nudge: the certification names no artifact at all
 W5 (warn) the named artifact's recorded `Spec-hash:` no longer matches ("certified against an earlier revision"), suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY
 ```
