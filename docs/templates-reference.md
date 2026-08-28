@@ -14,4 +14,5 @@ The portable kit (`src/keel/templates/`, emitted by `keel init`):
 | `method-bindings.md` | Bind each portability slot to a concrete mechanism (per project). |
 | `pre-mortem-prompt.md` | Adversarial pre-execution pass; output = spec/prompt edits only. The single home of the directive text — the bundled `pre-mortem-review` agent reads this file at run start (ADR-0017). |
 | `pre-mortem-profiles.md` | The kind-selected sheets: material dispatched only for the spec kind that needs it, starting with the measurement/experiment design axes and the DoR items that gate them. A code spec never pays for it. |
+| `requirements-register.md` | The owner's orders, transcribed verbatim with stable `RR-<n>` ids. Named in a spec's `- **Requirements:**` header; A13 fails a spec that leaves one of its entries unaccounted, and refuses a DEVIATED disposition the session ratified for itself. |
 | `README.md` | The kit's own index (slot → file mapping). |

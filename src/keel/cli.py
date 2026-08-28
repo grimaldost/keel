@@ -65,15 +65,23 @@ def _emit(
     grouped = [probe for probe in result.probes if probe.fired > probe.causes > 0]
     if grouped:
         detail = ', '.join(f'{p.check} {p.fired} in {p.causes}' for p in grouped)
-        typer.echo(
-            f'note: {detail} — anchors failing against the same target, or sharing one drift '
-            'delta, are one cause. Re-anchor the block; do not delete the rows.'
+        # The re-anchor instruction is true of the anchor checks and of nothing else: A13 groups
+        # by register, and telling its reader to re-anchor a block would be advice about a
+        # mechanism their finding does not have.
+        advice = (
+            ' — anchors failing against the same target, or sharing one drift delta, are one '
+            'cause. Re-anchor the block; do not delete the rows.'
+            if any(probe.check in _ANCHOR_CHECKS for probe in grouped)
+            else ' — findings sharing a cause are one defect, not that many.'
         )
+        typer.echo(f'note: {detail}{advice}')
     if hint is not None and (message := hint(result)):
         typer.echo(message)
     raise typer.Exit(code=1)
 
 
+# The checks whose cause keys group by a moved or missing anchor.
+_ANCHOR_CHECKS = frozenset({'A6', 'A11', 'A12', 'W3'})
 _STRUCTURAL_WHERES = frozenset(
     {'Numbered sections', 'PR ↔ section manifest', 'Concept → module map'}
 )

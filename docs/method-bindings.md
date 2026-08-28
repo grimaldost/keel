@@ -23,6 +23,12 @@ asks every consumer to fill — a real one, not the fictional `acme-ledger`.
 | **Wave budget** | not bound — release waves run in-session (manual-checklist mode); no engine, no per-PR cost table |
 | **Edit-time invariant hook** | not bound — no `hooks/` directory ships at all (the empty `hooks.json` placeholder was deleted; it claimed a machine it never had). The suite's arrangement and version-consistency tests hold these invariants at gate time instead |
 
+## Invoking the kit
+
+| | keel |
+|---|---|
+| Gate command | `uv run keel <command>` from the repo root — keel develops against its own tree, so there is no cache path to pin and no bundle to resolve. Where a policy blocks the console script, `uv run python -m keel <command>` is the same entry point without the shim. |
+
 ## Orchestrator
 
 | | keel |

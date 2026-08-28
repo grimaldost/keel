@@ -26,6 +26,7 @@ The method (§7) needs five slots filled in any project. Each maps to a template
 | Wave budget | `series-toml-skeleton.md` (`[budget]` block) |
 | Portability | `method-bindings.md` |
 | Kind-selected sheets | `pre-mortem-profiles.md` (measurement/experiment specs today) |
+| Requirements conformance | `requirements-register.md` (the owner's orders; the spec's ledger answers it) |
 
 ## Using the kit in a new project
 

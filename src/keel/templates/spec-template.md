@@ -2,9 +2,10 @@
 
 - **Date:** YYYY-MM-DD
 - **Status:** draft | ready (DoR passed) | in progress | done
-- **Kit:** 0.15.0
+- **Kit:** 0.16.0
 - **Kind:** series
 - **Audience:** <who/what reads this>
+- **Requirements:** none | <path to the register, e.g. docs/requirements/orders.md>
 - **Output artifact(s):** <paths>
 
 *`Kind:` is resolved, not a menu: leave `series`, or write `single-change` for a spec with nothing
@@ -87,6 +88,22 @@ every check; unfenced, it false-fails A3 or shadows the certification.*
 
 *Measurement / experiment specs: the experiment-design axes, and the DoR items that gate them, live
 in `pre-mortem-profiles.md`. Fill that sheet and name it here.*
+
+## Requirements ledger
+
+Only when the header names a register. One row per entry in it, so an order this spec neither
+satisfies, defers, nor rules out cannot go missing quietly. The register template
+(`requirements-register.md`) is the one home for what belongs in it and why.
+
+| Order | Verbatim | Disposition |
+|---|---|---|
+| RR-01 | "<the owner's exact words>" | §1 |
+| RR-02 | "<…>" | DEFERRED — <what reopens it> |
+| RR-03 | "<…>" | OUT-OF-SCOPE |
+| RR-04 | "<…>" | DEVIATED — ratified by <operator>: <what they said> |
+
+DEVIATED is the one disposition the session writing this spec cannot grant itself; without a
+named ratification the gate fails (A13).
 
 ## PR ↔ section manifest
 

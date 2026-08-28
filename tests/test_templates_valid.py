@@ -37,6 +37,15 @@ REQUIRED_SECTIONS = {
         'not just the address',
     ],
     'series-toml-skeleton.md': ['Tier vocabulary', 'model-family names', 'method-bindings.md'],
+    # The one binding that rots by itself: a consumer that pins a cache version names a
+    # directory the next plugin update deletes. Pinned here so the resolved forms cannot be
+    # quietly dropped back to a version-pinned example.
+    'method-bindings.md': [
+        'Invoking the kit',
+        'Gate command',
+        'CLAUDE_PLUGIN_ROOT',
+        'python -m keel',
+    ],
 }
 
 

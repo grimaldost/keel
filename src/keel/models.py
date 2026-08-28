@@ -8,7 +8,9 @@ from dataclasses import dataclass
 #   W1 kit skew or an unstamped spec · W2 header Status currency · W3 basename expansion
 #   W4 B2's adoption nudge (no artifact named) · W5 B2's spec-hash mismatch
 # The two W4/W5 letters are new: B2's warnings were unlettered, and an uncountable warning can
-# neither be measured nor defended.
+# neither be measured nor defended. A13 is the requirements ledger: a spec that declares a
+# register accounts for every order in it, and DEVIATED is the one disposition a session cannot
+# write for itself.
 CHECK_IDS = frozenset(
     {
         'A0',
@@ -24,6 +26,7 @@ CHECK_IDS = frozenset(
         'A10',
         'A11',
         'A12',
+        'A13',
         'R1',
         'B1',
         'B2',

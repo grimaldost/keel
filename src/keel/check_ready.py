@@ -289,6 +289,7 @@ def _candidate_counts(
     concept_body: str | None,
     cert: str | None,
     structure_only: bool,
+    requirement_ids: int,
 ) -> dict[str, int]:
     """How many constructs of each check's own shape this spec presented (KEEL-B07).
 
@@ -318,6 +319,7 @@ def _candidate_counts(
         'A10': len(_non_enforced(sections)),
         'A11': ranges,
         'A12': ledger_rows,
+        'A13': requirement_ids,
         'R1': int(cert is not None),
         'B1': 0 if structure_only else 1,
         'B2': certified,
@@ -380,6 +382,11 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     concept_body = _find_section(sections, 'concept', 'module')
     if concept_body is not None or not single_change:
         violations += _check_paths(concept_body, subsections, spec_path)
+    # A13 is silent on a spec that declares no register, so its candidate count is the number of
+    # orders the register holds — the denominator that tells `n/a` (no register anywhere in this
+    # project) apart from `clean` (a register, and every order accounted for).
+    requirement_ids = _declared_requirement_ids(header, spec_path)
+    violations += _check_requirements_ledger(header, sections, section_ids, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
     anchor_violations, anchor_warnings = _check_anchors(text, spec_path)
     violations += anchor_violations
@@ -405,6 +412,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
         warnings += _status_currency_warning(header, cert)
 
     candidates = _candidate_counts(
+        requirement_ids=requirement_ids,
         text=text,
         prose=prose,
         header=header,
@@ -589,23 +597,36 @@ def _declared_kind(header: str) -> tuple[str, Violation | None]:
     )
 
 
-_VENDOR_DIRS = frozenset({'.git', '.venv', 'node_modules', '__pycache__', 'site-packages'})
+# Trees that hold a COPY of someone else's source. A basename match inside one is never the
+# file an anchor means: `dbt_packages/` and `vendor/` join the set because an estate that
+# vendors its dependencies has the twin sitting next to the source, and a unique match on the
+# twin is unique and wrong (0.12.0 §4 covered the in-tree virtualenv; this is the same defeat
+# through a different directory).
+_VENDOR_DIRS = frozenset(
+    {'.git', '.venv', 'node_modules', '__pycache__', 'site-packages', 'dbt_packages', 'vendor'}
+)
 
 
-def _basename_matches(base: Path, path: str) -> list[Path]:
-    """Every repo file matching the path's basename, vendor/VCS trees excluded.
+def _basename_matches(base: Path, path: str) -> tuple[list[Path], list[Path]]:
+    """(matches outside vendored trees, matches inside them) for the path's basename.
 
     An in-tree virtualenv must not defeat exactly-one (0.12.0 §4). Called only when the anchor
-    failed to resolve as written, so the rglob cost is paid only on that path.
+    failed to resolve as written, so the rglob cost is paid only on that path. The vendored half
+    is returned rather than dropped so the failure can name WHY it refused: a WARN reading
+    "the expansion is unique today" over a vendored copy reads as "resolved, carry on", which
+    is worse than failing — the anchor then cites a file that exists and is the wrong one.
     """
     name = path.replace('\\', '/').rsplit('/', 1)[-1]
     if not name:
-        return []
-    return [
-        candidate
-        for candidate in base.rglob(name)
-        if candidate.is_file() and not (_VENDOR_DIRS & set(candidate.relative_to(base).parts[:-1]))
-    ]
+        return [], []
+    clean: list[Path] = []
+    vendored: list[Path] = []
+    for candidate in base.rglob(name):
+        if not candidate.is_file():
+            continue
+        parents = set(candidate.relative_to(base).parts[:-1])
+        (vendored if _VENDOR_DIRS & parents else clean).append(candidate)
+    return clean, vendored
 
 
 def _snippet_delta(lines: list[str], snippet: str, claimed: int) -> str:
@@ -631,11 +652,15 @@ def _resolve_anchor(
     manufactured gate failures. The expansion is a resolution, not a pass: the line range and any
     snippet are still verified against the file it found. Ambiguity (or no match) still fails, and
     the ambiguous message names the candidates.
+
+    A match that exists only inside a vendored tree is refused, not expanded, and the message
+    names the twin: KEEL-B04 made expansion possible, and expansion into a dependency copy is
+    unique AND wrong — the WARN then reads "resolved, carry on" over the wrong file.
     """
     target = base / path
     warnings: list[Warning] = []
     if not target.is_file():
-        matches = _basename_matches(base, path)
+        matches, vendored = _basename_matches(base, path)
         if len(matches) != 1:
             candidates = ''
             if matches:
@@ -644,6 +669,15 @@ def _resolve_anchor(
                 )
                 candidates = (
                     f' {len(matches)} files share that basename ({shown}) — name the one you mean.'
+                )
+            elif vendored:
+                # The only match is a vendored COPY. Refusing names the trap; expanding to it
+                # would resolve, warn "unique today", and cite the wrong file.
+                twin = sorted(match.relative_to(base).as_posix() for match in vendored)[0]
+                candidates = (
+                    f' The only file of that basename is a vendored copy ({twin}), under a '
+                    'dependency tree this gate never expands to — cite the source it was '
+                    'copied from, or the sibling repo, by a path that resolves here.'
                 )
             return (
                 None,
@@ -765,7 +799,15 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
         where = _id_or_title(title)
         marker = re.search(r'acceptance\s+criterion', sub_body, re.IGNORECASE)
         if marker is None:
-            violations.append(Violation(where, 'missing an acceptance criterion.', 'A2'))
+            violations.append(
+                Violation(
+                    where,
+                    'missing an acceptance criterion — the gate searches the literal words '
+                    '`acceptance criterion` (any case) and reads the paragraph that follows, '
+                    'so a section naming the same idea in other words reads as absent.',
+                    'A2',
+                )
+            )
             continue
         # Count only the criterion's own paragraph (up to the first blank line), so an EMPTY
         # criterion followed by unrelated prose cannot launder the >=5-word floor (A2).
@@ -774,7 +816,12 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
         if len(words) < _MIN_CRITERION_WORDS:
             violations.append(
                 Violation(
-                    where, f'acceptance criterion is missing or trivial ({len(words)} words).', 'A2'
+                    where,
+                    f'acceptance criterion is trivial ({len(words)} words) — the gate counts the '
+                    f'paragraph immediately after the marker and needs >= '
+                    f'{_MIN_CRITERION_WORDS}; a criterion split from the marker by a blank line '
+                    'is not counted.',
+                    'A2',
                 )
             )
     return violations
@@ -1104,6 +1151,217 @@ def _ledger_rows(cert_body: str | None) -> list[list[str]]:
     return (_first_table_rows(ledger) if ledger else [])[1:]
 
 
+# A13's register grammar. An order's id is a line-initial `RR-<n>` token, after at most the
+# markdown punctuation a heading, a list item or a table cell puts in front of it — so the ids a
+# register DECLARES are exactly the ones a reader sees as entries, and a mention of `RR-03` inside
+# a paragraph is a reference, not a second declaration.
+_REGISTER_ID_RE = re.compile(r'^[#\-*|>\s]*\*{0,2}(RR-\d+)\*{0,2}\b', re.MULTILINE)
+# The four dispositions a ledger row may carry. `§N` is checked against the spec's own sections;
+# the other three carry their own obligation, and DEVIATED's is the one a session cannot satisfy
+# alone.
+_DEFERRED_RE = re.compile(r'^DEFERRED\b[\s—:-]*(.*)$', re.IGNORECASE | re.DOTALL)
+_DEVIATED_RE = re.compile(r'^DEVIATED\b[\s—:-]*(.*)$', re.IGNORECASE | re.DOTALL)
+_RATIFIED_RE = re.compile(r'ratified\s+by\s+(\S.*)$', re.IGNORECASE | re.DOTALL)
+_OUT_OF_SCOPE_RE = re.compile(r'^OUT[\s-]*OF[\s-]*SCOPE\b', re.IGNORECASE)
+
+
+def register_ids(register_text: str) -> list[str]:
+    """The order ids a requirements register declares, in file order, deduplicated."""
+    seen: dict[str, None] = {}
+    for match in _REGISTER_ID_RE.finditer(register_text):
+        seen.setdefault(match.group(1).upper(), None)
+    return list(seen)
+
+
+def _register_path(header: str) -> str:
+    """The register the header declares, or '' — `none` is a declaration that there is none."""
+    declared = re.sub(r'[`*]', '', _field(header, 'requirements')).strip()
+    if not declared or declared.lower() in {'none', 'n/a', '-', '—'}:
+        return ''
+    # The leading token, exactly as `Certification artifact:` reads its path (KEEL-B03): a field
+    # that carries a path plus a trailing parenthetical still resolves.
+    return declared.split()[0]
+
+
+def _ledger_dispositions(ledger_body: str | None) -> list[tuple[str, str]]:
+    """(order id, disposition) per data row of the `## Requirements ledger` table."""
+    rows: list[tuple[str, str]] = []
+    for cells in _table_rows(ledger_body or ''):
+        if len(cells) < 2:
+            continue
+        ident = re.sub(r'[`*]', '', cells[0]).strip()
+        if not re.fullmatch(r'RR-\d+', ident, re.IGNORECASE):
+            continue  # the header row, and any prose row that is not an order
+        rows.append((ident.upper(), re.sub(r'[`*]', '', cells[-1]).strip()))
+    return rows
+
+
+def _declared_requirement_ids(header: str, spec_path: Path) -> int:
+    """How many orders A13 had the opportunity to check — 0 when no register is declared.
+
+    Shares `_register_path` and `register_ids` with the check itself, so the denominator cannot
+    drift from the numerator when the register's grammar changes.
+    """
+    declared = _register_path(header)
+    if not declared:
+        return 0
+    register = _resolve_base(spec_path) / declared
+    if not register.is_file():
+        return 1  # the declaration itself is the one construct the check reads
+    return len(register_ids(register.read_text(encoding='utf-8', errors='replace'))) or 1
+
+
+def _check_requirements_ledger(
+    header: str, sections: list[tuple[str, str]], section_ids: list[str], spec_path: Path
+) -> list[Violation]:
+    """A13: a spec that declares a requirements register accounts for every order in it.
+
+    The owner's order was the one load-bearing input to this method with no durable artifact: it
+    lived in a chat message, was paraphrased into a compaction summary, and a substituted
+    mechanism then read as a design choice that four blind pre-mortems had nothing to check it
+    against. This check does not judge whether a disposition is RIGHT — that stays Part B — only
+    that every declared order has one, and that the one disposition a session must not write for
+    itself is not written by one.
+
+    Silent unless the header declares a register: a project that keeps none presents no
+    candidates, and saying nothing about it is a different fact from passing it.
+    """
+    declared = _register_path(header)
+    if not declared:
+        return []
+    where = 'Requirements ledger'
+    register = _resolve_base(spec_path) / declared
+    if not register.is_file():
+        return [
+            Violation(
+                where,
+                f'the header declares a requirements register at {declared!r} and no file '
+                'resolves there (the path is repo-root-relative, like an anchor). A declared '
+                'register that cannot be read gates nothing.',
+                'A13',
+                f'A13:{declared}:missing',
+            )
+        ]
+    ids = register_ids(register.read_text(encoding='utf-8', errors='replace'))
+    if not ids:
+        return [
+            Violation(
+                where,
+                f'{declared} declares no orders — an id is a line-initial `RR-<n>` token (in a '
+                'heading, a list item or a table cell). A register with no ids is a declaration '
+                'that checks nothing.',
+                'A13',
+                f'A13:{declared}:empty',
+            )
+        ]
+    ledger_body = _find_section(sections, 'requirements', 'ledger')
+    if ledger_body is None:
+        return [
+            Violation(
+                where,
+                f'{declared} declares {len(ids)} order(s) and this spec carries no '
+                '`## Requirements ledger` section. Each declared order needs a row naming the '
+                '§N that satisfies it, DEFERRED with its trigger, OUT-OF-SCOPE, or DEVIATED.',
+                'A13',
+                f'A13:{declared}:no-ledger',
+            )
+        ]
+    rows = _ledger_dispositions(ledger_body)
+    mapped = {ident for ident, _ in rows}
+    known = set(ids)
+    violations = [
+        Violation(
+            where,
+            f'{ident} is declared in {declared} and has no ledger row. An order this spec '
+            'neither satisfies, defers, nor declares out of scope is exactly the silent '
+            'omission the ledger exists to make impossible.',
+            'A13',
+            f'A13:{declared}:unaccounted',
+        )
+        for ident in ids
+        if ident not in mapped
+    ]
+    for ident, disposition in rows:
+        if ident not in known:
+            violations.append(
+                Violation(
+                    where,
+                    f'ledger row {ident} names no order in {declared} — the id drifted, or the '
+                    'register moved under the spec.',
+                    'A13',
+                    f'A13:{declared}:unknown-id',
+                )
+            )
+            continue
+        violations += _check_disposition(ident, disposition, section_ids, where)
+    return violations
+
+
+def _check_disposition(
+    ident: str, disposition: str, section_ids: list[str], where: str
+) -> list[Violation]:
+    """One ledger row's disposition, against the four legal forms."""
+    if not disposition:
+        return [
+            Violation(
+                where,
+                f'{ident} has an empty disposition — write the §N that satisfies it, '
+                '`DEFERRED — <trigger>`, `OUT-OF-SCOPE`, or '
+                '`DEVIATED — ratified by <operator>: <what they said>`.',
+                'A13',
+            )
+        ]
+    if _OUT_OF_SCOPE_RE.match(disposition):
+        return []
+    if (deviated := _DEVIATED_RE.match(disposition)) is not None:
+        ratified = _RATIFIED_RE.search(deviated.group(1))
+        if ratified is None or not ratified.group(1).strip(' .:—-'):
+            return [
+                Violation(
+                    where,
+                    f'{ident} is DEVIATED and names no ratification. A deviation from the '
+                    "owner's own order is the one disposition the session writing the spec "
+                    'cannot grant itself: record `DEVIATED — ratified by <operator>: <what they '
+                    'said>`, or change the order in the register.',
+                    'A13',
+                    f'A13:{ident}:self-ratified',
+                )
+            ]
+        return []
+    if (deferred := _DEFERRED_RE.match(disposition)) is not None:
+        if not deferred.group(1).strip(' .:—-'):
+            return [
+                Violation(
+                    where,
+                    f'{ident} is DEFERRED with no trigger — name the condition that reopens it, '
+                    'or the deferral is an omission with a label on it.',
+                    'A13',
+                )
+            ]
+        return []
+    refs = re.findall(r'§\d+', disposition)
+    if not refs:
+        return [
+            Violation(
+                where,
+                f'{ident} carries {disposition!r}, which is none of the four dispositions: a '
+                '`§N` that satisfies it, `DEFERRED — <trigger>`, `OUT-OF-SCOPE`, or '
+                '`DEVIATED — ratified by <operator>: <what they said>`.',
+                'A13',
+            )
+        ]
+    numbered = set(section_ids)
+    return [
+        Violation(
+            where,
+            f'{ident} is satisfied by {ref}, which is not a numbered section of this spec.',
+            'A13',
+        )
+        for ref in refs
+        if ref not in numbered
+    ]
+
+
 def _check_fold_ledger(
     cert_body: str | None, spec_path: Path
 ) -> tuple[list[Violation], list[Warning]]:
@@ -1335,7 +1593,10 @@ def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[V
                 violations.append(
                     Violation(
                         f'line {lineno}',
-                        f'reference {sid} resolves to no numbered section.',
+                        f'reference {sid} resolves to no numbered section — `§` is '
+                        "reserved for this spec's own sections. To cite another document's "
+                        'section, put a cue before the glyph (`docs/doctrine.md '
+                        f'§6`, `ADR-0002 §3`) or backtick the mention.',
                         'A8',
                     )
                 )
