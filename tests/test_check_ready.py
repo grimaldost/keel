@@ -1594,3 +1594,71 @@ def test_concept_pipe_in_backticked_cell_passes_a5(tmp_path):
     )
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed, [v.message for v in result.violations]
+
+
+def test_acceptance_violation_names_the_marker_the_gate_reads_a2(tmp_path):
+    # The field cost: a section carried its criterion under a different heading, and the message
+    # said only what was missing — the accepted form was found by grepping a sibling spec.
+    bad = READY_SPEC.replace('**Acceptance criterion:** running', '**Done when:** running')
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    missing = [v for v in result.violations if v.check == 'A2']
+    assert missing and '`acceptance criterion`' in missing[0].message, missing
+
+
+def test_trivial_acceptance_violation_names_the_paragraph_rule_a2(tmp_path):
+    # The criterion is present and full, but a blank line splits it from the marker — which the
+    # gate counts as an empty criterion. That rule is why the message now states it.
+    bad = READY_SPEC.replace(
+        '**Acceptance criterion:** running', '**Acceptance criterion:**\n\nrunning'
+    )
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    trivial = [v for v in result.violations if v.check == 'A2']
+    assert trivial and 'paragraph immediately after the marker' in trivial[0].message, trivial
+
+
+def test_dangling_section_ref_names_the_cross_document_escape_a8(tmp_path):
+    # Three field reports rewrote `§8` into prose to satisfy the linter. The escape ships; the
+    # message never named it.
+    bad = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See §8 for the cutover.')
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    dangling = [v for v in result.violations if v.check == 'A8']
+    assert dangling and 'ADR-0002' in dangling[0].message, dangling
+
+
+def test_vendored_only_basename_match_is_refused_and_names_the_twin_a6(tmp_path):
+    # KEEL-B04 made expansion possible; in an estate that vendors its dependencies the twin is
+    # the likeliest unique match, so the WARN read "resolved, carry on" over the wrong file.
+    (tmp_path / '.git').mkdir()
+    vendored = tmp_path / 'dbt_packages' / 'fin_model' / 'docs'
+    vendored.mkdir(parents=True)
+    (vendored / 'contracts.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `contracts.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    refused = [v for v in result.violations if 'contracts.py' in v.message]
+    assert refused, [(v.where, v.message) for v in result.violations]
+    assert 'vendored copy' in refused[0].message
+    assert 'dbt_packages/fin_model/docs/contracts.py' in refused[0].message
+    assert not any('contracts.py' in w.message for w in result.warnings), result.warnings
+
+
+def test_vendored_twin_does_not_defeat_the_real_source_match_a6(tmp_path):
+    # The partition must not change what already worked: a source file plus its vendored twin
+    # still resolves to the source, with the expansion WARN.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'contracts.py').write_text('one\ntwo\n', encoding='utf-8')
+    vendored = tmp_path / 'vendor' / 'pkg'
+    vendored.mkdir(parents=True)
+    (vendored / 'contracts.py').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `contracts.py:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+    assert any('src/contracts.py:2' in w.message for w in result.warnings), result.warnings

@@ -589,23 +589,36 @@ def _declared_kind(header: str) -> tuple[str, Violation | None]:
     )
 
 
-_VENDOR_DIRS = frozenset({'.git', '.venv', 'node_modules', '__pycache__', 'site-packages'})
+# Trees that hold a COPY of someone else's source. A basename match inside one is never the
+# file an anchor means: `dbt_packages/` and `vendor/` join the set because an estate that
+# vendors its dependencies has the twin sitting next to the source, and a unique match on the
+# twin is unique and wrong (0.12.0 §4 covered the in-tree virtualenv; this is the same defeat
+# through a different directory).
+_VENDOR_DIRS = frozenset(
+    {'.git', '.venv', 'node_modules', '__pycache__', 'site-packages', 'dbt_packages', 'vendor'}
+)
 
 
-def _basename_matches(base: Path, path: str) -> list[Path]:
-    """Every repo file matching the path's basename, vendor/VCS trees excluded.
+def _basename_matches(base: Path, path: str) -> tuple[list[Path], list[Path]]:
+    """(matches outside vendored trees, matches inside them) for the path's basename.
 
     An in-tree virtualenv must not defeat exactly-one (0.12.0 §4). Called only when the anchor
-    failed to resolve as written, so the rglob cost is paid only on that path.
+    failed to resolve as written, so the rglob cost is paid only on that path. The vendored half
+    is returned rather than dropped so the failure can name WHY it refused: a WARN reading
+    "the expansion is unique today" over a vendored copy reads as "resolved, carry on", which
+    is worse than failing — the anchor then cites a file that exists and is the wrong one.
     """
     name = path.replace('\\', '/').rsplit('/', 1)[-1]
     if not name:
-        return []
-    return [
-        candidate
-        for candidate in base.rglob(name)
-        if candidate.is_file() and not (_VENDOR_DIRS & set(candidate.relative_to(base).parts[:-1]))
-    ]
+        return [], []
+    clean: list[Path] = []
+    vendored: list[Path] = []
+    for candidate in base.rglob(name):
+        if not candidate.is_file():
+            continue
+        parents = set(candidate.relative_to(base).parts[:-1])
+        (vendored if _VENDOR_DIRS & parents else clean).append(candidate)
+    return clean, vendored
 
 
 def _snippet_delta(lines: list[str], snippet: str, claimed: int) -> str:
@@ -631,11 +644,15 @@ def _resolve_anchor(
     manufactured gate failures. The expansion is a resolution, not a pass: the line range and any
     snippet are still verified against the file it found. Ambiguity (or no match) still fails, and
     the ambiguous message names the candidates.
+
+    A match that exists only inside a vendored tree is refused, not expanded, and the message
+    names the twin: KEEL-B04 made expansion possible, and expansion into a dependency copy is
+    unique AND wrong — the WARN then reads "resolved, carry on" over the wrong file.
     """
     target = base / path
     warnings: list[Warning] = []
     if not target.is_file():
-        matches = _basename_matches(base, path)
+        matches, vendored = _basename_matches(base, path)
         if len(matches) != 1:
             candidates = ''
             if matches:
@@ -644,6 +661,15 @@ def _resolve_anchor(
                 )
                 candidates = (
                     f' {len(matches)} files share that basename ({shown}) — name the one you mean.'
+                )
+            elif vendored:
+                # The only match is a vendored COPY. Refusing names the trap; expanding to it
+                # would resolve, warn "unique today", and cite the wrong file.
+                twin = sorted(match.relative_to(base).as_posix() for match in vendored)[0]
+                candidates = (
+                    f' The only file of that basename is a vendored copy ({twin}), under a '
+                    'dependency tree this gate never expands to — cite the source it was '
+                    'copied from, or the sibling repo, by a path that resolves here.'
                 )
             return (
                 None,
@@ -765,7 +791,15 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
         where = _id_or_title(title)
         marker = re.search(r'acceptance\s+criterion', sub_body, re.IGNORECASE)
         if marker is None:
-            violations.append(Violation(where, 'missing an acceptance criterion.', 'A2'))
+            violations.append(
+                Violation(
+                    where,
+                    'missing an acceptance criterion — the gate searches the literal words '
+                    '`acceptance criterion` (any case) and reads the paragraph that follows, '
+                    'so a section naming the same idea in other words reads as absent.',
+                    'A2',
+                )
+            )
             continue
         # Count only the criterion's own paragraph (up to the first blank line), so an EMPTY
         # criterion followed by unrelated prose cannot launder the >=5-word floor (A2).
@@ -774,7 +808,12 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
         if len(words) < _MIN_CRITERION_WORDS:
             violations.append(
                 Violation(
-                    where, f'acceptance criterion is missing or trivial ({len(words)} words).', 'A2'
+                    where,
+                    f'acceptance criterion is trivial ({len(words)} words) — the gate counts the '
+                    f'paragraph immediately after the marker and needs >= '
+                    f'{_MIN_CRITERION_WORDS}; a criterion split from the marker by a blank line '
+                    'is not counted.',
+                    'A2',
                 )
             )
     return violations
@@ -1335,7 +1374,10 @@ def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[V
                 violations.append(
                     Violation(
                         f'line {lineno}',
-                        f'reference {sid} resolves to no numbered section.',
+                        f'reference {sid} resolves to no numbered section — `§` is '
+                        "reserved for this spec's own sections. To cite another document's "
+                        'section, put a cue before the glyph (`docs/doctrine.md '
+                        f'§6`, `ADR-0002 §3`) or backtick the mention.',
                         'A8',
                     )
                 )
