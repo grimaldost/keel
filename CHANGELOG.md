@@ -2,6 +2,38 @@
 
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
 
+## [0.17.0] - 2026-08-28
+
+The delivery wave. Every item here is a machine the method assumed it had: text it dispatches but
+cannot show you, a ledger whose identity lives in the fragile half of its own anchor, a hash that
+answers "did the certified content change?" by growing an exclusion list, a bindings gate deferred
+since ADR-0003, and a kind-selected sheet with no selector. The wave lands as a stack of small PRs
+against one release section; this entry grows as they land.
+
+### Added
+
+- **`keel show <name>`** (`src/keel/show.py`, `docs/cli-reference.md`): the kit's own bodies,
+  printed from the serving bundle. `checks` is the Part-A reference block, `directive` is the
+  fenced prompt dispatched on every pre-mortem pass, and any kit template comes back by stem.
+  Three field asks in one corpus were requests for text that **already ships in the version the
+  operator was running** — the round-≥2 re-gate posture, the one-verdict-per-artifact idiom, the
+  module-form invocation recipe. None was an absence; each was a delivery that never arrived,
+  because the method's text lives in files a session dispatches or scaffolds and never reads back,
+  while a periodic post-hoc telemetry pass over the window's transcripts puts the CLI at 52 of 53
+  keel invocations against one invocation of the skill that carries the method. `show` therefore
+  adds **no text**: it reads the shipped file at run time, and a test asserts the projection is
+  byte-identical to the sheet's block rather than restated in code, because a drifted copy of the
+  directive would be worse than no command. `doctrine` is deliberately not a name — `docs/` is
+  outside the built distribution, so serving it would mean copying it into the package, which is
+  the duplication this command exists to avoid.
+- **A coverage gate for `docs/templates-reference.md`** (`tests/test_templates_valid.py`): the
+  third of three, and the one that was missing. A new command could not land undocumented and
+  neither could a new plugin entry point, but a new kit template could — and `keel init` copies it
+  into every adopting project. Same shape as the other two: glob the shipped set, never a
+  hand-kept list.
+
+### Changed
+
 ## [0.16.0] - 2026-08-28
 
 The conformance release: the owner's order becomes an artifact the gate can point at, and the
