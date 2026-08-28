@@ -8,6 +8,7 @@ from dataclasses import dataclass
 #   W1 kit skew or an unstamped spec · W2 header Status currency · W3 basename expansion
 #   W4 B2's adoption nudge (no artifact named) · W5 B2's spec-hash mismatch
 #   W6 a fold-ledger row whose snippet resolves at one other line — repairable drift
+# A14 is the header's `Profile:` declaration — the SUBJECT axis, which `Kind:` never was.
 #   W7 the hash moved by a DECLARED amendment; the certified content itself is intact
 # The two W4/W5 letters are new: B2's warnings were unlettered, and an uncountable warning can
 # neither be measured nor defended. A13 is the requirements ledger: a spec that declares a
@@ -29,6 +30,7 @@ CHECK_IDS = frozenset(
         'A11',
         'A12',
         'A13',
+        'A14',
         'R1',
         'B1',
         'B2',

@@ -53,6 +53,7 @@ W4 (warn) B2's adoption nudge: the certification names no artifact at all
 W5 (warn) the named artifact's recorded `Spec-hash:` no longer matches ("certified against an earlier revision"), suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY
 W6 (warn) a fold-ledger row whose backticked snippet is not on the line it cites but IS on exactly one other line: the fold is recorded against real content and only the coordinate is stale, so `keel re-anchor` rewrites it. A weak snippet, a range anchor, or a snippet on no line still fails (A12)
 W7 (warn) a certified spec whose hash moved, where removing every `## Amendment` section reproduces the hash the artifact recorded: the certified content is intact and what changed was ADDED after the pass, which the reviewer has not seen. An operator-accepted CONDITIONAL-CERTIFY is excluded — there the mismatch is W5's expected honest state
+A14 the header's `Profile:` declaration, when present, must read `code`, `data-pipeline` or `measurement` — the SUBJECT axis, orthogonal to `Kind:`. An unknown profile is a violation naming the offending token, because a profile the gate cannot read selects no sheet and its lenses go silently absent
 ```
 *(Every finding names its check in a field, never as a `W1: ` message prefix — the id is what
 makes a check's fires countable, and `where` collides across checks by design.)*
@@ -82,10 +83,10 @@ are stateless.
 - [ ] A post-fold coherence re-read was performed and recorded (`Post-fold coherence:` in
       the certification): each folded finding is applied consistently across all sections,
       and any scope-narrowing finding had its dependent counts re-derived.
-- [ ] *(eval/experiment specs only)* the seven items on the measurement profile
-      (`pre-mortem-profiles.md`) are certified, feasibility first. They gate the axes the spec's
-      `## Experiment design (Part B)` section names, and they are dispatched only for that kind —
-      a code spec neither reads them nor pays for them.
+- [ ] *(by declared `Profile:`)* the profile sheet's items (`pre-mortem-profiles.md`) are
+      certified — the measurement profile feasibility-first, the data-pipeline profile
+      population-first. The header's `Profile:` field selects which; a `code` spec reads neither
+      and pays for neither.
 
 ### The operator close (discharging a CONDITIONAL-CERTIFY)
 

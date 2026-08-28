@@ -7,9 +7,11 @@
 - **Audience:** <who/what reads this>
 - **Output artifact(s):** <paths>
 
-*`Kind:` is resolved, not a menu: leave `series`, or write `single-change` for a spec with nothing
-to decompose — doctrine §3 states what each declaration relaxes. `Kit:` is the kit this spec was
-scaffolded from; keep it, and W1 warns on skew and on its absence.*
+*`Kind:` and `Profile:` are resolved, not menus. `Kind:` is decomposition shape — `series`, or
+`single-change` for a spec with nothing to decompose (doctrine §3 states what each relaxes).
+`Profile:` is subject — `code`, `data-pipeline` or `measurement` — and selects the sheet in
+`pre-mortem-profiles.md` to paste in; `code` pays for neither. `Kit:` is the
+kit this spec was scaffolded from; keep it, and W1 warns on skew and on its absence.*
 
 ## Context
 
@@ -74,9 +76,6 @@ anchor carries its snippet, so the gate verifies the evidence, not just the addr
 *Gate-adversarial examples: when the spec must QUOTE something the gate scans for — a literal
 `Verdict:` line, a to-do token, an example `### heading` — fence it. Fenced content is masked before
 every check; unfenced, it false-fails A3 or shadows the certification.*
-
-*Measurement / experiment specs: the experiment-design axes, and the DoR items that gate them, live
-in `pre-mortem-profiles.md`. Fill that sheet and name it here.*
 
 ## PR ↔ section manifest
 
