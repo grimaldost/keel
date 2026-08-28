@@ -1,11 +1,13 @@
 # Pre-mortem profiles — the kind-selected sheets
 
-A spec declares its `Kind:` in the header, and most specs are code specs. The material below is
-dispatched only for the kind that needs it, so a code spec's author and reviewer never pay for it.
-One home per fact: what lives here does not also live in `spec-template.md` or
-`definition-of-ready.md`, which point here instead.
+A spec declares its `Profile:` in the header — `code`, `data-pipeline` or `measurement`. That is
+the SUBJECT axis, and it is not `Kind:`, which declares decomposition shape; the two were collapsed
+onto one field name until A14 separated them. The material below is dispatched only for the profile
+that names it, so a `code` spec's author and reviewer never pay for any of it. One home per fact:
+what lives here does not also live in `spec-template.md` or `definition-of-ready.md`, which point
+here instead.
 
-## Measurement / experiment specs
+## Profile: `measurement`
 
 ### The design sheet (paste into the spec)
 
@@ -56,3 +58,42 @@ axes the design sheet names, and they are ordered — feasibility short-circuits
       claimed by a numbered §/PR — not a bare assertion, and not a smoke test that tests a jail no
       PR creates.
 - [ ] **The analysis plan is pre-registered** — fixed before results are seen, not chosen after.
+
+## Profile: `data-pipeline`
+
+For a spec whose deliverable is data, a migration, or a load — where a unit-green suite is not a
+data-level gate, and where every defect below reached production or a paid run past a green
+Part A and multiple blind rounds.
+
+### The design sheet (paste into the spec)
+
+```markdown
+## Population and cutover (Part B)
+
+- **Discriminating field + real distribution:** <the field the design branches on, and what the REAL input population does over it — measured, not assumed>
+- **Heterogeneity axes:** <the axes the corpus actually varies on, each with the gate that exercises it>
+- **Pilot sample:** <constructed to contain one instance per named axis, not the first N rows>
+- **Write-side reconciliation:** <the exact ledger that proves the write moved what it claimed>
+- **Read-side cutover check:** <what DISCRIMINATES the new read path from the old one; a check both paths pass proves nothing>
+- **Pinned clocks:** <every clock pin the spec fixes, and what each read predicate admits AT those values>
+- **Closed vocabularies consumed:** <each staged column read by an enum or accepted-values list, and the owner of that list>
+```
+
+### The reviewer's items (Definition of Ready, Part B)
+
+- [ ] **Population before schema** — the real input population was characterized over the
+      discriminating field before the design assumed a shape. A spec that assumes the schema and
+      is right about 21% of rows passes every offline gate and loses the rest silently.
+- [ ] **Every heterogeneity axis has a gate** — the axes are named, and each is exercised by a
+      check rather than by a fixture that happens to contain one. Homogeneous fixtures over a
+      heterogeneous corpus are the shape that gets certified and then fails on contact.
+- [ ] **The pilot contains one instance per axis** — constructed, not sampled. A pilot drawn from
+      the head of the corpus tests the head of the corpus.
+- [ ] **The write side reconciles exactly, and the read side DISCRIMINATES** — a read check that
+      the pre-cutover path also passes is a check of nothing. Name what would differ.
+- [ ] **Every pinned clock pair is evaluated against every read predicate the spec defines**, at
+      the exact pinned values. A read minted before its own load clock resolves every view empty,
+      and the suite stays green because the fixture generates zero rows.
+- [ ] **Every staged literal is checked against the closed vocabulary that OWNS it** — the enum's
+      member list or the accepted-values set, read from the owner rather than from the spec. A
+      value minted upstream against a closed vocabulary ships until first consumption raises.

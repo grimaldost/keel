@@ -1662,3 +1662,38 @@ def test_vendored_twin_does_not_defeat_the_real_source_match_a6(tmp_path):
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed, [(v.where, v.message) for v in result.violations]
     assert any('src/contracts.py:2' in w.message for w in result.warnings), result.warnings
+
+
+def test_an_unknown_profile_fails_naming_the_token_and_the_set_a14(tmp_path):
+    # The sheet said its material was "dispatched only for the kind that needs it" while no
+    # selector existed: `Kind:` declares decomposition shape, not subject, and the two taxonomies
+    # had been collapsed onto one field name.
+    spec = READY_SPEC.replace('- **Kit:**', '- **Profile:** pipeline\n- **Kit:**')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    bad = [v for v in result.violations if v.check == 'A14']
+    assert bad and "'pipeline'" in bad[0].message and 'data-pipeline' in bad[0].message
+
+
+def test_a_known_profile_passes_a14(tmp_path):
+    spec = READY_SPEC.replace('- **Kit:**', '- **Profile:** data-pipeline\n- **Kit:**')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_a_spec_declaring_no_profile_presents_no_candidate_a14(tmp_path):
+    # Verify-when-present: silent is a different fact from declaring `code`.
+    result = check_spec_ready(_write(tmp_path, READY_SPEC))
+    assert result.passed
+    probe = next(p for p in result.probes if p.check == 'A14')
+    assert (probe.candidates, probe.fired) == (0, 0)
+
+
+def test_the_profile_axis_is_independent_of_the_kind_axis_a14(tmp_path):
+    # A0's candidate count is the `Kind:` field alone, which is why this is its own letter: a
+    # Profile-only header would otherwise fire a check with a zero denominator.
+    spec = READY_SPEC.replace('- **Kit:**', '- **Profile:** measurement\n- **Kit:**')
+    result = check_spec_ready(_write(tmp_path, spec))
+    probes = {p.check: p for p in result.probes}
+    assert probes['A14'].candidates == 1
+    assert probes['A0'].candidates == 0

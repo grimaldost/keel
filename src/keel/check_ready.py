@@ -357,6 +357,7 @@ def _candidate_counts(
         'A11': ranges,
         'A12': ledger_rows,
         'A13': requirement_ids,
+        'A14': int(bool(_field(header, 'profile'))),
         'R1': int(cert is not None),
         'B1': 0 if structure_only else 1,
         'B2': certified,
@@ -406,6 +407,8 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     kind, kind_violation = _declared_kind(header)
     if kind_violation is not None:
         violations.append(kind_violation)
+    if (profile_violation := _declared_profile(header)) is not None:
+        violations.append(profile_violation)
     single_change = kind == 'single-change'
     phases = _field(header, 'phases').lower()
     decompose_skipped = 'decompose' in phases and 'skipped' in phases
@@ -613,6 +616,11 @@ def _field(body: str, name: str) -> str:
 
 
 _SPEC_KINDS = ('series', 'single-change')
+# The SUBJECT axis, orthogonal to `Kind:`'s decomposition shape. `pre-mortem-profiles.md`
+# said its material was "dispatched only for the kind that needs it" while no selector
+# existed: two taxonomies had been collapsed onto one field name, and the sheet was
+# selected by the author remembering to read it.
+_SPEC_PROFILES = ('code', 'data-pipeline', 'measurement')
 _DECLARE_SMALLER = (
     'add it, or — when this spec really is one change with nothing to decompose — declare '
     '`- **Kind:** single-change` in the header (KEEL-B01: the declaration relaxes the absent '
@@ -638,6 +646,32 @@ def _declared_kind(header: str) -> tuple[str, Violation | None]:
         f'declared spec kind {token!r} is not one of '
         f'{" | ".join(_SPEC_KINDS)} — it relaxes nothing as written.',
         'A0',
+    )
+
+
+def _declared_profile(header: str) -> Violation | None:
+    """A14: the header's declared subject profile must name a sheet that exists.
+
+    Verify-when-present — a spec declaring no profile is silent and presents no candidate, which
+    is a different fact from declaring `code`. A typo'd profile would otherwise select nothing
+    silently, which is the trap `Kind:` shipped with until its menu was resolved: a declaration
+    the gate cannot read must never look like a declaration it agreed with.
+
+    Its own letter rather than a widening of A0: A0's candidate count is the `Kind:` field alone,
+    so a Profile-only header would fire a check with a zero denominator — and A0's existing mutant
+    would satisfy the new detector's positive-control obligation vacuously.
+    """
+    raw = _field(header, 'profile')
+    if not raw:
+        return None
+    token = raw.split()[0].strip('`*.,;:').lower()
+    if token in _SPEC_PROFILES:
+        return None
+    return Violation(
+        'Profile',
+        f'declared spec profile {token!r} is not one of {" | ".join(_SPEC_PROFILES)} — '
+        'it selects no sheet, so the lenses it would have dispatched are silently absent.',
+        'A14',
     )
 
 

@@ -292,3 +292,11 @@ replace = """| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py
 ## Amendment
 
 The currency normaliser is deferred to the next wave; nothing certified here changes."""
+
+[[mutant]]
+id = "A14-unknown-profile"
+fires = ["A14"]
+why = "the sheet said its material was dispatched only for the kind that needed it while no selector existed; a profile the gate cannot read selects nothing and its lenses go silently absent — the trap Kind: shipped with until its menu was resolved"
+find = "- **Kind:** series"
+replace = """- **Kind:** series
+- **Profile:** pipeline"""

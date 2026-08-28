@@ -103,6 +103,27 @@ against one release section; this entry grows as they land.
   violations. Whether a finding blocks and how many defects it represents are independent
   questions. Caught by the round-2 re-gate of this wave's own spec, in code that had already
   shipped to a branch.
+- **The kind-selected sheet gets a selector** (A14, `check_ready.py`, `pre-mortem-profiles.md`,
+  `spec-template.md`). `pre-mortem-profiles.md` opened by saying its material was "dispatched only
+  for the kind that needs it", and no selector existed: `Kind:` declares decomposition shape, not
+  subject, and the two taxonomies had been collapsed onto one field name. The sheet was selected by
+  the author remembering to read it. A `- **Profile:**` header field now declares the subject axis
+  — `code` | `data-pipeline` | `measurement` — and **A14** validates it. Its own letter rather than
+  a widening of A0, because A0's candidate count is the `Kind:` field alone: a Profile-only header
+  would have fired a check with a zero denominator, and A0's existing mutant would have satisfied
+  the new detector's positive-control obligation vacuously. Verify-when-present, and the scaffold
+  ships the field RESOLVED to one token — a menu is read leading-token-first, so reordering one
+  silently changes what every untouched scaffold declares.
+- **The data-pipeline profile**, in that dispatched-on-demand home: population characterized over
+  the discriminating field before the schema is assumed, a gate per named heterogeneity axis, a
+  pilot constructed to contain one instance of each, an exact write-side reconciliation and a read
+  check that DISCRIMINATES, every pinned clock pair evaluated against every read predicate, and
+  every staged literal checked against the closed vocabulary that owns it. Seven field reports over
+  two rounds, each a defect that reached production or a paid run past a green Part A and multiple
+  blind rounds. *Displacement:* the header's two declarations now share one contract note and the
+  standalone measurement note is gone — the notes are at 499 of their 500-word cap, one word under
+  where this wave found them and one note fewer. **The fenced directive block is not touched**: it
+  carries no selector line, and adding one there is the net-new directive prose KEEL-B09 gates.
 - **The shipped bindings template's Orchestrator table gains its `This project` column.** It
   carried only the worked example while the sheet's closing line said "bind every row", so those
   four rows were slots no gate could read. An existing adopter's copied two-column table is
