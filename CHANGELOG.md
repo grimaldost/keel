@@ -41,6 +41,22 @@ against one release section; this entry grows as they land.
 
 ### Changed
 
+- **An amendment is recomputed, not declared** (W7, `check_ready.py`). `spec_hash` answered the
+  question "did the certified content change?" by removing a growing list of spans, one heading
+  per incident. It stops growing here, and gains nothing: when the recorded hash disagrees with the
+  current one, B2 recomputes with **every** declared `## Amendment` span removed and compares that.
+  Agreement proves the certified content is intact and the difference is an addition the reviewer
+  never saw — a different fact from "certified against an earlier revision", and a **derived** one.
+  The design this replaces was a declared `Amends spec-hash:` field, which compares two literals
+  the author types: it proves nothing and lowers the forgery cost to one copy-paste, where today's
+  W5 at least compares a recorded literal against a recomputed digest. Every span, not the first,
+  because the release discipline makes an amendment the sanctioned form for every
+  post-certification change. **One state is excluded**: an operator-accepted CONDITIONAL-CERTIFY,
+  where the Definition-of-Ready sheet already calls the mismatch the expected honest state of that
+  close — without the exclusion the new letter would eat a signal the method deliberately keeps.
+  `spec_hash` itself is unchanged, so the amendment's own text is still hashed and the block stays
+  tamper-evident; the two hashes share one implementation, because the first cut reimplemented the
+  removal, dropped the two spans the canonical hash has always removed, and could never have fired.
 - **A fold-ledger anchor's identity is its snippet; the line is a coordinate** (W6,
   `check_ready.py`). Nine field reports across two rounds wrote the same throwaway re-anchoring
   script — three cycles over sixteen rows in one session, one of them producing a malformed row

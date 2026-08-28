@@ -7,7 +7,7 @@ console-script executable.
 | Command | Purpose | Exit codes | Status |
 |---|---|---|---|
 | `keel check-ready <spec> [--structure-only]` | Definition-of-Ready gate (Part A + pre-mortem cert); `--structure-only` runs Part A only, for the author loop | 0 pass, 1 fail, 2 not-runnable | **real** |
-| `keel spec-hash <spec>` | Print the canonical certification hash (the spec minus its certification section and its header `Status:` line) — what a saved pre-mortem artifact records as `Spec-hash:` (B2) | 0 ok, 2 not-runnable | **real** |
+| `keel spec-hash <spec>` | Print the canonical certification hash (the spec minus its certification section and its header `Status:` line — an `## Amendment` section is NOT removed, so an amendment still moves the hash; B2 recomputes without it to tell an addition from an edit, W7) — what a saved pre-mortem artifact records as `Spec-hash:` (B2) | 0 ok, 2 not-runnable | **real** |
 | `keel re-anchor <spec> [--check] [--body]` | Repoint drifted anchors from the snippets that identify them. The fold ledger by default — it sits inside the span `spec-hash` removes, so the repair cannot invalidate the certification it serves; `--body` also rewrites prose anchors and says that the hash moves. A weak snippet, a range anchor, or a snippet on no line is reported and left alone | 0 | **real** |
 | `keel new-spec <target> [--force]` | Stamp `spec-template.md` to a new spec path (the author on-ramp) | 0 ok, 2 exists | **real** |
 | `keel gate-health [--since] [--repo]` | Read back the local hit-rate ledger: per check, applicable runs / distinct revisions it fired on / causes / fire rate, split by author-loop vs full-gate runs | 0 | **real** |
