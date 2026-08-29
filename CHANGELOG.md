@@ -10,15 +10,19 @@ The rest of the delivery wave, and the correction of its release record. Wave 4 
 stack of six PRs appending to one release section, and v0.17.0 was tagged mid-stack at the
 section-cut commit — so most of the machines that section described were not in the tag that
 named them. This release ships them under their own heading, and turns the incident into
-standing checks: a release tag is annotated and its section's entries are locked once the tag
-exists, a release cut must move the newest heading strictly forward, and a built command can no
-longer stay a "stub" in prose.
+standing checks, each named with what it actually covers: the section lock is the one that
+catches this incident's shape (a released section's entries changing after its tag exists);
+the annotated-tag rule makes a tag's own timing recoverable; the version arm catches the
+adjacent slip of a release cut that fails to move the newest heading forward; and the
+stub-claim guard catches the docs drift the same wave shipped (three docs still calling the
+built `bind-check` a stub).
 
 ### Added
 
-- **`keel bind-check` is built, and `check_budget_drift` is not** (ADR-0018, `bindings.py`).
-  ADR-0003 deferred both "until a real failure demands it", and deferral was the live state for
-  fourteen releases. Two field failures now meet that condition, both the same shape — the binding
+- **`keel bind-check` is built, and `check_budget_drift` is not** (consumer-affecting)
+  (ADR-0018, `bindings.py`). ADR-0003 deferred both "until a real failure demands it", and
+  deferral was the live state for fourteen releases. Two field failures now meet that
+  condition, both the same shape — the binding
   sheet answers when asked and never fires: a phase with a six-plus-PR blast radius across three
   repositories was specified with no Definition-of-Ready and no pre-mortem and nothing accused
   ("the bindings sheet lived in a fourth repository and is read by no mechanism at phase start"),
@@ -55,9 +59,11 @@ longer stay a "stub" in prose.
   `tests/test_release_flow.py`.
 - **Tag discipline, as tests** (`tests/test_release_flow.py`, CONTRIBUTING). From v0.18.0 a
   release tag is annotated (`git tag -a` on the release's closing merge commit, so the tag can
-  say when it was laid) and a tagged version's CHANGELOG entry set never changes after the tag
-  exists — the two assertions the v0.17.0 mistag walked past. Red-proved with a throwaway
-  lightweight future tag before landing.
+  say when it was laid), and a tagged version's CHANGELOG entry set never changes after the
+  tag exists — every SemVer tag, with the known historical edits exempted by name. The guard's
+  first sweep over history found the same append-after-tag defect one release earlier:
+  v0.16.0's section also gained an entry after its tag was laid (v0.10.0 and v0.12.0 carry
+  older post-tag edits). Red-proved with a throwaway lightweight future tag before landing.
 - **A stub claim has one home** (`keel.cli.STUB_COMMANDS`, `tests/test_claim_currency.py`).
   Wave 4 built `bind-check` and merged CI-green while README, one cli-reference paragraph and
   CONTRIBUTING's enforcement table still called it a stub — `changelog_currency.py`
@@ -69,7 +75,6 @@ longer stay a "stub" in prose.
   commit time through the same tracked-hooksPath pattern as the pre-commit lane.
 
 ### Changed
-
 
 - **An amendment is recomputed, not declared** (W7, `check_ready.py`). `spec_hash` answered the
   question "did the certified content change?" by removing a growing list of spans, one heading
@@ -166,9 +171,9 @@ longer stay a "stub" in prose.
   re-checking the ledger's anchors under prose semantics — the same defect reported twice, by a
   check that cannot repair it, with a second fire in the hit-rate ledger. The ledger sub-table is
   masked out of their scan, offsets preserved.
-- **The gate ledger's schema moves to v3.** An A12 failure class became a warning, so A12's and
-  W6's `fired` counts are not comparable across that boundary; the ledger's own contract says a
-  count must never be read across a version boundary silently.
+- **The gate ledger's schema moves to v3** (consumer-affecting). An A12 failure class became a
+  warning, so A12's and W6's `fired` counts are not comparable across that boundary; the
+  ledger's own contract says a count must never be read across a version boundary silently.
 - **The Definition-of-Ready sheet's budget is split in two, because it was two bodies sharing one
   number** (`tests/test_body_budgets.py`, `CONTRIBUTING.md`). A test makes a new check letter
   MANDATORY in the sheet's reference block, while the whole sheet was capped at the size it
@@ -193,11 +198,9 @@ longer stay a "stub" in prose.
 
 ## [0.17.0] - 2026-08-28
 
-The delivery wave. Every item here is a machine the method assumed it had: text it dispatches but
-cannot show you, a ledger whose identity lives in the fragile half of its own anchor, a hash that
-answers "did the certified content change?" by growing an exclusion list, a bindings gate deferred
-since ADR-0003, and a kind-selected sheet with no selector. The wave lands as a stack of small PRs
-against one release section; this entry grows as they land.
+The delivery wave's opening: the kit's own text becomes something the CLI can show, and the
+third doc-coverage gate closes. The wave's remaining machines — the ledger-identity repair, the
+recomputed amendment, the bindings gate, the profile selector — ship in [0.18.0].
 
 *Correction, recorded at the 0.18.0 cut: v0.17.0 was tagged at this release's section-cut
 commit, and the wave's remaining PRs then merged while appending their entries here — so the
