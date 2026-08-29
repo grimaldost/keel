@@ -1,7 +1,8 @@
 """CONTRIBUTING step 4, machine-enforced (KEEL-B08).
 
 The release loop had no machine layer for "record in CHANGELOG and bump": the version lock proves
-the eight version sites AGREE, never that any of them MOVED. So a shipped kit or doctrine
+the version sites AGREE (CONTRIBUTING's "Release discipline" section owns their enumeration),
+never that any of them MOVED. So a shipped kit or doctrine
 promotion could merge CI-green with no CHANGELOG entry and no bump — and did, twice, in the two
 docs PRs that shipped between 0.13.0 and 0.13.1. Two halves:
 

@@ -1,8 +1,9 @@
 """Fail a change that ships kit or doctrine without recording it (CONTRIBUTING step 4).
 
-The version-consistency lock proves the eight version sites AGREE; nothing proved any of them
-MOVED. So a shipped-kit or doctrine promotion could merge CI-green with no CHANGELOG entry and no
-bump — which is what happened to the two docs PRs that landed between 0.13.0 and 0.13.1, and what
+The version-consistency lock proves the version sites AGREE (CONTRIBUTING's "Release
+discipline" section owns their enumeration); nothing proved any of them MOVED. So a
+shipped-kit or doctrine promotion could merge CI-green with no CHANGELOG entry and no bump —
+which is what happened to the two docs PRs that landed between 0.13.0 and 0.13.1, and what
 makes "count the promotions that shipped" unanswerable (KEEL-B08).
 
 Reads a changed-file list (arguments, else stdin, one path per line) and exits 1 when it touches a

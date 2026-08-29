@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv lock --check # the committed uv.lock (eighth version site) must be current; a stale lock reds CI
+      - run: uv lock --check # the committed uv.lock (a version site; CONTRIBUTING, "Release discipline") must be current; a stale lock reds CI
       - run: uv sync --group dev
       - run: uv run ruff format --check .
       - run: uv run ruff check .
