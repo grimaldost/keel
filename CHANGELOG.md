@@ -4,19 +4,25 @@ All notable changes to keel. Format: Keep a Changelog; versioning: SemVer. An en
 moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code — carries the
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 
-## [0.17.0] - 2026-08-28
+## [0.18.0] - 2026-08-29
 
-The delivery wave. Every item here is a machine the method assumed it had: text it dispatches but
-cannot show you, a ledger whose identity lives in the fragile half of its own anchor, a hash that
-answers "did the certified content change?" by growing an exclusion list, a bindings gate deferred
-since ADR-0003, and a kind-selected sheet with no selector. The wave lands as a stack of small PRs
-against one release section; this entry grows as they land.
+The rest of the delivery wave, and the correction of its release record. Wave 4 landed as a
+stack of six PRs appending to one release section, and v0.17.0 was tagged mid-stack at the
+section-cut commit — so most of the machines that section described were not in the tag that
+named them. This release ships them under their own heading, and turns the incident into
+standing checks, each named with what it actually covers: the section lock is the one that
+catches this incident's shape (a released section's entries changing after its tag exists);
+the annotated-tag rule makes a tag's own timing recoverable; the version arm catches the
+adjacent slip of a release cut that fails to move the newest heading forward; and the
+stub-claim guard catches the docs drift the same wave shipped (three docs still calling the
+built `bind-check` a stub).
 
 ### Added
 
-- **`keel bind-check` is built, and `check_budget_drift` is not** (ADR-0018, `bindings.py`).
-  ADR-0003 deferred both "until a real failure demands it", and deferral was the live state for
-  fourteen releases. Two field failures now meet that condition, both the same shape — the binding
+- **`keel bind-check` is built, and `check_budget_drift` is not** (consumer-affecting)
+  (ADR-0018, `bindings.py`). ADR-0003 deferred both "until a real failure demands it", and
+  deferral was the live state for fourteen releases. Two field failures now meet that
+  condition, both the same shape — the binding
   sheet answers when asked and never fires: a phase with a six-plus-PR blast radius across three
   repositories was specified with no Definition-of-Ready and no pre-mortem and nothing accused
   ("the bindings sheet lived in a fourth repository and is read by no mechanism at phase start"),
@@ -43,25 +49,30 @@ against one release section; this entry grows as they land.
   anchors and says out loud that the hash has moved; `--check` writes nothing. Every refusal is
   reported by name: a repair that guesses would be worse than the manual `sed` it replaces,
   because the row would then pass the gate while pointing somewhere the fold never happened.
-- **`keel show <name>`** (`src/keel/show.py`, `docs/cli-reference.md`): the kit's own bodies,
-  printed from the serving bundle. `checks` is the Part-A reference block, `directive` is the
-  fenced prompt dispatched on every pre-mortem pass, and any kit template comes back by stem.
-  Three field asks in one corpus were requests for text that **already ships in the version the
-  operator was running** — the round-≥2 re-gate posture, the one-verdict-per-artifact idiom, the
-  module-form invocation recipe. None was an absence; each was a delivery that never arrived,
-  because the method's text lives in files a session dispatches or scaffolds and never reads back,
-  while a periodic post-hoc telemetry pass over the window's transcripts puts the CLI at 52 of 53
-  keel invocations against one invocation of the skill that carries the method. `show` therefore
-  adds **no text**: it reads the shipped file at run time, and a test asserts the projection is
-  byte-identical to the sheet's block rather than restated in code, because a drifted copy of the
-  directive would be worse than no command. `doctrine` is deliberately not a name — `docs/` is
-  outside the built distribution, so serving it would mean copying it into the package, which is
-  the duplication this command exists to avoid.
-- **A coverage gate for `docs/templates-reference.md`** (`tests/test_templates_valid.py`): the
-  third of three, and the one that was missing. A new command could not land undocumented and
-  neither could a new plugin entry point, but a new kit template could — and `keel init` copies it
-  into every adopting project. Same shape as the other two: glob the shipped set, never a
-  hand-kept list.
+- **The changelog gate grows a version arm and a marker arm**
+  (`scripts/changelog_currency.py`, `ci.yml`). The kit arm is unchanged. Version arm: a PR
+  whose CHANGELOG gains a new newest heading must move the version strictly forward — the
+  nine-site version lock then holds every site to that heading in the same CI run. Marker arm,
+  advisory: a diff touching a contract-surface file (the gate ledger's schema, the CLI's
+  exit-code surface) should carry the literal `(consumer-affecting)` marker on an added
+  CHANGELOG line — the convention the header above now defines. Pure predicates, tested in
+  `tests/test_release_flow.py`.
+- **Tag discipline, as tests** (`tests/test_release_flow.py`, CONTRIBUTING). From v0.18.0 a
+  release tag is annotated (`git tag -a` on the release's closing merge commit, so the tag can
+  say when it was laid), and a tagged version's CHANGELOG entry set never changes after the
+  tag exists — every SemVer tag, with the known historical edits exempted by name. The guard's
+  first sweep over history found the same append-after-tag defect one release earlier:
+  v0.16.0's section also gained an entry after its tag was laid (v0.10.0 and v0.12.0 carry
+  older post-tag edits). Red-proved with a throwaway lightweight future tag before landing.
+- **A stub claim has one home** (`keel.cli.STUB_COMMANDS`, `tests/test_claim_currency.py`).
+  Wave 4 built `bind-check` and merged CI-green while README, one cli-reference paragraph and
+  CONTRIBUTING's enforcement table still called it a stub — `changelog_currency.py`
+  deliberately excludes those paths, so nothing fired. Now the docs that enumerate stubs are
+  held to the CLI's own stub set in both directions, and README stops hand-enumerating the
+  check set entirely in favour of the cli-reference table a test already pins.
+- **A commit-msg lane** (`.githooks/commit-msg`, `.pre-commit-config.yaml`): Conventional
+  Commit subjects (the types include `release`) and no AI-attribution trailers, enforced at
+  commit time through the same tracked-hooksPath pattern as the pre-commit lane.
 
 ### Changed
 
@@ -160,9 +171,9 @@ against one release section; this entry grows as they land.
   re-checking the ledger's anchors under prose semantics — the same defect reported twice, by a
   check that cannot repair it, with a second fire in the hit-rate ledger. The ledger sub-table is
   masked out of their scan, offsets preserved.
-- **The gate ledger's schema moves to v3.** An A12 failure class became a warning, so A12's and
-  W6's `fired` counts are not comparable across that boundary; the ledger's own contract says a
-  count must never be read across a version boundary silently.
+- **The gate ledger's schema moves to v3** (consumer-affecting). An A12 failure class became a
+  warning, so A12's and W6's `fired` counts are not comparable across that boundary; the
+  ledger's own contract says a count must never be read across a version boundary silently.
 - **The Definition-of-Ready sheet's budget is split in two, because it was two bodies sharing one
   number** (`tests/test_body_budgets.py`, `CONTRIBUTING.md`). A test makes a new check letter
   MANDATORY in the sheet's reference block, while the whole sheet was capped at the size it
@@ -172,6 +183,53 @@ against one release section; this entry grows as they land.
   measured maximum (61 words) instead of in total. A re-aim, not a raise: the catalogue may grow,
   a line may not sprawl, and a second assertion holds that nothing but a catalogued check parses as
   an entry, so the per-line cap cannot be dodged by an unlettered line.
+
+### Fixed
+
+- **The release record around the v0.17.0 mistag.** The tag was not moved — a public tag that
+  moves is worse than a mislaid one, because every clone that fetched it keeps the old object
+  silently. Instead: the entries for work the tag never contained moved from [0.17.0] into this
+  section, [0.17.0] below now describes exactly what `v0.17.0` ships and says so, and the
+  version-site count's stray "eight"s (two docstrings, a CI comment) now defer to
+  CONTRIBUTING's "Release discipline" section, the one home of that enumeration.
+- **ADR-0019** folds the July agent-surface equivalence screen's verdict
+  (no-gross-degradation, at screen strength) out of an unmerged branch tip into the record,
+  and closes both stale eval branches.
+
+## [0.17.0] - 2026-08-28
+
+The delivery wave's opening: the kit's own text becomes something the CLI can show, and the
+third doc-coverage gate closes. The wave's remaining machines — the ledger-identity repair, the
+recomputed amendment, the bindings gate, the profile selector — ship in [0.18.0].
+
+*Correction, recorded at the 0.18.0 cut: v0.17.0 was tagged at this release's section-cut
+commit, and the wave's remaining PRs then merged while appending their entries here — so the
+published tag did not contain most of what this section described. Those entries now live under
+[0.18.0], the release that ships them; what remains below is exactly what `v0.17.0` contains.
+The tag itself was not moved, and `tests/test_release_flow.py` now fails a released section
+whose entries change after its tag exists (v0.18.0 onward).*
+
+### Added
+
+- **`keel show <name>`** (`src/keel/show.py`, `docs/cli-reference.md`): the kit's own bodies,
+  printed from the serving bundle. `checks` is the Part-A reference block, `directive` is the
+  fenced prompt dispatched on every pre-mortem pass, and any kit template comes back by stem.
+  Three field asks in one corpus were requests for text that **already ships in the version the
+  operator was running** — the round-≥2 re-gate posture, the one-verdict-per-artifact idiom, the
+  module-form invocation recipe. None was an absence; each was a delivery that never arrived,
+  because the method's text lives in files a session dispatches or scaffolds and never reads back,
+  while a periodic post-hoc telemetry pass over the window's transcripts puts the CLI at 52 of 53
+  keel invocations against one invocation of the skill that carries the method. `show` therefore
+  adds **no text**: it reads the shipped file at run time, and a test asserts the projection is
+  byte-identical to the sheet's block rather than restated in code, because a drifted copy of the
+  directive would be worse than no command. `doctrine` is deliberately not a name — `docs/` is
+  outside the built distribution, so serving it would mean copying it into the package, which is
+  the duplication this command exists to avoid.
+- **A coverage gate for `docs/templates-reference.md`** (`tests/test_templates_valid.py`): the
+  third of three, and the one that was missing. A new command could not land undocumented and
+  neither could a new plugin entry point, but a new kit template could — and `keel init` copies it
+  into every adopting project. Same shape as the other two: glob the shipped set, never a
+  hand-kept list.
 
 ## [0.16.0] - 2026-08-28
 

@@ -42,9 +42,9 @@ ANNOTATED_FROM = (0, 18, 0)
 # The section lock applies to every SemVer tag, with the known historical edits exempted BY
 # NAME — a named exemption over a silent unknown. v0.16.0 is the same append-after-tag defect
 # one release before v0.17.0; v0.10.0 and v0.12.0 are older post-tag section edits found by
-# this guard's first sweep over history. v0.17.0's exemption is TEMPORARY: the 0.18.0 release
-# cut reconciles its section and removes it from this set.
-SECTION_LOCK_GRANDFATHERED = frozenset({'v0.10.0', 'v0.12.0', 'v0.16.0', 'v0.17.0'})
+# this guard's first sweep over history. v0.17.0 itself is NOT exempt: the 0.18.0 cut
+# reconciled its section to exactly what the tag contains, so the lock holds it like any other.
+SECTION_LOCK_GRANDFATHERED = frozenset({'v0.10.0', 'v0.12.0', 'v0.16.0'})
 # A tag outside this shape (a release candidate, a scratch tag) is not a release tag and is
 # not asserted over — without the guard the first `v0.19.0-rc1` reds the suite with a
 # ValueError instead of a verdict.

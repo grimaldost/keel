@@ -5,7 +5,7 @@ description: Apply the keel method — the author's externalized development met
 
 # Apply the method
 
-This skill ships with keel 0.17.0 — authoritative doctrine is the **installed** keel's
+This skill ships with keel 0.18.0 — authoritative doctrine is the **installed** keel's
 `docs/doctrine.md`; if this copy's version lags `keel --version`, your plugin cache is stale
 (reinstall) and this text may trail the substance it routes to.
 
