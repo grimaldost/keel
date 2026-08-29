@@ -28,6 +28,6 @@ repos:
     hooks:
       - id: no-ai-attribution
         name: no AI-attribution trailer in the commit message
-        entry: bash -c 'if grep -Ei "^(Co-Authored-By|Co-authored-by):.*(Claude|GPT|Anthropic|noreply@anthropic)" "$1"; then echo "The commit message carries an AI-attribution trailer; remove it and re-commit."; exit 1; fi' --
+        entry: bash -c 'if grep -Ei "^(Co-Authored-By|Signed-off-by|Assisted-by|Generated-by):.*(Claude|GPT|Anthropic|Copilot)|Generated with \[?Claude" "$1"; then echo "The commit message carries an AI-attribution trailer or generation stamp; remove it and re-commit."; exit 1; fi' --
         language: system
         stages: [commit-msg]
