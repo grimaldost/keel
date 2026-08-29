@@ -20,6 +20,7 @@
 | [0016](0016-field-hardening-enforcing-layers.md) | field-hardening — moving recurring gaps to their enforcing layer | Accepted |
 | [0017](0017-one-home-for-the-pre-mortem-directives.md) | one home for the pre-mortem directives (narrows the agent ⇄ prompt fidelity invariant) | Accepted |
 | [0018](0018-the-bindings-gate-un-deferred.md) | the bindings gate is un-deferred (ADR-0003's condition met), and its findings carry no check letter | Accepted |
+| [0019](0019-closing-the-july-agent-surface-eval-branches.md) | closing the July agent-surface eval branches (the equivalence verdict is folded in) | Accepted |
 
 Status: Proposed | Accepted | Superseded by ADR-NNNN. Never edit an Accepted decision —
 supersede it.
