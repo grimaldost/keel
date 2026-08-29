@@ -117,8 +117,9 @@ all shipped untagged and were tagged retroactively, at the release commit on mai
 `tests/test_release_flow.py` asserts the rule from 0.4.0 (the first public release — 0.2.0, 0.2.1
 and 0.3.0 are pre-publication history squashed into that commit, so there is nothing to tag) and
 exempts the newest CHANGELOG heading, which is tagged when its release merges rather than when its
-section is written; from v0.18.0 it also asserts the annotation and that a tagged section's
-entry set never changes after the tag exists.
+section is written; it also asserts the annotation (from v0.18.0) and that a tagged section's
+entry set never changes after its tag exists — every SemVer tag, with the known historical
+edits exempted by name in the test.
 
 A release bumps **nine version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
 (inserted above the previous one, never replacing it): `.claude-plugin/plugin.json`,
@@ -173,7 +174,7 @@ planned or absent. Turned on the repo itself:
 | Commit subjects are conventional and carry no AI-attribution trailer | enforced | `.githooks/commit-msg` + the commit-msg stage of `.pre-commit-config.yaml`, once `core.hooksPath` is set — same caveat as the pre-commit lane |
 | The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
-| Every released version carries a tag — annotated and section-locked from v0.18.0 | enforced where tags are present | `tests/test_release_flow.py`; it skips a checkout with no tags at all, which is what CI's default checkout is — so today this bites locally and on any clone that fetched tags |
+| Every released version carries a tag — annotated from v0.18.0, its section locked once tagged | enforced | `tests/test_release_flow.py`; CI's `check` job checks out full history and tags so the assertions run on every PR, and the skip protects only a genuinely tagless clone |
 | All method-binding slots filled (`keel bind-check`) | available, operator-run | `keel bind-check` (ADR-0018), tested in `tests/test_bindings.py` — a CLI gate run at phase start, not wired into this repo's CI |
 | Wave cost drift (`keel budget-drift`) | absent | a documented stub that exits 2; its disposition is removal, sequenced behind a bound orchestrator's live measurement window (backlog KEEL-B30) |
 | An edit-time invariant hook | absent | consciously unbound (`docs/method-bindings.md`); the empty `hooks.json` placeholder that claimed the slot was deleted (KEEL-B29) |
