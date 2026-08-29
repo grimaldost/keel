@@ -151,8 +151,10 @@ Install the commit-time hook once per clone:
 git config core.hooksPath .githooks
 ```
 
-That points git at the tracked `.githooks/pre-commit`, which runs the first three gates through
-`uv run python -m pre_commit`. `pre-commit install` is deliberately **not** the instruction: it
+That points git at the tracked hooks: `.githooks/pre-commit` runs the first three gates through
+`uv run python -m pre_commit`, and `.githooks/commit-msg` holds the commit subject to
+Conventional Commits (`type: subject`; the types include `release`) and rejects AI-attribution
+trailers. `pre-commit install` is deliberately **not** the instruction: it
 writes a hook that invokes the `pre-commit` console script, and an application-control policy on
 at least one machine this repo is developed on blocks that shim while running git-invoked hooks
 fine — so the shim form would leave the claim below as untrue as no hook at all.
@@ -168,6 +170,7 @@ planned or absent. Turned on the repo itself:
 | ruff-format, ruff and `ty check src` hold before a commit lands | enforced | `.githooks/pre-commit` + `.pre-commit-config.yaml`, once `core.hooksPath` is set — a clone that skips that one command is covered by CI only |
 | `uv run pytest` before a commit | review-only | CI's by choice: the one gate whose cost belongs on a push. Run it yourself before you push |
 | The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
+| Commit subjects are conventional and carry no AI-attribution trailer | enforced | `.githooks/commit-msg` + the commit-msg stage of `.pre-commit-config.yaml`, once `core.hooksPath` is set — same caveat as the pre-commit lane |
 | The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
 | Every released version carries a tag — annotated and section-locked from v0.18.0 | enforced where tags are present | `tests/test_release_flow.py`; it skips a checkout with no tags at all, which is what CI's default checkout is — so today this bites locally and on any clone that fetched tags |
