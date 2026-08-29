@@ -106,14 +106,20 @@ The release pre-mortem's record states whether the cross-vendor enrichment panel
 non-blocking practice since 0.9.0) ran; skipping it stays legal but is a recorded decision, not an
 omission — the 0.12.0 release skipped it silently and nothing flagged the empty slot.
 
-**A released version carries a tag.** After a release PR merges, tag the release commit on main
-(`git tag vX.Y.Z <commit>`) and publish it (`git push --tags`). Without it, "which versions
-actually shipped" is answerable only from memory: 0.11.1, 0.12.0, 0.13.0 and 0.13.1 all shipped
-untagged and were tagged retroactively, at the release commit on main.
+**A released version carries an annotated tag, laid at wave close.** After the release's last
+PR merges, tag that merge commit (`git tag -a vX.Y.Z <release-merge-commit> -m 'keel X.Y.Z'`)
+and publish it (`git push --tags`). Annotated, because a lightweight tag records no tagger date
+— when v0.17.0 was laid at the wrong commit, the tag itself could not even say when. And the
+closing merge commit, never the section-cut commit: v0.17.0 was tagged mid-stack, so the
+published tag lacked most of what its own section described. Without a tag at all, "which
+versions actually shipped" is answerable only from memory: 0.11.1, 0.12.0, 0.13.0 and 0.13.1
+all shipped untagged and were tagged retroactively, at the release commit on main.
 `tests/test_release_flow.py` asserts the rule from 0.4.0 (the first public release — 0.2.0, 0.2.1
 and 0.3.0 are pre-publication history squashed into that commit, so there is nothing to tag) and
 exempts the newest CHANGELOG heading, which is tagged when its release merges rather than when its
-section is written.
+section is written; it also asserts the annotation (from v0.18.0) and that a tagged section's
+entry set never changes after its tag exists — every SemVer tag, with the known historical
+edits exempted by name in the test.
 
 A release bumps **nine version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
 (inserted above the previous one, never replacing it): `.claude-plugin/plugin.json`,
@@ -146,8 +152,10 @@ Install the commit-time hook once per clone:
 git config core.hooksPath .githooks
 ```
 
-That points git at the tracked `.githooks/pre-commit`, which runs the first three gates through
-`uv run python -m pre_commit`. `pre-commit install` is deliberately **not** the instruction: it
+That points git at the tracked hooks: `.githooks/pre-commit` runs the first three gates through
+`uv run python -m pre_commit`, and `.githooks/commit-msg` holds the commit subject to
+Conventional Commits (`type: subject`; the types include `release`) and rejects AI-attribution
+trailers. `pre-commit install` is deliberately **not** the instruction: it
 writes a hook that invokes the `pre-commit` console script, and an application-control policy on
 at least one machine this repo is developed on blocks that shim while running git-invoked hooks
 fine — so the shim form would leave the claim below as untrue as no hook at all.
@@ -163,9 +171,10 @@ planned or absent. Turned on the repo itself:
 | ruff-format, ruff and `ty check src` hold before a commit lands | enforced | `.githooks/pre-commit` + `.pre-commit-config.yaml`, once `core.hooksPath` is set — a clone that skips that one command is covered by CI only |
 | `uv run pytest` before a commit | review-only | CI's by choice: the one gate whose cost belongs on a push. Run it yourself before you push |
 | The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
+| Commit subjects are conventional and carry no AI-attribution trailer | enforced | `.githooks/commit-msg` + the commit-msg stage of `.pre-commit-config.yaml`, once `core.hooksPath` is set — same caveat as the pre-commit lane |
 | The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
-| Every released version carries a tag | enforced where tags are present | `tests/test_release_flow.py`; it skips a checkout with no tags at all, which is what CI's default checkout is — so today this bites locally and on any clone that fetched tags |
-| All method-binding slots filled (`keel bind-check`) | absent | the command is a documented stub that exits 2 (ADR-0003; the build is backlog KEEL-B17) |
+| Every released version carries a tag — annotated from v0.18.0, its section locked once tagged | enforced | `tests/test_release_flow.py`; CI's `check` job checks out full history and tags so the assertions run on every PR, and the skip protects only a genuinely tagless clone |
+| All method-binding slots filled (`keel bind-check`) | available, operator-run | `keel bind-check` (ADR-0018), tested in `tests/test_bindings.py` — a CLI gate run at phase start, not wired into this repo's CI |
 | Wave cost drift (`keel budget-drift`) | absent | a documented stub that exits 2; its disposition is removal, sequenced behind a bound orchestrator's live measurement window (backlog KEEL-B30) |
 | An edit-time invariant hook | absent | consciously unbound (`docs/method-bindings.md`); the empty `hooks.json` placeholder that claimed the slot was deleted (KEEL-B29) |

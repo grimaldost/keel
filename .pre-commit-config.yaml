@@ -1,5 +1,7 @@
 # Three of the four Definition-of-Done gates, at commit time. `uv run pytest` is the fourth
 # and stays in CI: it is the one gate whose cost belongs on a push, not on every commit.
+# The commit-msg stage holds the subject to Conventional Commits and rejects AI-attribution
+# trailers, via the tracked `.githooks/commit-msg`.
 # Installed with `git config core.hooksPath .githooks` (see CONTRIBUTING, "Quality gates").
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -16,3 +18,16 @@ repos:
         language: system
         pass_filenames: false
         files: ^src/.*\.py$
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, style, refactor, perf, test, chore, build, ci, release]
+  - repo: local
+    hooks:
+      - id: no-ai-attribution
+        name: no AI-attribution trailer in the commit message
+        entry: bash -c 'if grep -Ei "^(Co-Authored-By|Signed-off-by|Assisted-by|Generated-by):.*(Claude|GPT|Anthropic|Copilot)|Generated with \[?Claude" "$1"; then echo "The commit message carries an AI-attribution trailer or generation stamp; remove it and re-commit."; exit 1; fi' --
+        language: system
+        stages: [commit-msg]

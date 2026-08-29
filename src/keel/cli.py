@@ -23,6 +23,12 @@ app = typer.Typer(
     help='keel - method gates and scaffolding',
 )
 
+# The commands whose logic is deliberately unimplemented (ADR-0003; `budget-drift`'s recorded
+# disposition is removal, backlog KEEL-B30). One home: tests/test_claim_currency.py holds the
+# docs that enumerate stubs to this set, in both directions, so a stub that becomes real (or a
+# command that joins the set) cannot merge while the prose says otherwise.
+STUB_COMMANDS = frozenset({'budget-drift'})
+
 
 def _version_callback(value: bool) -> None:
     if value:
