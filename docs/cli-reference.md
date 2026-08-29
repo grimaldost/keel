@@ -53,7 +53,8 @@ spec. 0.14.0 → 0.15.0 is such a change: the header `Status:` line left the has
 that W2's advice ("update the Status field") stopped invalidating the certification the same run
 had just verified.
 
-The still-stubbed commands (`bind-check`, `budget-drift`) print an actionable message and exit 2
-until their logic is implemented (deferred, ADR-0003).
+The one still-stubbed command (`keel budget-drift`) prints an actionable message and exits 2
+(ADR-0003); its recorded disposition is removal, sequenced behind a bound orchestrator's live
+measurement window (backlog KEEL-B30).
 
 *This table is pinned by `tests/test_cli.py` — every registered command appears here.*

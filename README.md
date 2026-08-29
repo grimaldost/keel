@@ -45,11 +45,12 @@ The full first loop, with the exact commands in order:
 ## Status
 
 The Definition-of-Ready gate (`keel check-ready`) is live — the full Part A
-well-formedness set (A0–A12, R1) plus the recorded blind pre-mortem
-certification (B1) and its saved-artifact verification (B2, with `keel
-spec-hash`); `bind-check` and `budget-drift` remain stubs (deferred,
-ADR-0003). Current version and capability history:
-[`CHANGELOG.md`](CHANGELOG.md).
+well-formedness set plus the recorded blind pre-mortem certification (B1)
+and its saved-artifact verification (B2, with `keel spec-hash`). The
+command set, and each command's status, is the table in
+[`docs/cli-reference.md`](docs/cli-reference.md) — pinned by tests, where
+this paragraph's hand-kept copy is the one that drifted. Current version
+and capability history: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Learn more
 
