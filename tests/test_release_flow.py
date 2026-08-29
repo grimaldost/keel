@@ -17,6 +17,13 @@ shallow and fetches none), exempts the newest CHANGELOG heading (a release in fl
 when it merges, not when its section is written), and exempts anything below the first public
 release — 0.2.0/0.2.1/0.3.0 are pre-publication history, squashed into the 0.4.0 initial public
 release commit, and there is no commit to tag.
+
+From v0.18.0, two more assertions. v0.17.0 was tagged lightweight at the section-cut commit,
+mid-stack, and six wave PRs then merged while appending to the already-tagged [0.17.0] section
+— so the published tag lacked most of what its own notes described, and, being lightweight,
+could not even say when it was laid. So: a release tag is annotated (`git tag -a` on the
+release PR's merge commit), and a tagged version's CHANGELOG entry set never changes after the
+tag exists. Both bite locally and on any clone that fetched tags, same as the tag assertion.
 """
 
 import importlib.util
@@ -28,6 +35,46 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 FIRST_PUBLIC_RELEASE = (0, 4, 0)
+# The v0.17.0 mistag is grandfathered — its section carries the correction as prose; every tag
+# from here on is held to the annotated-tag and locked-section discipline.
+TAG_DISCIPLINE_FROM = (0, 18, 0)
+
+
+def _git(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ['git', *args],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+        check=False,
+    )
+
+
+def _discipline_tags() -> list[str]:
+    tags = _git('tag', '--list', 'v*')
+    if tags.returncode != 0 or not tags.stdout.strip():
+        pytest.skip('no tags in this checkout (a shallow or tagless clone) — nothing to assert')
+    names = [line.strip() for line in tags.stdout.splitlines() if line.strip()]
+    return [
+        name
+        for name in names
+        if tuple(int(part) for part in name.lstrip('v').split('.')) >= TAG_DISCIPLINE_FROM
+    ]
+
+
+def _section_entries(changelog_text: str, version: str) -> list[str]:
+    """The top-level `- ` entry lines recorded under one `## [version]` heading."""
+    inside = False
+    entries: list[str] = []
+    for line in changelog_text.splitlines():
+        if line.startswith('## '):
+            inside = line.startswith(f'## [{version}]')
+            continue
+        if inside and line.startswith('- '):
+            entries.append(line.strip())
+    return entries
 
 
 def _load_predicate():
@@ -118,3 +165,39 @@ def test_released_versions_carry_a_tag():
         f'released versions carry no tag: {missing} — tag the release commit on main '
         '(`git tag vX.Y.Z <commit>`) and publish it with `git push --tags`.'
     )
+
+
+def test_release_tags_are_annotated():
+    # A lightweight tag records no tagger date, so "when was this laid, relative to its
+    # content" — the exact question the v0.17.0 mistag turns on — is unanswerable from the tag
+    # itself. From v0.18.0 a release tag is annotated and carries its own date and message.
+    for tag in _discipline_tags():
+        kind = _git('cat-file', '-t', tag).stdout.strip()
+        assert kind == 'tag', (
+            f'{tag} is not an annotated tag (`git cat-file -t` says {kind!r}) — lay release '
+            f"tags with `git tag -a {tag} <release-merge-commit> -m 'keel "
+            f"{tag.lstrip('v')}'`."
+        )
+
+
+def test_a_tagged_section_matches_its_tag():
+    # The v0.17.0 mistag as a standing check: the tag was laid at the section-cut commit and
+    # six wave PRs then appended to the already-tagged [0.17.0] section, so the published tag
+    # lacked most of what its own notes described. From v0.18.0, the entry lines under a tagged
+    # version's heading are exactly the ones in that tag's own CHANGELOG — appending to (or
+    # thinning) a released section after its tag exists fails here. Only the `- ` entry lines
+    # are compared: a typo fix in an entry's continuation prose stays legal; the entry set is
+    # the contract.
+    head_text = (ROOT / 'CHANGELOG.md').read_text(encoding='utf-8')
+    for tag in _discipline_tags():
+        version = tag.lstrip('v')
+        shown = _git('show', f'{tag}:CHANGELOG.md')
+        assert shown.returncode == 0, f'{tag} carries no CHANGELOG.md'
+        tagged = _section_entries(shown.stdout, version)
+        current = _section_entries(head_text, version)
+        assert tagged, f'{tag}: no entries under its own [{version}] heading — parse rot'
+        assert current == tagged, (
+            f'the [{version}] section changed after {tag} was laid — a released section is '
+            'closed by its tag; post-tag work belongs under the next heading '
+            f'(tagged entries: {len(tagged)}, current: {len(current)})'
+        )

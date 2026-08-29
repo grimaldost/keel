@@ -106,14 +106,19 @@ The release pre-mortem's record states whether the cross-vendor enrichment panel
 non-blocking practice since 0.9.0) ran; skipping it stays legal but is a recorded decision, not an
 omission — the 0.12.0 release skipped it silently and nothing flagged the empty slot.
 
-**A released version carries a tag.** After a release PR merges, tag the release commit on main
-(`git tag vX.Y.Z <commit>`) and publish it (`git push --tags`). Without it, "which versions
-actually shipped" is answerable only from memory: 0.11.1, 0.12.0, 0.13.0 and 0.13.1 all shipped
-untagged and were tagged retroactively, at the release commit on main.
+**A released version carries an annotated tag, laid at wave close.** After the release's last
+PR merges, tag that merge commit (`git tag -a vX.Y.Z <release-merge-commit> -m 'keel X.Y.Z'`)
+and publish it (`git push --tags`). Annotated, because a lightweight tag records no tagger date
+— when v0.17.0 was laid at the wrong commit, the tag itself could not even say when. And the
+closing merge commit, never the section-cut commit: v0.17.0 was tagged mid-stack, so the
+published tag lacked most of what its own section described. Without a tag at all, "which
+versions actually shipped" is answerable only from memory: 0.11.1, 0.12.0, 0.13.0 and 0.13.1
+all shipped untagged and were tagged retroactively, at the release commit on main.
 `tests/test_release_flow.py` asserts the rule from 0.4.0 (the first public release — 0.2.0, 0.2.1
 and 0.3.0 are pre-publication history squashed into that commit, so there is nothing to tag) and
 exempts the newest CHANGELOG heading, which is tagged when its release merges rather than when its
-section is written.
+section is written; from v0.18.0 it also asserts the annotation and that a tagged section's
+entry set never changes after the tag exists.
 
 A release bumps **nine version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
 (inserted above the previous one, never replacing it): `.claude-plugin/plugin.json`,
@@ -165,7 +170,7 @@ planned or absent. Turned on the repo itself:
 | The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
 | The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
-| Every released version carries a tag | enforced where tags are present | `tests/test_release_flow.py`; it skips a checkout with no tags at all, which is what CI's default checkout is — so today this bites locally and on any clone that fetched tags |
+| Every released version carries a tag — annotated and section-locked from v0.18.0 | enforced where tags are present | `tests/test_release_flow.py`; it skips a checkout with no tags at all, which is what CI's default checkout is — so today this bites locally and on any clone that fetched tags |
 | All method-binding slots filled (`keel bind-check`) | available, operator-run | `keel bind-check` (ADR-0018), tested in `tests/test_bindings.py` — a CLI gate run at phase start, not wired into this repo's CI |
 | Wave cost drift (`keel budget-drift`) | absent | a documented stub that exits 2; its disposition is removal, sequenced behind a bound orchestrator's live measurement window (backlog KEEL-B30) |
 | An edit-time invariant hook | absent | consciously unbound (`docs/method-bindings.md`); the empty `hooks.json` placeholder that claimed the slot was deleted (KEEL-B29) |
