@@ -1,6 +1,8 @@
 # Changelog
 
-All notable changes to keel. Format: Keep a Changelog; versioning: SemVer.
+All notable changes to keel. Format: Keep a Changelog; versioning: SemVer. An entry that
+moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code — carries the
+literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 
 ## [0.17.0] - 2026-08-28
 

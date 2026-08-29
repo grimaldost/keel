@@ -70,6 +70,39 @@ def test_non_kit_changes_need_no_changelog_entry():
     assert unrecorded(['src/keel/check_ready.py', 'tests/test_check_ready.py', 'README.md']) == []
 
 
+BASE_CHANGELOG = '# Changelog\n\n## [0.17.0] - 2026-08-28\n\n### Added\n\n- **A thing.**\n'
+
+
+def test_a_release_cut_moves_the_newest_heading_forward():
+    # The version arm: a PR whose CHANGELOG gains a new newest heading must move the version
+    # strictly forward — the nine-site version lock (tests/test_plugin_manifest.py) then holds
+    # every site to that same heading in the same CI run.
+    regression = _load_predicate().heading_regression
+    cut = '# Changelog\n\n## [0.18.0] - 2026-08-29\n\n' + BASE_CHANGELOG.split('\n', 2)[2]
+    stale = '# Changelog\n\n## [0.16.0] - 2026-08-29\n\n' + BASE_CHANGELOG.split('\n', 2)[2]
+    assert regression(BASE_CHANGELOG, cut) is None
+    assert regression(BASE_CHANGELOG, BASE_CHANGELOG) is None, 'no cut is not a regression'
+    assert regression(BASE_CHANGELOG, stale) is not None
+    assert regression(BASE_CHANGELOG, '# Changelog\n') is not None, 'losing every heading fails'
+
+
+def test_a_contract_surface_change_wants_the_marker():
+    # The marker arm (advisory in CI): a diff touching a file that defines what a consuming
+    # tool parses — the gate ledger's schema, the CLI's exit-code surface — should carry the
+    # literal `(consumer-affecting)` marker on an added CHANGELOG line.
+    unmarked = _load_predicate().unmarked_contract_paths
+    assert unmarked(['src/keel/gate_ledger.py', 'CHANGELOG.md'], '+- **A quiet entry.**') == [
+        'src/keel/gate_ledger.py'
+    ]
+    marked = '+- **The ledger schema moves to v4** (consumer-affecting).'
+    assert unmarked(['src/keel/gate_ledger.py', 'CHANGELOG.md'], marked) == []
+    assert unmarked(['src/keel/check_ready.py'], '') == [], 'not a contract surface'
+    removed = '-- **An old entry** (consumer-affecting).'
+    assert unmarked(['src/keel/cli.py'], removed) == ['src/keel/cli.py'], (
+        'a removed line does not satisfy the marker'
+    )
+
+
 def test_released_versions_carry_a_tag():
     tags = subprocess.run(
         ['git', 'tag', '--list', 'v*'], cwd=ROOT, capture_output=True, text=True, check=False

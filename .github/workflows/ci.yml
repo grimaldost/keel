@@ -33,3 +33,16 @@ jobs:
       - run: |
           git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
             | python scripts/changelog_currency.py
+      # Version arm: a PR that cuts a new release heading must move the newest version strictly
+      # forward; the version-consistency test in the `check` job holds the nine sites to that
+      # same heading.
+      - run: |
+          git show "origin/${{ github.base_ref }}:CHANGELOG.md" > "$RUNNER_TEMP/base-changelog.md"
+          python scripts/changelog_currency.py --headings "$RUNNER_TEMP/base-changelog.md" CHANGELOG.md
+      # Marker arm (advisory, never fails): a change to a contract-surface file — the gate
+      # ledger's schema, the CLI's exit-code surface — should carry the `(consumer-affecting)`
+      # marker on an added CHANGELOG line.
+      - run: |
+          git diff "origin/${{ github.base_ref }}...HEAD" -- CHANGELOG.md > "$RUNNER_TEMP/changelog.diff"
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+            | python scripts/changelog_currency.py --marker "$RUNNER_TEMP/changelog.diff"
