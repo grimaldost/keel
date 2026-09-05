@@ -24,7 +24,7 @@ build-backend = 'uv_build'
 
 [dependency-groups]
 lint = ['ruff>=0.15', 'ty']
-test = ['pytest>=8.0', 'pytest-cov']
+test = ['pytest>=9.1.1', 'pytest-cov']
 dev = [
     { include-group = 'lint' },
     { include-group = 'test' },
