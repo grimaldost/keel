@@ -75,6 +75,29 @@ def test_skeleton_keeps_model_family_tier_names():
     assert 'tier = "sonnet"' in text, 'skeleton lost the sonnet model-family tier example'
 
 
+def test_skeleton_holds_no_api_model_id_in_a_tier_field():
+    """Every `tier =` value stays a family name, never an api model id.
+
+    The sibling test above pins the two examples that exist. This one catches the
+    failure that actually happens: a hand pastes a resolved lineup in, and the
+    skeleton silently becomes a mirror with a shelf life. It is also the only
+    tripwire that can fire here, because a lineup refresh greps for outgoing MODEL
+    ids and this file, by decision, contains none to find.
+
+    Registered as a walked mirror site in the operator's model-mirrors registry; see
+    "Tier vocabulary" for why the family names are deliberate and where they are
+    translated. KEEL-B44.
+    """
+    text = (templates_root() / 'series-toml-skeleton.md').read_text(encoding='utf-8')
+    for value in re.findall(r'^\s*tier\s*=\s*"([^"]+)"', text, re.MULTILINE):
+        assert not value.startswith('claude-'), (
+            f'tier = "{value}" is an api model id, not a model-family name. '
+            'The skeleton carries examples, not a lineup: giving it one adds a site '
+            'to re-sync on every model release in exchange for nothing.'
+        )
+        assert value.islower() and value.isalnum(), f'unexpected tier literal: {value!r}'
+
+
 # T0.5 / the R4 mapping table, kept as data rather than prose so it stays true.
 #
 # `definition-of-ready.md` carried a hand-written Part-A checklist above the fenced reference

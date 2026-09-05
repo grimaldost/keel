@@ -45,6 +45,15 @@ where the tier is set, belongs to the orchestrator binding in `method-bindings.m
 skeleton, which does not restate an orchestrator's schema. Keep the family names literal: a bound
 capacity-dispatch policy greps them when its model lineup changes.
 
+**This file is a registered mirror site**, walked whenever a model ships. Two consequences
+worth knowing before editing it. First, a walk that greps for an outgoing *model id* finds
+nothing here by design, so the tripwire that protects this file is a template test asserting
+no `tier` value is an api id — not the grep. Second, `all_opus_baseline_usd` in `[budget]`
+is a **field name**, not a tier value: it names the expensive-family baseline the forecast is
+framed against, a lineup refresh never edits it, and renaming it is a schema change for every
+consumer that reads the block. Nothing here is a lineup, and adding one would buy a site to
+re-sync on every model release in exchange for nothing.
+
 ## Drift-check convention
 
 A post-PR hook sums actual cost so far and compares to `estimate_usd`. If
