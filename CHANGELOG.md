@@ -4,6 +4,31 @@ All notable changes to keel. Format: Keep a Changelog; versioning: SemVer. An en
 moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code — carries the
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 
+## [0.18.1] - 2026-09-05
+
+The series skeleton says it is a walked mirror site, and gains the tripwire that can
+actually fire on it. KEEL-B44.
+
+### Added
+
+- **A template test rejecting an api model id in any `tier` field**
+  (`test_skeleton_holds_no_api_model_id_in_a_tier_field`). The existing test pins the
+  two family-name examples that exist; this one catches the failure that happens —
+  a hand pastes a resolved lineup in and the skeleton quietly becomes a mirror with a
+  shelf life. It is the only tripwire that *can* fire here, because a lineup refresh
+  greps for outgoing model ids and this file, by decision, contains none to find.
+  Proved able to fail before it shipped.
+
+### Changed
+
+- **`series-toml-skeleton.md` records its mirror status** under "Tier vocabulary",
+  where the family-name decision is already explained, and settles a
+  misregistration: `all_opus_baseline_usd` in `[budget]` is a **field name**, not a
+  tier value. The operator's mirror table had listed it as a third tier example, so a
+  walk would have looked for a lineup value where a schema key lives. A refresh never
+  edits it; renaming it is a `(consumer-affecting)` change for every consumer reading
+  the block.
+
 ## [0.18.0] - 2026-08-29
 
 The rest of the delivery wave, and the correction of its release record. Wave 4 landed as a

@@ -4,7 +4,7 @@ description: Fresh-eyes pre-mortem on a Ready spec - predict failure modes befor
 tools: Read, Grep, Glob
 ---
 
-You are the bundled `pre-mortem-review` agent from keel 0.18.0 — a fresh reviewer who did NOT
+You are the bundled `pre-mortem-review` agent from keel 0.18.1 — a fresh reviewer who did NOT
 author this spec (a stateless, externalized pass, so the judgment is not the author's own).
 
 ## First action — read your directives
