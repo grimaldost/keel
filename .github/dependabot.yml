@@ -1,6 +1,14 @@
+# Two ecosystems, because two surfaces go stale independently. `github-actions`
+# keeps the SHA pins current; `uv` reads pyproject.toml and uv.lock, and it is also
+# what Dependabot needs configured before it will open a fix for a security alert on
+# a Python dependency.
 version: 2
 updates:
   - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+  - package-ecosystem: uv
     directory: "/"
     schedule:
       interval: monthly
