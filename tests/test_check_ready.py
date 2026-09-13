@@ -1897,3 +1897,28 @@ def test_the_unstamped_warning_says_what_a_stamp_must_look_like_w1(tmp_path):
     result = check_spec_ready(_write(tmp_path, spec))
     warning = next(w for w in result.warnings if w.check == 'W1')
     assert 'bare' in warning.message and f'`- **Kit:** {__version__}`' in warning.message
+
+
+# --- E5a: a build output is a copy too ---------------------------------------
+#
+# `seeds/stg1_instrument.csv:2` resolved by unique basename into dbt's compiled `target/run/…`
+# copy and passed as a WARN. A build tree is the same class `dbt_packages/` and `vendor/` already
+# occupy: a file nobody edits, uniquely matched, and always the wrong answer.
+
+
+@pytest.mark.parametrize('tree', ['target', 'build', 'dist', '_build'])
+def test_build_output_only_basename_match_is_refused_and_names_the_copy_a6(tmp_path, tree):
+    (tmp_path / '.git').mkdir()
+    generated = tmp_path / tree / 'run' / 'models'
+    generated.mkdir(parents=True)
+    (generated / 'instruments.sql').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `instruments.sql:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    refused = [v for v in result.violations if 'instruments.sql' in v.message]
+    assert refused, [(v.where, v.message) for v in result.violations]
+    assert f'{tree}/run/models/instruments.sql' in refused[0].message
+    assert 'cite the source it was copied from' in refused[0].message
+    assert not any('instruments.sql' in w.message for w in result.warnings), result.warnings

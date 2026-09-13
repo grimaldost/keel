@@ -713,36 +713,51 @@ def _declared_profile(header: str) -> Violation | None:
     )
 
 
-# Trees that hold a COPY of someone else's source. A basename match inside one is never the
-# file an anchor means: `dbt_packages/` and `vendor/` join the set because an estate that
-# vendors its dependencies has the twin sitting next to the source, and a unique match on the
-# twin is unique and wrong (0.12.0 §4 covered the in-tree virtualenv; this is the same defeat
-# through a different directory).
-_VENDOR_DIRS = frozenset(
-    {'.git', '.venv', 'node_modules', '__pycache__', 'site-packages', 'dbt_packages', 'vendor'}
+# Trees that hold a COPY of source that lives somewhere else. A basename match inside one is never
+# the file an anchor means: `dbt_packages/` and `vendor/` joined because an estate that vendors its
+# dependencies has the twin sitting next to the source, and a unique match on the twin is unique
+# and wrong (0.12.0 §4 covered the in-tree virtualenv; the same defeat through a different door).
+# The BUILD outputs are the same class one step further — a compiled `target/run/…` twin of a dbt
+# seed resolved uniquely and passed as a WARN — and they are the half of that defeat 0.17.0 left:
+# a file nobody edits, copied from one that someone does.
+_COPY_TREES = frozenset(
+    {
+        '.git',
+        '.venv',
+        'node_modules',
+        '__pycache__',
+        'site-packages',
+        'dbt_packages',
+        'vendor',
+        'target',
+        'build',
+        'dist',
+        '_build',
+    }
 )
 
 
 def _basename_matches(base: Path, path: str) -> tuple[list[Path], list[Path]]:
-    """(matches outside vendored trees, matches inside them) for the path's basename.
+    """(matches outside copy trees, matches inside them) for the path's basename.
 
-    An in-tree virtualenv must not defeat exactly-one (0.12.0 §4). Called only when the anchor
-    failed to resolve as written, so the rglob cost is paid only on that path. The vendored half
-    is returned rather than dropped so the failure can name WHY it refused: a WARN reading
-    "the expansion is unique today" over a vendored copy reads as "resolved, carry on", which
-    is worse than failing — the anchor then cites a file that exists and is the wrong one.
+    An in-tree virtualenv must not defeat exactly-one (0.12.0 §4); neither may a vendored
+    dependency or a build output. Called only when the anchor failed to resolve as written, so the
+    rglob cost is paid only on that path. The copied half is returned rather than dropped so the
+    failure can name WHY it refused: a WARN reading "the expansion is unique today" over a copy
+    reads as "resolved, carry on", which is worse than failing — the anchor then cites a file that
+    exists and is the wrong one.
     """
     name = path.replace('\\', '/').rsplit('/', 1)[-1]
     if not name:
         return [], []
     clean: list[Path] = []
-    vendored: list[Path] = []
+    copied: list[Path] = []
     for candidate in base.rglob(name):
         if not candidate.is_file():
             continue
         parents = set(candidate.relative_to(base).parts[:-1])
-        (vendored if _VENDOR_DIRS & parents else clean).append(candidate)
-    return clean, vendored
+        (copied if _COPY_TREES & parents else clean).append(candidate)
+    return clean, copied
 
 
 # A snippet shorter than this (non-space characters, after normalization) is too weak to
@@ -800,9 +815,10 @@ def _resolve_anchor(
     snippet are still verified against the file it found. Ambiguity (or no match) still fails, and
     the ambiguous message names the candidates.
 
-    A match that exists only inside a vendored tree is refused, not expanded, and the message
-    names the twin: KEEL-B04 made expansion possible, and expansion into a dependency copy is
-    unique AND wrong — the WARN then reads "resolved, carry on" over the wrong file.
+    A match that exists only inside a copy tree — a vendored dependency or a build output — is
+    refused, not expanded, and the message names the twin: KEEL-B04 made expansion possible, and
+    expansion into a copy is unique AND wrong; the WARN then reads "resolved, carry on" over a
+    file nobody edits.
     """
     target = base / path
     warnings: list[Warning] = []
@@ -826,7 +842,7 @@ def _resolve_anchor(
                 ),
                 [],
             )
-        matches, vendored = _basename_matches(base, path)
+        matches, copied = _basename_matches(base, path)
         if len(matches) != 1:
             candidates = ''
             if matches:
@@ -836,14 +852,15 @@ def _resolve_anchor(
                 candidates = (
                     f' {len(matches)} files share that basename ({shown}) — name the one you mean.'
                 )
-            elif vendored:
-                # The only match is a vendored COPY. Refusing names the trap; expanding to it
-                # would resolve, warn "unique today", and cite the wrong file.
-                twin = sorted(match.relative_to(base).as_posix() for match in vendored)[0]
+            elif copied:
+                # The only match is a COPY — vendored, or built. Refusing names the trap;
+                # expanding to it would resolve, warn "unique today", and cite the wrong file.
+                twin = sorted(match.relative_to(base).as_posix() for match in copied)[0]
                 candidates = (
-                    f' The only file of that basename is a vendored copy ({twin}), under a '
-                    'dependency tree this gate never expands to — cite the source it was '
-                    'copied from, or the sibling repo, by a path that resolves here.'
+                    f' The only file of that basename is a generated or vendored copy ({twin}), '
+                    'under a dependency or build-output tree this gate never expands to — cite '
+                    'the source it was copied from, or the sibling repo, by a path that resolves '
+                    'here.'
                 )
             return (
                 None,
