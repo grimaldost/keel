@@ -25,7 +25,7 @@ The method (§7) needs five slots filled in any project. Each maps to a template
 | Close the loop | `reflection-triage.md` |
 | Wave budget | `series-toml-skeleton.md` (`[budget]` block) |
 | Portability | `method-bindings.md` |
-| Kind-selected sheets | `pre-mortem-profiles.md` (measurement/experiment specs today) |
+| Profile-selected sheets | `pre-mortem-profiles.md` — the design sheet, the reviewer items AND the pre-mortem's domain lens for a `measurement` or `data-pipeline` spec; the directive loads the one the header's `Profile:` names |
 | Requirements conformance | `requirements-register.md` (the owner's orders; the spec's ledger answers it) |
 
 ## Using the kit in a new project

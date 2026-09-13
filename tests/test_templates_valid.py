@@ -2,8 +2,14 @@ import re
 from pathlib import Path
 
 from keel import __version__
-from keel.check_ready import _ANCHOR_RE, _anchor_shaped, _declared_kind, _field
-from keel.models import CHECK_IDS
+from keel.check_ready import (
+    _ANCHOR_RE,
+    _SPEC_PROFILES,
+    _anchor_shaped,
+    _declared_kind,
+    _field,
+)
+from keel.models import DOR_CHECK_IDS
 from keel.templates import list_templates, templates_root
 
 REQUIRED_SECTIONS = {
@@ -146,7 +152,40 @@ def test_the_reference_block_is_the_only_home_for_the_part_a_contract():
     # drops a letter would silently lose a fact the prose checklist used to carry as well.
     block = _reference_block()
     named = set(re.findall(r'^([ABRW]\d+) ', block, re.MULTILINE))
-    assert named == CHECK_IDS, f'reference block and check catalogue disagree: {named ^ CHECK_IDS}'
+    assert named == DOR_CHECK_IDS, (
+        f'reference block and DoR catalogue disagree: {named ^ DOR_CHECK_IDS}'
+    )
+
+
+def _directive_block() -> str:
+    """The fenced prompt body — the text every pre-mortem pass is dispatched with."""
+    text = (templates_root() / 'pre-mortem-prompt.md').read_text(encoding='utf-8')
+    return text.split('## Prompt', 1)[1].split('```')[1]
+
+
+def test_the_directive_selects_a_sheet_for_every_profile_the_gate_accepts():
+    """A lens that moved out of the always-on body still reaches the round that needs it.
+
+    Two halves, and a moved lens is only selected when both hold. A14 refuses a `Profile:`
+    token the gate cannot read; this asserts the other direction — every token it DOES accept
+    has a sheet under that name — and that the DISPATCHED directive block names the file, so
+    the sheet is loaded by the pass that reads the header rather than by an author remembering
+    the file exists. Set equality, not membership: a sheet with no profile is as dead as a
+    profile with no sheet.
+    """
+    block = _directive_block()
+    assert 'pre-mortem-profiles.md' in block, (
+        'the dispatched directive block never names the profile sheet — a lens moved there is '
+        'then selected by memory, which is the failure the move exists to avoid'
+    )
+    assert 'Profile:' in block, 'the directive never tells the pass which header field selects'
+    sheet = (templates_root() / 'pre-mortem-profiles.md').read_text(encoding='utf-8')
+    sheets = set(re.findall(r'^## Profile: `([a-z-]+)`', sheet, re.MULTILINE))
+    selectable = {profile for profile in _SPEC_PROFILES if profile != 'code'}
+    assert sheets == selectable, (
+        f'the profiles A14 accepts and the sheets that exist disagree: {sheets ^ selectable} — '
+        '`code` is the one profile that selects nothing and pays for nothing'
+    )
 
 
 def _spec_template_header() -> str:

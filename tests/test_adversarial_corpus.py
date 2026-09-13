@@ -32,7 +32,7 @@ import pytest
 
 from keel import __version__
 from keel.check_ready import check_spec_ready, spec_hash, spec_hash_without_amendments
-from keel.models import CHECK_IDS
+from keel.models import CHECK_IDS, DOR_CHECK_IDS
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures' / 'adversarial'
 CLEAN = FIXTURES / 'clean-series.md'
@@ -146,8 +146,13 @@ def test_every_finding_over_the_whole_corpus_carries_a_catalogued_id(tmp_path):
 def test_every_check_in_the_catalogue_has_a_positive_control(tmp_path):
     # The corpus is only a power probe if it covers the surface. A check with no mutant here is a
     # check whose silence in the field stays uninformative, so a gap must be a recorded decision.
+    #
+    # Scoped to the DoR catalogue, because every fixture here is scored by `check_spec_ready`: the
+    # decompose gate's D-letters are unreachable from this corpus by construction, not by omission,
+    # and carry their own controls in the same form (`tests/test_decompose_check.py`). Set equality
+    # against DOR_CHECK_IDS still makes a NEW DoR letter mandatory here.
     covered = {check for mutant in MUTANTS for check in mutant['fires']}
-    missing = CHECK_IDS - covered
+    missing = DOR_CHECK_IDS - covered
     assert missing == {'A3'}, (
         f'unexpected checks without a positive control: {sorted(missing)}. A3 is the recorded '
         'exception: its power is already proven in the field (7 fires across the 44-doc control '

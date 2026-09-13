@@ -25,7 +25,7 @@ makes the ADR-0017 compression hold instead of refilling.
 import re
 from pathlib import Path
 
-from keel.models import CHECK_IDS
+from keel.models import DOR_CHECK_IDS
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRIBUTING = ROOT / 'CONTRIBUTING.md'
@@ -130,7 +130,7 @@ def test_no_reference_block_line_sprawls():
 def test_every_reference_block_entry_is_a_catalogued_check():
     # The counterpart to test_templates_valid's "the block names every check": this one holds that
     # nothing ELSE parses as an entry, so the per-line cap cannot be dodged by an unlettered line.
-    assert {check for check, _ in _check_lines()} == CHECK_IDS
+    assert {check for check, _ in _check_lines()} == DOR_CHECK_IDS
 
 
 def test_contributing_states_the_same_caps():

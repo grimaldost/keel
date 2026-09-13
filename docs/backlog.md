@@ -508,11 +508,12 @@ recorded here explicitly. `[triage]`
   failing on its own planned writes (`2026-08-23-stg1-shell-phase2`, `2026-08-24-swap-report-pipe`,
   `2026-08-24-…-corrective-wave`, `2026-08-25-wave-ab-specs`; maintainer-local, unpublished).
 - **Change:** one convention line in `pre-mortem-prompt.md`.
-- **Ordering:** **gated by KEEL-B09.** The directive is 2,005 words against its 2,050 cap and
-  CONTRIBUTING holds net-new directive prose behind that item's pending adjudication. There is
-  headroom for this line, and using it would be exactly the "one clause per finding" growth the cap
-  exists to stop — the ablation is precisely the measurement of whether such clauses buy anything.
-  It lands the day the adjudication does, or as a rewrite that displaces.
+- **Ordering:** **gated by KEEL-B09.** The directive is 1,668 words against its 2,050 cap since
+  KEEL-B10 moved the domain lenses out, and CONTRIBUTING holds net-new directive prose behind that
+  item's pending adjudication. The headroom is now large and it changes nothing here: the gate was
+  never the cap. Using it would be exactly the "one clause per finding" growth the cap exists to
+  stop — the ablation is precisely the measurement of whether such clauses buy anything. It lands
+  the day the adjudication does, or as a rewrite that displaces.
 - **Effort:** S · **Source:** `[triage D5]`
 
 ### KEEL-B51 — `spec-hash` cannot tell an amendment from an edit
@@ -606,14 +607,18 @@ recorded here explicitly. `[triage]`
   one text living in four homes is the surface's dominant defect. Both hold only if the profile file
   is the *sole* home for what it absorbs — the deletions are the load-bearing half of this item, not
   the addition. KEEL-B06's budget covers the file from the day it lands.
-- **Status:** **partly shipped** 2026-08-12 (wave 2, 0.15.0). `src/keel/templates/pre-mortem-profiles.md`
-  exists and is selected by kind; the DoR sheet's seven inline eval/experiment Part-B items moved
-  into it and were **deleted** from Part B, which is the half that carries the load. The
-  pre-mortem prompt's own eval/experiment lenses (`pre-mortem-prompt.md:67-70` — baseline
-  expectation, instrument defeatability, experimental-design validity) are **not** folded yet: the
-  profile sheet restates them, so that text currently has two homes, which is exactly what this
-  item exists to end. The fold is a directive-body edit and waits on **KEEL-B09**'s pending
-  adjudication.
+- **Status:** **shipped** 2026-09-13 (0.20.0); kit half 2026-08-12 (wave 2, 0.15.0).
+  `src/keel/templates/pre-mortem-profiles.md` exists and is selected by the `Profile:` header; the
+  DoR sheet's seven inline eval/experiment Part-B items moved into it in 0.15.0 and were
+  **deleted** from Part B. The directive's own eval/experiment lenses — the baseline-expectation
+  sentence, instrument defeatability, experimental-design validity, the measured-unit causal path
+  and the four-probe table — are now deleted from `pre-mortem-prompt.md` too: **2,005 → 1,668
+  words**, the second home gone. What replaced them is four lines of selector, not a pointer in a
+  note: the always-on block reads the header's `Profile:` and loads the sheet it names, and
+  `test_templates_valid` holds the profiles A14 accepts and the sheets that exist to set equality,
+  so a lens cannot be selected by memory and a sheet cannot go unreferenced. Waiting on KEEL-B09
+  was a misreading of CONTRIBUTING's own rule, recorded here because it cost two rounds: B09 gates
+  *net-new* directive prose, and a deletion is the opposite of that.
 - **Effort:** M · **Source:** `[triage Q7a]` `[review]`
 
 ### KEEL-B11 — A data-migration profile with a data-level gate
@@ -1097,6 +1102,16 @@ recorded here explicitly. `[triage]`
   fixed per-PR questions. That report's Context block is already its specification.
 - **Ordering:** a singleton, and an expensive one to prescribe. Held for a second programme that
   runs the shape and reports what it caught — the same bar every other singleton here carries.
+- **Relationship to the Decompose gate (shipped 0.20.0).** Not superseded, and not the same check
+  moved earlier: **the two read different artifacts at different boundaries, and neither can
+  return the other's findings.** The Decompose gate reads the generated series *before* execution
+  and asks whether this DAG will build what the spec says; B58 reads integrated diffs, gate results
+  and notes *after* execution and asks whether the gates that went green certified anything. A
+  defect the decompose gate prevents never reaches B58's inputs, and a gate authored to observe
+  the wrong thing (KEEL-B52's class) is invisible to a reviewer reading prompts that have not run.
+  What the decompose gate does settle is the sequencing argument: it is mandatory because it is
+  cheap and preventive, while B58 stays optional and held, because an audit of work already merged
+  buys its findings at the late end of the cost-of-defect curve.
 - **Effort:** M · **Source:** `[triage D7]`
 
 ## Retire / fold candidates

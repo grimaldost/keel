@@ -3,8 +3,14 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-# The closed catalogue of check ids a finding may name (T0.1). A0-A12 and R1 are Part A's
-# structural checks, B1/B2 the certification pair, W1-W5 the warnings:
+# The closed catalogue of check ids a finding may name (T0.1), now in two gates rather than one.
+# `DOR_CHECK_IDS` is the Definition-of-Ready gate's catalogue (`check-ready`, the 2->3 boundary);
+# `DECOMPOSE_CHECK_IDS` is the Decompose exit gate's (`decompose-check`, the 3->4 boundary), which
+# reads an artifact that does not exist when the DoR gate runs. They are kept apart because each
+# gate's reference block, positive-control corpus and candidate counts are per gate: folding the
+# D-letters into the DoR sheet would put a check in a contract that never runs it.
+#
+# A0-A12 and R1 are Part A's structural checks, B1/B2 the certification pair, W1-W5 the warnings:
 #   W1 kit skew or an unstamped spec · W2 header Status currency · W3 basename expansion
 #   W4 B2's adoption nudge (no artifact named) · W5 B2's spec-hash mismatch
 #   W6 a fold-ledger row whose snippet resolves at one other line — repairable drift
@@ -14,7 +20,7 @@ from dataclasses import dataclass
 # neither be measured nor defended. A13 is the requirements ledger: a spec that declares a
 # register accounts for every order in it, and DEVIATED is the one disposition a session cannot
 # write for itself.
-CHECK_IDS = frozenset(
+DOR_CHECK_IDS = frozenset(
     {
         'A0',
         'A1',
@@ -43,6 +49,11 @@ CHECK_IDS = frozenset(
         'W7',
     }
 )
+# The Decompose exit gate: D1 the recorded SERIES review, D2 its saved artifact. The pair mirrors
+# B1/B2 deliberately — the same record-and-verify shape, one boundary later, over the artifact the
+# spec gate structurally cannot see.
+DECOMPOSE_CHECK_IDS = frozenset({'D1', 'D2'})
+CHECK_IDS = DOR_CHECK_IDS | DECOMPOSE_CHECK_IDS
 
 
 @dataclass(frozen=True, slots=True)

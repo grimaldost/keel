@@ -4,6 +4,103 @@ All notable changes to keel. Format: Keep a Changelog; versioning: SemVer. An en
 moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code — carries the
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 
+## [0.20.0] - 2026-09-13
+
+The method gated the spec and had no gate on the artifact that actually runs. It has one now — and
+it is paid for by the other row: the domain lenses leave the always-on pre-mortem directive for the
+profile sheet a spec's `Profile:` header already selects, so the body every pass is dispatched with
+drops from **2,005 to 1,668 words**. Both rows come from the 2026-09-13 triage (E11b, E3a); the
+second is the only row in that corpus backed by a controlled measurement — ten reviewers over a
+generated series returned 16 BLOCKER, 18 MAJOR and 14 MINOR findings for 17% of one pre-mortem
+round, three of them structural defects that 8.4M tokens across seven spec rounds could not reach,
+because they were defects in an artifact no phase read.
+
+### Added
+
+- **`keel decompose-check <spec>`** (consumer-affecting) — the Decompose phase's exit gate, at the
+  3→4 boundary.
+  **D1** holds the record (a named non-author reviewer, a terminal verdict, a saved artifact) and
+  **D2** holds the artifact to it (it exists, it is a saved pass, its `PREMORTEM-VERDICT:` agrees):
+  B1/B2's shape, one boundary later, over the artifact the DoR gate structurally cannot see. It is
+  a **second gate rather than four more Part-A checks** because the DoR sheet fixes the boundary —
+  `check-ready` is the exit gate of Specify and the entry gate of Decompose, so when it runs the
+  decomposition does not exist yet, and a DoR check over it could only fire on every well-formed
+  spec in the method. It does **not** read the series file: the DAG's format belongs to the
+  orchestrator that runs it (ADR-0003), so the method gates the review's record and the reviewer
+  names what it read inside the saved pass. A spec declaring `Kind: single-change` or
+  `Phases: … (Decompose: skipped)` crosses no such boundary: the gate passes with no applicable
+  check, which reads as `n/a` and never as a clean run.
+- **A `### Series review` block in the spec template**, inside `## Pre-mortem certification` and
+  deliberately so — that span is the one `spec_hash` removes, so recording the series verdict
+  cannot move the hash the design pass was certified against. A gate whose own record invalidated
+  a neighbouring certification is the W2 trap, where the gate's advice defeated the gate. Its
+  labels are prefixed (`Series verdict:`, never a second `Verdict:`) so B1 still reads exactly one
+  Verdict line and neither check can pick up the other's field.
+- **The decompose gate's positive-control corpus** (`tests/test_decompose_check.py`): one record
+  that fires nothing plus one minimal edit per check, asserted by set equality. It lives with the
+  gate rather than in `tests/fixtures/adversarial/`, because every fixture there is scored by
+  `check_spec_ready`, which does not run these checks — the adversarial corpus's coverage
+  assertion is now scoped to the DoR catalogue for the same reason, and a new DoR letter is still
+  mandatory there.
+- **The directive selects its own profile sheet.** Four lines of the always-on block read the
+  header's `Profile:` and load that sheet of `pre-mortem-profiles.md`, applying its items as
+  directives of the pass. `test_templates_valid` holds the profiles A14 accepts and the sheets
+  that exist to **set equality**, so a lens cannot be selected by memory and a sheet cannot go
+  unreferenced — the half that makes the move below safe. A `code` spec selects nothing and pays
+  for nothing.
+
+### Changed
+
+- **The domain lenses leave the always-on directive** (KEEL-B10, "partly shipped" since 0.15.0).
+  The baseline-expectation sentence, instrument defeatability, experimental-design validity, the
+  measured-unit causal path and the four-probe table are **deleted** from `pre-mortem-prompt.md`;
+  the profile sheet's reviewer items already restated all but the probe table, so the deletion
+  ends a second home rather than moving one. The sheet gains that table under "Which probe fired",
+  the causal path's grep-is-both-a-defeat-and-a-side-channel clause, and one line stating that a
+  sheet's items ARE the pass's directives for a spec of that profile. `test_premortem_agent` now
+  asserts one home per clause across all three bodies, in both directions.
+  **What this does not do:** it frees 337 words and lifts no gate. CONTRIBUTING holds *net-new*
+  directive prose behind KEEL-B09's unrun adjudication, and headroom was never that gate's
+  question — the nine directive rows parked behind it are parked still, and the four parked in the
+  DoR sheet and the spec-template's notes were never behind it at all. What changes is that a
+  displacing rewrite, which B09 does not gate, no longer has to be word-for-word neutral to fit.
+- **The Decompose phase's exit gate, in doctrine and the phases reference.** The SERIES pass stops
+  being an operating note scaled by blast radius and becomes the gate that closes phase 3, reading
+  the GENERATED series against the spec. Blast-radius scaling is what made it optional, and a
+  review a wave decides it does not need is a review nothing runs — this repository's own
+  most-repeated finding, recorded about a verb that shipped and that nothing invoked. The round
+  economy is untouched: it sizes what happens inside a pass, not whether the pass runs.
+- **KEEL-B58 is not superseded by it**, and the backlog row now says why in full: the two read
+  different artifacts at different boundaries and neither can return the other's findings. The
+  decompose gate reads the generated series before execution and asks whether this DAG will build
+  what the spec says; B58 reads integrated diffs and gate results afterwards and asks whether the
+  gates that went green certified anything. The decompose gate is mandatory because it is cheap and
+  preventive; B58 stays optional and held, buying its findings at the late end of the
+  cost-of-defect curve.
+- **The check catalogue is two catalogues** (`DOR_CHECK_IDS`, `DECOMPOSE_CHECK_IDS`, with
+  `CHECK_IDS` their union). Each gate's reference block, candidate counts and positive controls are
+  per gate; folding the D-letters into the DoR sheet would have put a check in a contract that
+  never runs it. `gate-health` reads the DoR catalogue, which is what the ledger holds.
+- **`/keel-premortem` and the bundled agent name the series as a subject.** The command carries the
+  SERIES dispatch, the save path (`<spec-stem>.series-premortem.md`) and the gate to run; the agent's
+  task names the artifact under review instead of assuming the spec. What the pass should attack in
+  a series is not restated in either — the directive's SERIES-pass checklist has owned it since
+  0.7.0.
+- **Prose displacements, per the body-budget rule.** The agent wrapper (484 → 499 of 550) displaces
+  its failure-mode illustration — "the refactor broke something, scope sprawled, or the result was
+  incoherent across PRs" — which is the directive's sentence, carried twice. The spec template
+  gains **no** contract note for the new block (its notes stand at 499 of 500): the grammar lives
+  in D1's rejection, which is where the field reads it, and six rejections were rewritten for that
+  reason one release ago.
+
+### Known gaps, named
+
+- `decompose-check` appends nothing to the hit-rate ledger. Its `mode` is a closed enum over the
+  DoR gate's two modes, so a third is a schema bump that belongs with the next ledger change; until
+  then D1/D2 have no fire rate and `gate-health` says so by listing the DoR catalogue only.
+- Nothing yet asserts that the series reviewer differs from the spec's reviewer. D1 requires a
+  named reviewer, as B1 does, and the same residual trust is named rather than hidden (ADR-0002).
+
 ## [0.19.0] - 2026-09-13
 
 The fold ledger's row says which section the fold went into, and the gate now reads it. A12

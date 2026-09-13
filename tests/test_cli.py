@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 
 from keel import __version__
 from keel.cli import app
-from keel.models import CHECK_IDS
+from keel.models import DOR_CHECK_IDS
 
 runner = CliRunner()
 _CLI_REFERENCE = Path(__file__).resolve().parents[1] / 'docs' / 'cli-reference.md'
@@ -365,7 +365,7 @@ def test_the_summary_counts_applicable_checks_not_the_catalogue(tmp_path):
     result = runner.invoke(app, ['check-ready', str(spec)])
     summary = next(line for line in result.output.splitlines() if line.startswith('keel '))
     applicable = int(summary.split('—')[1].split()[0])
-    assert 0 < applicable < len(CHECK_IDS)
+    assert 0 < applicable < len(DOR_CHECK_IDS)
 
 
 def test_a_gate_with_no_probes_still_names_the_version(tmp_path):
@@ -374,3 +374,39 @@ def test_a_gate_with_no_probes_still_names_the_version(tmp_path):
     bindings.write_text('# Method bindings\n\nno table here\n', encoding='utf-8')
     result = runner.invoke(app, ['bind-check', str(bindings)])
     assert f'keel {__version__}' in result.output
+
+
+def test_decompose_check_fails_when_no_series_review_is_recorded(tmp_path):
+    # The gate's whole point: a decomposition nobody read does not reach execution. READY_SPEC is
+    # a spec that PASSES the DoR gate, which is exactly the state this one must still refuse.
+    spec = tmp_path / 'spec.md'
+    spec.write_text(READY_SPEC, encoding='utf-8')
+    result = runner.invoke(app, ['decompose-check', str(spec)])
+    assert result.exit_code == 1
+    assert 'series review' in result.output.lower()
+    assert 'Series verdict' in result.output, 'the rejection does not print the grammar it parses'
+
+
+def test_decompose_check_passes_on_a_recorded_review(tmp_path):
+    spec = tmp_path / 'spec.md'
+    spec.write_text(
+        READY_SPEC
+        + '\n### Series review\n\n'
+        + '- **Series reviewer:** a second non-author\n'
+        + '- **Series verdict:** CERTIFIED\n'
+        + '- **Series artifact:** spec.series-premortem.md\n',
+        encoding='utf-8',
+    )
+    (tmp_path / 'spec.series-premortem.md').write_text(
+        'PREMORTEM-VERDICT: CERTIFIED\n', encoding='utf-8'
+    )
+    result = runner.invoke(app, ['decompose-check', str(spec)])
+    assert result.exit_code == 0, result.output
+    assert 'OK' in result.output
+    assert f'keel {__version__}' in result.output
+
+
+def test_decompose_check_missing_spec_exits_2(tmp_path):
+    result = runner.invoke(app, ['decompose-check', str(tmp_path / 'nope.md')])
+    assert result.exit_code == 2
+    assert 'not found' in result.output.lower()

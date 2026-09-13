@@ -180,6 +180,7 @@ planned or absent. Turned on the repo itself:
 | The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
 | Every released version carries a tag — annotated from v0.18.0, its section locked once tagged | enforced | `tests/test_release_flow.py`; CI's `check` job checks out full history and tags so the assertions run on every PR, and the skip protects only a genuinely tagless clone |
+| The generated series is reviewed before execution (`keel decompose-check`) | available, operator-run | `keel decompose-check` (D1/D2), tested in `tests/test_decompose_check.py` with its own positive-control corpus — the Decompose phase's exit gate, run at the 3→4 boundary by the operator or the orchestrator, not by this repo's CI (which has no series to review) |
 | All method-binding slots filled (`keel bind-check`) | available, operator-run | `keel bind-check` (ADR-0018), tested in `tests/test_bindings.py` — a CLI gate run at phase start, not wired into this repo's CI |
 | Wave cost drift (`keel budget-drift`) | absent | a documented stub that exits 2; its disposition is removal, sequenced behind a bound orchestrator's live measurement window (backlog KEEL-B30) |
 | An edit-time invariant hook | absent | consciously unbound (`docs/method-bindings.md`); the empty `hooks.json` placeholder that claimed the slot was deleted (KEEL-B29) |

@@ -2,7 +2,7 @@
 
 - **Date:** YYYY-MM-DD
 - **Status:** draft | ready (DoR passed) | in progress | done
-- **Kit:** 0.19.0
+- **Kit:** 0.20.0
 - **Kind:** series
 - **Profile:** code
 - **Audience:** <who/what reads this>
@@ -152,6 +152,12 @@ brackets. The ledger is the FIRST table here.*
 
 | Finding | Target section | artifact:line | Confirmed |
 |---|---|---|---|
+
+### Series review
+
+- **Series reviewer:**
+- **Series verdict:** not yet reviewed
+- **Series artifact:**
 
 ---
 *Most Definition-of-Ready checks pass by construction here — numbered sections, per-section

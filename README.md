@@ -37,6 +37,7 @@ uvx --from git+https://github.com/grimaldost/keel keel --help
 
 - `keel init ./my-kit` — drop the template kit (DoR, DoD, checklists, spec/ADR templates) into a project.
 - `keel check-ready spec.md` — Definition-of-Ready gate: spec well-formedness + a recorded blind pre-mortem.
+- `keel decompose-check spec.md` — Decompose exit gate: the generated series was reviewed before anything ran it.
 - `/keel-apply` — have an agent set up and run the method here.
 
 The full first loop, with the exact commands in order:
