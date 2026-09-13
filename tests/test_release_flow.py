@@ -35,6 +35,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.test_plugin_manifest import VERSION_SITES, read_versions
+
 ROOT = Path(__file__).resolve().parents[1]
 FIRST_PUBLIC_RELEASE = (0, 4, 0)
 # The annotated-tag rule starts at the first release after the v0.17.0 mistag.
@@ -84,13 +86,17 @@ def _section_entries(changelog_text: str, version: str) -> list[str]:
     return entries
 
 
-def _load_predicate():
-    path = ROOT / 'scripts' / 'changelog_currency.py'
-    spec = importlib.util.spec_from_file_location('changelog_currency', path)
+def _load(script: str):
+    path = ROOT / 'scripts' / script
+    spec = importlib.util.spec_from_file_location(path.stem, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _load_predicate():
+    return _load('changelog_currency.py')
 
 
 def _changelog_versions() -> list[tuple[int, int, int]]:
@@ -249,3 +255,56 @@ def test_a_tagged_section_matches_its_tag():
             'closed by its tag; post-tag work belongs under the next heading '
             f'(tagged entries: {len(tagged)}, current: {len(current)})'
         )
+
+
+# --- E9a: the bump reads the list the gate enforces --------------------------
+#
+# The version lock proves the sites AGREE; moving them was hand work, found one site per run.
+# `scripts/bump_version.py` imports the registry from the test that enforces it, so a site added
+# to the gate is a site the bump writes, with no second list to keep in step.
+
+
+def _bump_module():
+    return _load('bump_version.py')
+
+
+def _staged_tree(tmp_path: Path) -> Path:
+    """A copy of every version site, at the paths the registry names."""
+    for site in VERSION_SITES:
+        target = tmp_path / site.path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text((ROOT / site.path).read_text(encoding='utf-8'), encoding='utf-8')
+    return tmp_path
+
+
+def test_the_bump_writes_every_writable_site(tmp_path):
+    tree = _staged_tree(tmp_path)
+    moved, left = _bump_module().bump(tree, '9.9.9')
+    versions = read_versions(tree)
+    authored = {site.label for site in VERSION_SITES if site.authored}
+    assert {label for label, value in versions.items() if value == '9.9.9'} == (
+        set(versions) - authored
+    ), versions
+    assert len(moved) == len(VERSION_SITES) - len(authored)
+    assert any('CHANGELOG' in line for line in left)
+
+
+def test_the_bump_leaves_the_changelog_heading_to_its_author(tmp_path):
+    # Rewriting the newest heading's number renames the PREVIOUS release when no section has been
+    # written yet — the one destructive edit a bump script could make.
+    tree = _staged_tree(tmp_path)
+    before = (tree / 'CHANGELOG.md').read_text(encoding='utf-8')
+    _bump_module().bump(tree, '9.9.9')
+    assert (tree / 'CHANGELOG.md').read_text(encoding='utf-8') == before
+
+
+def test_the_bump_is_idempotent(tmp_path):
+    tree = _staged_tree(tmp_path)
+    _bump_module().bump(tree, '9.9.9')
+    moved, _ = _bump_module().bump(tree, '9.9.9')
+    assert moved == []
+
+
+def test_the_bump_refuses_anything_that_is_not_a_version():
+    assert _bump_module().main(['0.19']) == 2
+    assert _bump_module().main([]) == 2
