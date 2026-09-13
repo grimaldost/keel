@@ -28,20 +28,28 @@ from keel import __version__
 ROOT = Path(__file__).resolve().parents[1]
 AGENT = ROOT / 'agents' / 'pre-mortem-review.md'
 PROMPT = ROOT / 'src' / 'keel' / 'templates' / 'pre-mortem-prompt.md'
+PROFILES = ROOT / 'src' / 'keel' / 'templates' / 'pre-mortem-profiles.md'
 
 TEMPLATE_REF = '${CLAUDE_PLUGIN_ROOT}/src/keel/templates/pre-mortem-prompt.md'
 
-# Directive clauses that used to be carried verbatim in both files. Each must now appear in the
-# template and NOT in the agent — one home per directive. Sampled across the directive layers
-# (DC1 grounding, DC2 mechanical consumers, DC3 the fold, the measurement lane) so a partial
-# re-inlining is caught, not only a wholesale one.
-DIRECTIVE_CLAUSES = (
+# Directive clauses and the ONE kit body that carries each. Sampled across the directive layers
+# (DC1 grounding, DC2 mechanical consumers, DC3 the fold) and across the always-on/selected split,
+# so a partial re-inlining is caught, not only a wholesale one.
+#
+# The always-on directive and the profile sheet are now two homes for two audiences, not one home
+# and a restatement: a lens that only a `measurement` spec pays for lives in the sheet its
+# `Profile:` selects (KEEL-B10), and the same clause appearing in both would put the reader back
+# where the split started. So the assertion runs in both directions over both files.
+PROMPT_CLAUSES = (
     'the scope read (src AND tests AND docs, and sibling repos) must be named',
     "the SECOND pass attacks the FIRST pass's folds",
-    'a store the measured call recomputes live',
     'a wave that plans no regeneration can still leave a mirror stale',
     'the concrete input the dependent actually consumes',
+)
+PROFILE_CLAUSES = (
+    'the measured call recomputes live',
     'a grep of the ground truth is both a defeat and a side channel',
+    'the cheapest way an agent sidesteps the planted difficulty',
 )
 
 # Output-contract invariants the agent DOES carry: a caller greps these, so they must survive in
@@ -86,12 +94,34 @@ def test_agent_dispatches_to_the_single_source_template():
 
 def test_directives_live_in_the_template_only():
     agent, prompt = _normalized(AGENT).lower(), _normalized(PROMPT).lower()
-    for clause in DIRECTIVE_CLAUSES:
+    for clause in PROMPT_CLAUSES:
         needle = re.sub(r'\s+', ' ', clause).lower()
         assert needle in prompt, f'template lost the directive clause: {clause!r}'
         assert needle not in agent, (
             f'agent re-carries a directive the template owns: {clause!r} — the fold is refilling'
         )
+
+
+def test_the_domain_lenses_live_in_the_profile_sheet_only():
+    """The moved lenses have one home each, and it is the sheet a `Profile:` selects.
+
+    The always-on directive is the body every pass pays for; a lens only one profile needs
+    belongs in the sheet that profile selects. A clause in both is the duplication the move
+    exists to end, and a clause in neither is a lens that silently stopped being dispatched.
+    """
+    agent, prompt = _normalized(AGENT).lower(), _normalized(PROMPT).lower()
+    profiles = _normalized(PROFILES).lower()
+    for clause in PROFILE_CLAUSES:
+        needle = re.sub(r'\s+', ' ', clause).lower()
+        assert needle in profiles, (
+            f'the profile sheet lost the lens clause: {clause!r} — it was moved out of the '
+            'always-on directive to live here, so losing it here retires it entirely'
+        )
+        assert needle not in prompt, (
+            f'the always-on directive re-carries a profile lens: {clause!r} — every `code` spec '
+            'pays for it again, which is what the move displaced'
+        )
+        assert needle not in agent, f'agent carries a directive the kit owns elsewhere: {clause!r}'
 
 
 def test_agent_keeps_the_output_contract_tokens():

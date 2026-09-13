@@ -35,6 +35,11 @@ most likely first. For each:
 
 Do not propose implementation. Only changes to the spec/manifest/prompts.
 
+Profile lens — load it before you read the spec: the header's `Profile:` field selects one sheet
+of `pre-mortem-profiles.md` (`measurement`, `data-pipeline`). READ that sheet and apply its items
+as directives of this pass, naming in your prose which profile you applied and which of its probes
+fired. A `code` profile, or a header declaring none, selects no sheet and pays for none.
+
 Ground every claim: read the referenced code and cite file:line; default skeptical.
 Apply these grounding checks (the failure class the method most often misses):
 - For each "reuse / port / model-on the proven X" instruction, READ X and confirm it
@@ -64,21 +69,8 @@ partial, stale, moved, or wrong-shaped. Attack each:
 - Stress-test recorded predictions: a predicted signal, an expected outcome, or a "this
   discriminates" claim recorded in the spec is a claim to ATTACK, not a fact — could the quantity
   predicted to vary actually floor/ceiling (every arm passes, or every arm fails) so the run
-  measures nothing? For an eval/experiment spec, each measured criterion carries a one-line baseline
-  expectation, and the feasibility probe below runs before any internal-validity attack.
-- Instrument defeatability: for an eval/experiment spec, ask the cheapest way an agent sidesteps the planted difficulty (a tool, a shortcut, a grep) so the run measures nothing.
-- Experimental-design validity (measurement/experiment specs): attack the design AS an experiment, not just the subject — name the estimand and the unit of analysis (the per-item delta vs the aggregate); are there enough reps to detect the minimum effect worth detecting; is the comparison blinded and are confounds held constant? is there a correctness oracle distinct from "it ran green"? was the analysis plan pre-registered, or chosen after seeing results?
-- Measured-unit causal path & capability (specs that measure an agent/process): trace the causal arrow the study assumes from BOTH ends against code, not the spec's summary. (a) inert-treatment — does the measured path READ what the treatment changes? a store the measured call recomputes live (or never reads) makes the treatment inert. (b) side channel — enumerate every capability the measured unit has BEYOND the intended input (tools, network, filesystem + cwd, prior/session state) and confirm none is a side channel to the ground truth that swamps the independent variable (a grep of the ground truth is both a defeat and a side channel). (c) enforcement mechanism — every isolation / safety / leakage invariant the spec asserts names a buildable enforcement mechanism claimed by a numbered section/PR, not a bare assertion and not a smoke that TESTS a jail no PR CREATES.
-
-Those four eval/experiment probes ask different questions, and a hit on one is not a hit on
-another — run each, and name which one fired:
-
-| Probe | The question | A hit means |
-|---|---|---|
-| Feasibility (FIRST) | does the empirical record (prior-run data/ledger, the reused instrument) hold the variation the study measures? | null on these instruments — the round short-circuits here |
-| Power | are there enough reps to detect the minimum effect worth detecting? | a 1-rep delta is noise, not a result |
-| Defeatability | what is the cheapest way an agent sidesteps the planted difficulty? | null, for a reason the design never controlled |
-| Causal path | does the measured path READ the treatment, and does any capability beyond the intended input reach the ground truth? | mis-built (inert treatment) or CONFOUNDED (side channel) — neither is null |
+  measures nothing? A spec that MEASURES something carries more of this attack in its profile
+  sheet, feasibility first.
 
 Mechanical consumers (DC2) — the spec models the logical design, but mechanical processes consume
 the artifact too:

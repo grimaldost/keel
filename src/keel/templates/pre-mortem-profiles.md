@@ -7,6 +7,12 @@ that names it, so a `code` spec's author and reviewer never pay for any of it. O
 what lives here does not also live in `spec-template.md` or `definition-of-ready.md`, which point
 here instead.
 
+**A sheet's reviewer items are also the pre-mortem's directives for a spec of that profile.** The
+always-on directive reads the header's `Profile:` and loads the sheet it names
+(`pre-mortem-prompt.md`), so the pass applies each item below rather than only certifying it
+afterwards — the domain lenses used to sit in that always-on body, where every `code` spec paid
+for them and no mechanism selected them (KEEL-B10).
+
 ## Profile: `measurement`
 
 ### The design sheet (paste into the spec)
@@ -53,11 +59,26 @@ axes the design sheet names, and they are ordered — feasibility short-circuits
       what the treatment changes (a treatment the measured call recomputes live, or never reads, is
       inert — mis-built, not null), and the measured unit's capabilities beyond the intended input
       (tools, network, filesystem and cwd, prior/session state) include no side channel to the
-      ground truth. A side channel CONFOUNDS the result — distinct from defeatability's null.
+      ground truth — a grep of the ground truth is both a defeat and a side channel. A side channel
+      CONFOUNDS the result — distinct from defeatability's null.
 - [ ] **Every isolation / safety / leakage invariant names a buildable enforcement mechanism**
       claimed by a numbered §/PR — not a bare assertion, and not a smoke test that tests a jail no
       PR creates.
 - [ ] **The analysis plan is pre-registered** — fixed before results are seen, not chosen after.
+
+### Which probe fired
+
+The items above ask different questions and a hit on one is not a hit on another, so the pass runs
+each and names which one fired. A round that reports "the design is weak" without this distinction
+cannot be acted on: three of the four outcomes have different remedies, and one of them is not a
+null at all.
+
+| Probe | The question | A hit means |
+|---|---|---|
+| Feasibility (FIRST) | does the empirical record (prior-run data/ledger, the reused instrument) hold the variation the study measures? | null on these instruments — the round short-circuits here |
+| Power | are there enough reps to detect the minimum effect worth detecting? | a 1-rep delta is noise, not a result |
+| Defeatability | what is the cheapest way an agent sidesteps the planted difficulty? | null, for a reason the design never controlled |
+| Causal path | does the measured path READ the treatment, and does any capability beyond the intended input reach the ground truth? | mis-built (inert treatment) or CONFOUNDED (side channel) — neither is null |
 
 ## Profile: `data-pipeline`
 
