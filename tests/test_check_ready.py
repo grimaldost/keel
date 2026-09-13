@@ -547,6 +547,104 @@ def test_fold_ledger_resolves_passes_a12(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
+# --- E1a: the row's target section is part of the assertion ------------------
+#
+# A12 resolved the anchor and stopped, so a row could name §1 and be confirmed against a blank
+# line, a heading, or a line three sections away — the row's own `Target` cell was never read.
+# Two programmes measured the consequence (8 of 35 rows wrong, then 90 of 125) while the gate
+# printed OK. The blank-span refusal holds for any target file; membership and the heading
+# refusal hold where the named span exists, which is the spec that carries the ledger.
+
+
+def _line_of(text: str, needle: str) -> int:
+    """The 1-based line number of the one line carrying `needle` (the fixture's own coordinate)."""
+    hits = [n for n, line in enumerate(text.splitlines(), 1) if needle in line]
+    assert len(hits) == 1, f'{needle!r} is on {len(hits)} lines; the fixture coordinate is unstable'
+    return hits[0]
+
+
+def test_fold_ledger_row_anchored_on_a_blank_line_fails_a12(tmp_path):
+    # The measured shape: the coordinate resolves, and confirms nothing.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    blank = _line_of(spec, 'Introduce `src/widget.py`') + 2  # the blank line before `### §2`
+    assert spec.splitlines()[blank - 1].strip() == ''
+    result = check_spec_ready(_write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{blank}')))
+    assert not result.passed, 'a fold confirmed against a blank line passed the gate'
+    assert any(v.check == 'A12' and 'blank' in v.message.lower() for v in result.violations), [
+        (v.check, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_row_anchored_outside_its_named_section_fails_a12(tmp_path):
+    # The row says §1; the anchor lands in §2. Both resolve, and only one of them is the record.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    elsewhere = _line_of(spec, 'Expose the widget.')  # §2's body
+    result = check_spec_ready(
+        _write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{elsewhere}'))
+    )
+    assert not result.passed, 'a fold recorded against another section passed the gate'
+    assert any(v.check == 'A12' and '§2' in v.message for v in result.violations), [
+        (v.check, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_row_anchored_on_another_sections_heading_fails_a12(tmp_path):
+    # The drifted row's other landing place: a heading that belongs to some other section.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    heading = _line_of(spec, '### §2 Wire the widget into the CLI')
+    result = check_spec_ready(_write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{heading}')))
+    assert not result.passed, "a fold confirmed against another section's heading passed the gate"
+    assert any(v.check == 'A12' and 'heading of §2' in v.message for v in result.violations), [
+        (v.check, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_row_anchored_on_its_own_section_heading_passes_a12(tmp_path):
+    # The boundary this repository's own ledgers drew before the rule existed: three of its specs
+    # anchor every row at the heading of the section the row names. That is a correct record of
+    # where the fold went, and a check that accused it would be reporting its own convention.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    heading = _line_of(spec, '### §1 Add the widget module')
+    result = check_spec_ready(_write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{heading}')))
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_row_inside_its_named_section_passes_a12(tmp_path):
+    # The control: the same shape, landed where the row says it landed.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    inside = _line_of(spec, 'Introduce `src/widget.py`')
+    result = check_spec_ready(_write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{inside}')))
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_row_naming_no_section_keeps_the_anchor_contract(tmp_path):
+    # Verify-when-present: a row that names no §N presents no membership candidate and is held to
+    # the anchor contract alone — silence here, not an invented target.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | (none) | `spec.md:LINE` | yes |\n')
+    elsewhere = _line_of(spec, 'Expose the widget.')
+    result = check_spec_ready(
+        _write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{elsewhere}'))
+    )
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_row_anchored_on_a_blank_line_of_another_file_fails_a12(tmp_path):
+    # The blank refusal is not a spec-only rule: a fold confirmed against an empty line of the
+    # module it changed confirms nothing there either.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\n\nline three\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any(v.check == 'A12' and 'blank' in v.message.lower() for v in result.violations)
+
+
 # --- T1.4: a confirmation cell may name a RANGE ------------------------------
 #
 # The standing field ask: a reviewer confirming a fold that spans several lines had to either
@@ -1731,3 +1829,96 @@ def test_an_absent_sibling_is_never_expanded_to_an_in_repo_twin_a6(tmp_path):
     left = [v for v in result.violations if 'leaves this repository' in v.message]
     assert left, [(v.where, v.message) for v in result.violations]
     assert not any('src/mod.py' in w.message for w in result.warnings), result.warnings
+
+
+# --- E2a/E2b: a rejection names the shape it wants ---------------------------
+#
+# Six distinct field grammars were discovered by iteration in one rite, each costing its own
+# run-read-fix cycle: the Operator line, the concept-map header, the ledger row, the artifact's
+# verdict line, the kit stamp. The gate parses a form and, until now, only ever said what was
+# wrong with what it read. A message that names the form it accepts ends the cycle in one run.
+
+
+def test_the_operator_rejection_prints_the_line_it_parses_b1(tmp_path):
+    # The parenthetical is the trap: `_field` reads `- **Label:** value`, so a label carrying a
+    # gloss in brackets is not the field at all, and "names no Operator" was true and unhelpful.
+    spec = READY_SPEC.replace(
+        '- **Verdict:** CERTIFIED',
+        '- **Verdict:** CONDITIONAL-CERTIFY\n- **Operator (the named owner):** Grimaldo',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    message = ' '.join(v.message for v in result.violations if v.check == 'B1')
+    assert '- **Operator:**' in message
+    assert 'parenthes' in message.lower()
+
+
+def test_the_verdict_rejection_prints_the_line_it_parses_b1(tmp_path):
+    spec = READY_SPEC.replace('- **Verdict:** CERTIFIED', '- **Verdict:** looks good to me')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert any('- **Verdict:** CERTIFIED' in v.message for v in result.violations)
+
+
+def test_the_reviewer_rejection_prints_the_line_it_parses_b1(tmp_path):
+    spec = READY_SPEC.replace('- **Reviewer:** review-panel (non-author)', '')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert any('- **Reviewer:**' in v.message for v in result.violations)
+
+
+def test_the_concept_map_rejection_prints_its_header_a5(tmp_path):
+    # A header whose module column does not name both words is read as a data row, and the gate
+    # then complained that the word "Module" is not a path.
+    spec = READY_SPEC.replace('| Module / file it lives in |', '| Module |')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('| Concept | Module / file |' in v.message for v in result.violations)
+
+
+def test_the_fold_ledger_rejection_prints_the_row_shape_a12(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | folded | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any(
+        '| Finding | Target section | artifact:line | Confirmed |' in v.message
+        for v in result.violations
+    )
+
+
+def test_the_artifact_rejection_prints_the_verdict_line_it_reads_b2(tmp_path):
+    (tmp_path / 'premortem.md').write_text('# artifact\n\nno verdict here\n', encoding='utf-8')
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('premortem.md')))
+    assert any('PREMORTEM-VERDICT: CERTIFIED' in v.message for v in result.violations)
+
+
+def test_the_unstamped_warning_says_what_a_stamp_must_look_like_w1(tmp_path):
+    # A `v`-prefixed stamp parses as no stamp at all: the value must be a bare x.y.z.
+    spec = READY_SPEC.replace(f'- **Kit:** {__version__}', f'- **Kit:** v{__version__}')
+    result = check_spec_ready(_write(tmp_path, spec))
+    warning = next(w for w in result.warnings if w.check == 'W1')
+    assert 'bare' in warning.message and f'`- **Kit:** {__version__}`' in warning.message
+
+
+# --- E5a: a build output is a copy too ---------------------------------------
+#
+# `seeds/stg1_instrument.csv:2` resolved by unique basename into dbt's compiled `target/run/…`
+# copy and passed as a WARN. A build tree is the same class `dbt_packages/` and `vendor/` already
+# occupy: a file nobody edits, uniquely matched, and always the wrong answer.
+
+
+@pytest.mark.parametrize('tree', ['target', 'build', 'dist', '_build'])
+def test_build_output_only_basename_match_is_refused_and_names_the_copy_a6(tmp_path, tree):
+    (tmp_path / '.git').mkdir()
+    generated = tmp_path / tree / 'run' / 'models'
+    generated.mkdir(parents=True)
+    (generated / 'instruments.sql').write_text('one\ntwo\n', encoding='utf-8')
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', 'Introduce `src/widget.py`. See `instruments.sql:2`.'
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    refused = [v for v in result.violations if 'instruments.sql' in v.message]
+    assert refused, [(v.where, v.message) for v in result.violations]
+    assert f'{tree}/run/models/instruments.sql' in refused[0].message
+    assert 'cite the source it was copied from' in refused[0].message
+    assert not any('instruments.sql' in w.message for w in result.warnings), result.warnings

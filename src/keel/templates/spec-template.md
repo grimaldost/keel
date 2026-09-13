@@ -2,7 +2,7 @@
 
 - **Date:** YYYY-MM-DD
 - **Status:** draft | ready (DoR passed) | in progress | done
-- **Kit:** 0.18.1
+- **Kit:** 0.19.0
 - **Kind:** series
 - **Profile:** code
 - **Audience:** <who/what reads this>
@@ -145,10 +145,10 @@ certification; it does not prove the pass was blind.*
 ### Fold ledger
 
 *Required when the certification claims a non-trivial fold (R1); a clean certify dozes. One row per
-folded finding. A12 holds each `artifact:line` — or `artifact:lo-hi` — to a resolving anchor:
-recorded against a real line, not that it is right. A backticked snippet after it is verified
-against those lines, and a `.py` range must close its brackets. Header only and A12 dozes; the
-ledger is the FIRST table under this heading.*
+folded finding. A12 holds each `artifact:line` (or `artifact:lo-hi`) to an anchor that resolves onto
+a non-blank line and — pointing into this spec — inside the `§N` the row names (heading included).
+A backticked snippet after it is verified against those lines; a `.py` range must close its
+brackets. The ledger is the FIRST table here.*
 
 | Finding | Target section | artifact:line | Confirmed |
 |---|---|---|---|

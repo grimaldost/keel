@@ -6,6 +6,8 @@ somewhere the fold never happened. Every refusal below is a case where the corre
 guess, and each is reported by name rather than silently skipped.
 """
 
+import subprocess
+
 from typer.testing import CliRunner
 
 from keel.check_ready import check_spec_ready, spec_hash
@@ -178,3 +180,148 @@ def test_cli_body_flag_warns_that_the_hash_moved(tmp_path):
 
 def test_cli_missing_spec_exits_two(tmp_path):
     assert runner.invoke(app, ['re-anchor', str(tmp_path / 'nope.md')]).exit_code == 2
+
+
+# --- E1b: repair by content, for the shape the template actually emits -------
+#
+# The snippet strategy cannot touch a row the template produces: its ledger block calls the
+# backticked snippet optional, so two programmes hit a drifted ledger with no snippet to repair
+# from and wrote the same throwaway difflib script (8 of 35 rows wrong, then 90 of 125). The
+# content the row cited is recoverable from the tree it was written against, which is what a git
+# ref is; `--by-content <ref>` reads the line it cited THEN and finds where that line sits now.
+
+
+def _git(tmp_path, *args):
+    return subprocess.run(
+        ['git', '-C', str(tmp_path), *args],
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+        check=True,
+    )
+
+
+def _committed_spec(tmp_path, rows, module=MODULE):
+    """A real one-commit repo: the spec and its module as the ledger was written against them."""
+    (tmp_path / 'mod.py').write_text(module, encoding='utf-8')
+    spec = tmp_path / 'spec.md'
+    spec.write_text(SPEC_HEAD + rows, encoding='utf-8')
+    _git(tmp_path, 'init', '-q')
+    _git(tmp_path, 'add', '-A')
+    _git(
+        tmp_path,
+        '-c',
+        'user.email=t@example.invalid',
+        '-c',
+        'user.name=test',
+        'commit',
+        '-qm',
+        'the tree the ledger was anchored against',
+    )
+    return spec
+
+
+SNIPPETLESS = '| FM-1 | §1 | mod.py:6 | yes |\n'
+
+
+def test_by_content_repoints_a_snippetless_unbackticked_row(tmp_path):
+    spec = _committed_spec(tmp_path, SNIPPETLESS)
+    (tmp_path / 'mod.py').write_text('# two\n# new\n' + MODULE, encoding='utf-8')
+    report = reanchor(spec, by_content='HEAD')
+    assert [(r.anchor, r.corrected) for r in report.applied] == [('mod.py:6', 'mod.py:8')]
+    assert '| mod.py:8 |' in spec.read_text(encoding='utf-8')
+
+
+def test_by_content_repoints_a_row_anchored_into_the_spec_itself(tmp_path):
+    # The measured case: a self-anchored ledger, and a later fold that inserts above it.
+    rows = '| FM-1 | §1 | spec.md:7 | yes |\n'
+    spec = _committed_spec(tmp_path, rows)
+    spec.write_text(
+        spec.read_text(encoding='utf-8').replace('# Spec', '<!-- a fold -->\n# Spec'),
+        encoding='utf-8',
+    )
+    report = reanchor(spec, by_content='HEAD')
+    assert [(r.anchor, r.corrected) for r in report.applied] == [('spec.md:7', 'spec.md:8')]
+
+
+def test_by_content_repairs_a_range_row(tmp_path):
+    # The one repair the snippet strategy refuses outright: both ends move by content.
+    spec = _committed_spec(tmp_path, '| FM-1 | §1 | `mod.py:6-8` | yes |\n')
+    (tmp_path / 'mod.py').write_text('# one\n' + MODULE, encoding='utf-8')
+    report = reanchor(spec, by_content='HEAD')
+    assert [(r.anchor, r.corrected) for r in report.applied] == [('mod.py:6-8', 'mod.py:7-9')]
+
+
+def test_by_content_refuses_a_line_that_no_longer_exists(tmp_path):
+    spec = _committed_spec(tmp_path, SNIPPETLESS)
+    (tmp_path / 'mod.py').write_text(
+        MODULE.replace('def load_orders(rows):', 'def load_every_order(rows):'), encoding='utf-8'
+    )
+    before = spec.read_text(encoding='utf-8')
+    report = reanchor(spec, by_content='HEAD')
+    assert not report.applied
+    assert report.refused and 'changed or removed' in report.refused[0].refused
+    assert spec.read_text(encoding='utf-8') == before
+
+
+def test_by_content_refuses_a_ref_that_does_not_carry_the_file(tmp_path):
+    spec = _committed_spec(tmp_path, '| FM-1 | §1 | later.py:2 | yes |\n')
+    (tmp_path / 'later.py').write_text('one\ntwo\n', encoding='utf-8')
+    report = reanchor(spec, by_content='HEAD')
+    assert not report.applied
+    assert report.refused and 'HEAD' in report.refused[0].refused
+
+
+def test_by_content_refuses_a_snippet_the_move_would_falsify(tmp_path):
+    # A row whose snippet and coordinate already disagreed: remapping the coordinate would carry
+    # the disagreement forward under a repaired-looking row. Refused by name instead.
+    rows = '| FM-1 | §1 | `mod.py:6` `import re` | yes |\n'
+    spec = _committed_spec(tmp_path, rows)
+    (tmp_path / 'mod.py').write_text('# one\n' + MODULE, encoding='utf-8')
+    report = reanchor(spec, by_content='HEAD')
+    assert not report.applied
+    assert report.refused and 'snippet' in report.refused[0].refused
+
+
+def test_by_content_check_mode_writes_nothing(tmp_path):
+    spec = _committed_spec(tmp_path, SNIPPETLESS)
+    (tmp_path / 'mod.py').write_text('# one\n' + MODULE, encoding='utf-8')
+    before = spec.read_text(encoding='utf-8')
+    report = reanchor(spec, by_content='HEAD', write=False)
+    assert report.applied
+    assert spec.read_text(encoding='utf-8') == before
+
+
+def test_by_content_leaves_the_certified_hash_unmoved(tmp_path):
+    spec = _committed_spec(tmp_path, SNIPPETLESS)
+    (tmp_path / 'mod.py').write_text('# one\n' + MODULE, encoding='utf-8')
+    before = spec_hash(spec)
+    reanchor(spec, by_content='HEAD')
+    assert spec_hash(spec) == before
+
+
+def test_by_content_clears_the_a12_failure_it_answers(tmp_path):
+    # The end-to-end claim: a drifted snippetless ledger fails the gate, and one pass repairs it.
+    spec = _committed_spec(tmp_path, SNIPPETLESS)
+    (tmp_path / 'mod.py').write_text('# one\n' + MODULE, encoding='utf-8')
+    reanchor(spec, by_content='HEAD')
+    result = check_spec_ready(spec)
+    assert not [v for v in result.violations if v.check == 'A12'], [
+        v.message for v in result.violations
+    ]
+
+
+def test_cli_by_content_reports_each_repair(tmp_path):
+    spec = _committed_spec(tmp_path, SNIPPETLESS)
+    (tmp_path / 'mod.py').write_text('# one\n' + MODULE, encoding='utf-8')
+    result = runner.invoke(app, ['re-anchor', str(spec), '--by-content', 'HEAD', '--check'])
+    assert result.exit_code == 0
+    assert 'would repoint mod.py:6 -> mod.py:7' in result.output
+
+
+def test_cli_by_content_on_an_unknown_ref_says_so(tmp_path):
+    spec = _committed_spec(tmp_path, SNIPPETLESS)
+    result = runner.invoke(app, ['re-anchor', str(spec), '--by-content', 'no-such-ref'])
+    assert result.exit_code == 0
+    assert 'no-such-ref' in result.output

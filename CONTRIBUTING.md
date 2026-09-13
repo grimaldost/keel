@@ -122,17 +122,22 @@ entry set never changes after its tag exists — every SemVer tag, with the know
 edits exempted by name in the test.
 
 A release bumps **nine version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
-(inserted above the previous one, never replacing it): `.claude-plugin/plugin.json`,
+(inserted above the previous one, never replacing it). Run `uv run python scripts/bump_version.py
+x.y.z`: it writes every site from `VERSION_SITES`, the registry that lives in the
+version-consistency test itself (`tests/test_plugin_manifest.py`), so the bump and the gate cannot
+hold different lists. Eight sites are in that registry — `.claude-plugin/plugin.json`,
 `pyproject.toml`, `src/keel/__init__.py`, the newest `CHANGELOG.md` heading,
 `agents/pre-mortem-review.md` (the agent identity line), `src/keel/templates/spec-template.md`
-(the header `- **Kit:**` stamp), and `skills/apply-method/SKILL.md` are the seven the version-consistency test
-asserts; `uv.lock` is the eighth — bump it with `uv lock` after `pyproject.toml`, and CI's
-`uv lock --check` reds a stale committed lock. The ninth is
-`src/keel/templates/core/spec-template.md`, whose stamp line is coupled to the template's by a
-different test (`tests/test_core_variants.py`: every core line appears, in order, in the body it
-was cut from) — bump it with the template, or the strict-subset assertion fails and the ablation
-arms stop differing by deletion alone. It is not a consumer-facing site: `keel init` cannot reach
-the `core/` subdirectory.
+and `src/keel/templates/core/spec-template.md` (the header `- **Kit:**` stamps), and
+`skills/apply-method/SKILL.md`. The core template's stamp is also coupled to the full template's
+by `tests/test_core_variants.py` (every core line appears, in order, in the body it was cut from),
+where a stale stamp fails as a strict-subset error whose message says nothing about versions; it
+is not a consumer-facing site, since `keel init` cannot reach the `core/` subdirectory.
+
+Two of the nine the script reports rather than writes. The newest CHANGELOG heading arrives with
+its own section, so rewriting its number would rename the previous release. `uv.lock` is the
+ninth — regenerate it with `uv lock` after `pyproject.toml` moves, and CI's `uv lock --check` reds
+a stale committed lock.
 
 ## Quality gates (Definition of Done)
 
