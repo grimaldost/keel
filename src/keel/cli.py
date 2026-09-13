@@ -215,10 +215,16 @@ def reanchor_cmd(
     body: bool = typer.Option(
         False, '--body', help='Also repoint prose anchors — this MOVES the spec hash.'
     ),
+    by_content: str = typer.Option(
+        '',
+        '--by-content',
+        metavar='GIT-REF',
+        help='Repoint by content: find where each line cited at this git ref sits now.',
+    ),
 ) -> None:
-    """Repoint a spec's drifted anchors from the snippets that identify them."""
+    """Repoint a spec's drifted anchors — from their snippets, or by content against a git ref."""
     try:
-        report = reanchor(spec, body=body, write=not check)
+        report = reanchor(spec, body=body, write=not check, by_content=by_content)
     except FileNotFoundError as exc:
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
