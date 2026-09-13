@@ -5,7 +5,9 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from keel import __version__
 from keel.cli import app
+from keel.models import CHECK_IDS
 
 runner = CliRunner()
 _CLI_REFERENCE = Path(__file__).resolve().parents[1] / 'docs' / 'cli-reference.md'
@@ -328,3 +330,47 @@ def test_spec_hash_missing_file_exits_2(tmp_path):
     result = runner.invoke(app, ['spec-hash', str(tmp_path / 'nope.md')])
     assert result.exit_code == 2
     assert 'not found' in result.output.lower()
+
+
+# --- E2c: a verdict names the copy that produced it --------------------------
+#
+# `_emit` printed warnings, then `OK`, and exited. Two plugin caches were live on one machine and
+# nothing in any keel output distinguished them: a session ran 0.18.0 by `uvx` while 0.18.1 was
+# installed, reconstructed that fact from paths afterwards, and filed a finding whose premise was
+# wrong. The same line answers the other half — an `OK` from a gate that had nothing applicable to
+# check reads exactly like an `OK` from a thorough one.
+
+
+def test_the_passing_verdict_names_the_running_version_and_what_was_checked(tmp_path):
+    spec = tmp_path / 'spec.md'
+    spec.write_text(READY_SPEC, encoding='utf-8')
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert result.exit_code == 0
+    assert f'keel {__version__} —' in result.output
+    assert 'checks applicable' in result.output and 'fired' in result.output
+
+
+def test_the_failing_verdict_names_the_running_version_too(tmp_path):
+    spec = tmp_path / 'spec.md'
+    spec.write_text(CRASHY_SPEC, encoding='utf-8')
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert result.exit_code == 1
+    assert f'keel {__version__} —' in result.output
+
+
+def test_the_summary_counts_applicable_checks_not_the_catalogue(tmp_path):
+    # The count that makes a vacuous run visible: checks with a construct to read, not all of them.
+    spec = tmp_path / 'spec.md'
+    spec.write_text(READY_SPEC, encoding='utf-8')
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    summary = next(line for line in result.output.splitlines() if line.startswith('keel '))
+    applicable = int(summary.split('—')[1].split()[0])
+    assert 0 < applicable < len(CHECK_IDS)
+
+
+def test_a_gate_with_no_probes_still_names_the_version(tmp_path):
+    # `bind-check` returns findings without probes; the attribution half holds for every gate.
+    bindings = tmp_path / 'bindings.md'
+    bindings.write_text('# Method bindings\n\nno table here\n', encoding='utf-8')
+    result = runner.invoke(app, ['bind-check', str(bindings)])
+    assert f'keel {__version__}' in result.output

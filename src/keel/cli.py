@@ -49,6 +49,22 @@ def _root(
     """keel - method gates and scaffolding."""
 
 
+def _summary(result: GateResult) -> str:
+    """The one line that says which copy ran, and how much of it had anything to read.
+
+    A verdict that cannot name the copy that produced it is not auditable: two plugin caches were
+    live on one machine, a session ran the older one by `uvx` while the newer was installed, and
+    the fact had to be reconstructed from paths afterwards. The counts answer the other half — a
+    gate with three applicable checks prints the same `OK` as a gate with twenty, and only one of
+    those verdicts means much. A gate that reports no probes still names the version.
+    """
+    applicable = [probe for probe in result.probes if probe.candidates > 0]
+    if not applicable:
+        return f'keel {__version__}'
+    fired = sum(1 for probe in applicable if probe.fired > 0)
+    return f'keel {__version__} — {len(applicable)} checks applicable, {fired} fired'
+
+
 def _emit(
     run: Callable[[], GateResult],
     *,
@@ -66,6 +82,7 @@ def _emit(
         typer.echo(warning.message)
     if result.passed:
         typer.echo('OK')
+        typer.echo(_summary(result))
         raise typer.Exit(code=0)
     for violation in result.violations:
         typer.echo(f'{violation.where}: {violation.message}')
@@ -86,6 +103,7 @@ def _emit(
         typer.echo(f'note: {detail}{advice}')
     if hint is not None and (message := hint(result)):
         typer.echo(message)
+    typer.echo(_summary(result))
     raise typer.Exit(code=1)
 
 
