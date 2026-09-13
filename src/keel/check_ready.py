@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from keel.errors import format_error
-from keel.models import CHECK_IDS, GateResult, Probe, Violation, Warning, count_causes
+from keel.models import DOR_CHECK_IDS, GateResult, Probe, Violation, Warning, count_causes
 
 # A3 placeholders: the four legacy tokens, plus the spec-template's angle-bracket idiom
 # (`<title>`, `<the observable condition ...>`). The angle-bracket form is matched on the shared
@@ -474,7 +474,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
         cert=cert,
         structure_only=structure_only,
     )
-    fired: dict[str, int] = dict.fromkeys(CHECK_IDS, 0)
+    fired: dict[str, int] = dict.fromkeys(DOR_CHECK_IDS, 0)
     for finding in (*violations, *warnings):
         if finding.check:
             fired[finding.check] += 1
@@ -486,7 +486,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
             causes=count_causes(f for f in (*violations, *warnings) if f.check == check)
             or fired[check],
         )
-        for check in sorted(CHECK_IDS)
+        for check in sorted(DOR_CHECK_IDS)
     )
     return GateResult(
         passed=not violations,

@@ -57,8 +57,11 @@ Follow the phases; the gates are the load-bearing part:
   record the certification block. The full `keel check-ready` passes only once that
   certification is recorded (Part A + Part B, B1) — a spec is not ready to decompose until
   it does.
-- **Decompose.** One PR per spec section (`spec-template.md` has the PR↔section
-  manifest). Score each PR → model tier.
+- **Decompose → the series gate.** One PR per spec section (`spec-template.md` has the PR↔section
+  manifest). Score each PR → model tier. Then run the SERIES pass: the same `pre-mortem-review`
+  agent, pointed at the GENERATED series (the PR prompts and their DAG) read against the spec,
+  because that artifact is the one the spec pass never saw. Record it under `### Series review` in
+  the certification block; `keel decompose-check <spec>` passes only once it is recorded (D1/D2).
 - **Route & Budget.** Fill the `[budget]` block in `series-toml-skeleton.md`;
   the drift gate watches the wave.
 - **Implement → Gate → Review → DoD gate.** Merge only when

@@ -23,8 +23,9 @@ could not read.
 
 ## The task
 
-Assume the series this spec describes shipped and then FAILED — the refactor broke something,
-scope sprawled, or the result was incoherent across PRs. List the failure modes — all BLOCKER and
+Assume the artifact under review shipped and then FAILED. It is this spec — or, when the caller
+names a decomposed series, that series read against the spec: the SERIES pass, which the Decompose
+exit gate (`keel decompose-check`) requires. List the failure modes — all BLOCKER and
 MAJOR modes, plus any notable MINOR — most likely first. For each: the failure (one line); the
 most likely cause (which section / assumption / missing invariant); and the smallest change to
 the SPEC or a PR PROMPT that would prevent it. Do NOT propose implementation — only changes to

@@ -153,6 +153,12 @@ brackets. The ledger is the FIRST table here.*
 | Finding | Target section | artifact:line | Confirmed |
 |---|---|---|---|
 
+### Series review
+
+- **Series reviewer:**
+- **Series verdict:** not yet reviewed
+- **Series artifact:**
+
 ---
 *Most Definition-of-Ready checks pass by construction here — numbered sections, per-section
 criteria, the concept→module map, the manifest. The one that cannot is the pre-mortem

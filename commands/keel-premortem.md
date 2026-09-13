@@ -47,3 +47,14 @@ cannot see the pre-mortem and an unledgered fold reads green. Fill:
   `artifact:line` · confirmed); `check-ready` (A12/R1) holds each anchor to a real line.
 
 Then re-run `/keel-check-ready $ARGUMENTS` — it passes only once the certification is recorded.
+
+**The SERIES pass, after the decomposition exists.** The same agent, a different artifact: point it
+at the GENERATED series — the PR prompts and their DAG — read against this spec, and say so in the
+dispatch, because its default subject is the spec. It is the Decompose exit gate, not an option
+sized by blast radius: the spec pass structurally cannot see a defect that lives in the generated
+prompts (a repository whose gate commands the generator invented, a section covered on paper and
+split across two repos, an irreversible act scheduled as an ordinary DAG node). Save its output to
+`<spec-stem>.series-premortem.md`, record `Series reviewer:` / `Series verdict:` /
+`Series artifact:` under `### Series review` in the certification block — inside that block, so
+recording it cannot move the spec hash — and run `keel decompose-check $ARGUMENTS` (D1/D2) before
+any PR runs.

@@ -10,8 +10,9 @@ from keel import __version__
 from keel.bindings import check_bindings
 from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready, spec_hash
+from keel.decompose_check import check_decomposition
 from keel.gate_ledger import ledger_path, read_lines, record_run
-from keel.models import CHECK_IDS, GateResult
+from keel.models import DOR_CHECK_IDS, GateResult
 from keel.reanchor import reanchor
 from keel.show import available, body
 from keel.survey import survey
@@ -163,6 +164,15 @@ def check_ready_cmd(
     _emit(run, hint=_spec_template_hint)
 
 
+@app.command('decompose-check')
+def decompose_check_cmd(spec: Path) -> None:
+    """Decompose exit gate: the generated series was reviewed before execution."""
+    # Deliberately not ledgered: the ledger's `mode` is a closed enum over the DoR gate's two
+    # modes, so a third one is a schema bump and belongs with the next ledger change, not smuggled
+    # in here. Until then `gate-health` reads DoR runs only, which is what it says it reads.
+    _emit(lambda: check_decomposition(spec))
+
+
 @app.command('gate-health')
 def gate_health_cmd(
     since: str = typer.Option('', '--since', help='Only runs on or after this date (YYYY-MM-DD).'),
@@ -189,7 +199,7 @@ def gate_health_cmd(
         f'{sum(1 for row in submitted if not row.get("passed"))} of the latter were rejected.'
     )
     typer.echo('check  applicable  revisions-fired-on  causes  fire-rate')
-    for check in sorted(CHECK_IDS, key=_check_order):
+    for check in sorted(DOR_CHECK_IDS, key=_check_order):
         applicable = [row for row in rows if row.get('probes', {}).get(check, [0])[0] > 0]
         fired_on = {
             (row.get('repo'), row.get('spec'), row.get('rev'))

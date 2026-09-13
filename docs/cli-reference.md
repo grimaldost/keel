@@ -7,6 +7,7 @@ console-script executable.
 | Command | Purpose | Exit codes | Status |
 |---|---|---|---|
 | `keel check-ready <spec> [--structure-only]` | Definition-of-Ready gate (Part A + pre-mortem cert); `--structure-only` runs Part A only, for the author loop. Both exit paths end with one summary line — `keel <version> — N checks applicable, M fired` — so a verdict names the copy that produced it and a vacuous run does not read as a thorough one | 0 pass, 1 fail, 2 not-runnable | **real** |
+| `keel decompose-check <spec>` | Decompose exit gate (the 3→4 boundary): the generated series was read by a fresh non-author reviewer before anything ran it. Reads the `### Series review` block inside `## Pre-mortem certification` — D1 the record (reviewer, terminal verdict, saved artifact), D2 the artifact's agreement — which is B1/B2's shape one boundary later, over the artifact the DoR gate structurally cannot see. A spec declaring `Kind: single-change` or `Phases: … (Decompose: skipped)` has no series to review: the gate passes with no applicable check, which reads as `n/a` and not as a clean run | 0 pass, 1 fail, 2 not-runnable | **real** |
 | `keel spec-hash <spec>` | Print the canonical certification hash (the spec minus its certification section and its header `Status:` line — an `## Amendment` section is NOT removed, so an amendment still moves the hash; B2 recomputes without it to tell an addition from an edit, W7) — what a saved pre-mortem artifact records as `Spec-hash:` (B2) | 0 ok, 2 not-runnable | **real** |
 | `keel re-anchor <spec> [--check] [--body] [--by-content <git-ref>]` | Repoint drifted anchors from the snippets that identify them. The fold ledger by default — it sits inside the span `spec-hash` removes, so the repair cannot invalidate the certification it serves; `--body` also rewrites prose anchors and says that the hash moves. A weak snippet, a range anchor, or a snippet on no line is reported and left alone. `--by-content <git-ref>` repairs from the tree instead of the snippet: it reads the line each anchor cited AS OF that ref and repoints to where that content sits now, so the snippet-less (and unbackticked) row the template emits is repairable, and a range moves both ends. A line inside a hunk changed or deleted since the ref is reported, never guessed at | 0 | **real** |
 | `keel new-spec <target> [--force]` | Stamp `spec-template.md` to a new spec path (the author on-ramp) | 0 ok, 2 exists | **real** |
@@ -30,7 +31,9 @@ the same name and warn that the expansion is unique, which reads as resolved.
 ## The gate hit-rate ledger
 
 `keel check-ready` appends one JSONL line per run to a **local** ledger, and `keel gate-health`
-reads it back. It records ids, counts, verdict buckets and hashes — never spec text: the writer
+reads it back. DoR runs only: `decompose-check` writes no line yet, because the record's `mode` is
+a closed enum over the DoR gate's two modes and a third one is a schema bump — so D1/D2 have no
+hit-rate to read, and `gate-health` lists the DoR catalogue rather than implying otherwise. It records ids, counts, verdict buckets and hashes — never spec text: the writer
 only accepts fields that are ints, bools, closed enums, hex digests or slugs, so a free-text field
 is unrepresentable, and the spec is identified by a digest because stems name a project's roadmap.
 Nothing is uploaded.

@@ -11,6 +11,13 @@ stay the source of truth.
   `definition-of-ready.md`'s "Reference: what `check_spec_ready` asserts" block. Every finding the
   gate emits names its check in a field (`Violation.check`, `Warning.check`), never as a message
   prefix — `where` is a coordinate and collides across checks, so a count keyed on it fuses them.
+- **D1, D2** — the Decompose exit gate's pair, run by `keel decompose-check` at the 3→4 boundary
+  over the `### Series review` record: B1/B2's shape applied to the SERIES pass, whose subject is
+  the generated series rather than the spec. A separate catalogue from the DoR letters because it
+  is a separate gate, at a boundary `check-ready` runs before.
+- **DESIGN pass / SERIES pass** — the two blind pre-mortems: the first reads the spec and closes
+  Specify (B1/B2), the second reads the GENERATED series against the spec and closes Decompose
+  (D1/D2). Same reviewer contract, different artifact.
 - **dozes** — a verify-when-present check meeting its absent trigger: not skipped by error, asleep
   by design (e.g. A12 with no fold-ledger rows, A10 with no Enforcement-status table).
 - **verify-when-present vs. deliberate tightening** — the two retro-compatibility classes: a check

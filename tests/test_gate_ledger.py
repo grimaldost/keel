@@ -33,7 +33,7 @@ from keel.gate_ledger import (
     read_lines,
     serialize,
 )
-from keel.models import CHECK_IDS, Probe
+from keel.models import DOR_CHECK_IDS, Probe
 
 from .test_adversarial_corpus import MUTANTS, materialize
 
@@ -68,7 +68,7 @@ def test_clean_is_distinguishable_from_no_opportunity(tmp_path):
 
 def test_every_catalogued_check_reports_a_probe(tmp_path):
     probes = _probes(check_spec_ready(_clean(tmp_path)))
-    assert set(probes) == CHECK_IDS
+    assert set(probes) == DOR_CHECK_IDS
 
 
 def test_a_check_that_fired_always_had_a_candidate(tmp_path):

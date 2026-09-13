@@ -135,12 +135,22 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
 
 These operating notes carry sharpening 5 into practice:
 
-- **Two-pass cadence (DESIGN ⊕ SERIES), blast-radius-scaled.** For a wave touching enforcement or a
-  shared contract, run two blind pre-mortems: a DESIGN pass (contract / radius / vacuity / projected
-  verification) and a SERIES pass (execution mechanics, prompt-internal contradictions, staging×gate
-  interactions — and it attacks the DESIGN pass's folds). The SERIES pass carries its own first-class
-  checklist (`pre-mortem-prompt.md`): base-branch content reality, per-PR gate × contract-test
-  interactions, cross-prompt contract drift. **The round economy** (ADR-0014, field-calibrated):
+- **Two-pass cadence (DESIGN ⊕ SERIES): one gate each, at two boundaries.** A DESIGN pass
+  (contract / radius / vacuity / projected verification) closes Specify and is gated by
+  `check-ready` B1/B2. A SERIES pass (execution mechanics, prompt-internal contradictions,
+  staging×gate interactions — and it attacks the DESIGN pass's folds) closes **Decompose** and is
+  gated by `decompose-check` D1/D2. Its input is the GENERATED series — the PR prompts and their
+  DAG — read against the spec, not the spec again: that artifact is the one no phase used to read,
+  and one controlled measurement priced the gap at 16 BLOCKER / 18 MAJOR / 14 MINOR findings for
+  17% of a pre-mortem round, three of them structural defects seven spec rounds could not reach.
+  The SERIES pass carries its own first-class checklist (`pre-mortem-prompt.md`): base-branch
+  content reality, per-PR gate × contract-test interactions, cross-prompt contract drift,
+  decomposition completeness. It is **not** blast-radius-scaled, which is what it was until the
+  measurement: a review a wave decides it does not need is a review nothing runs, and the sweep
+  that exists while nothing invokes it is this repo's own most-repeated finding. A round that
+  crosses no such boundary says so in the header (`Kind: single-change`,
+  `Phases: … (Decompose: skipped)`) and the gate reads the declaration. **The round economy**
+  (ADR-0014, field-calibrated) still sizes what happens INSIDE each pass:
   run the full two-round arc — fresh pass → fold → re-gate under the rising bar — when round 1
   found a BLOCKER, or the spec touches an irreversible or shared-contract surface, or the spec set
   is fresh-drafted from an adjudicated catalog/triage. A single pass with executor-verified folds
@@ -202,7 +212,7 @@ regardless, and each declaration is content the pre-mortem can challenge — not
 |---|---|---|---|
 | 1 Decide | Numbered ADR | A choice with non-obvious trade-offs is identified | ADR written, numbered, Accepted; alternatives + decision + consequences recorded |
 | 2 Specify | Committed spec w/ numbered sections + concept DAG | Relevant ADRs exist; scope bounded | Every concept maps to a module; every invariant touched is named; sections numbered so commits can cite them |
-| 3 Decompose | Wave/PR DAG (`series.toml`) | Spec sections stable | Each PR cites exactly one section; one concern per PR; deps expressed as a DAG |
+| 3 Decompose | Wave/PR DAG (`series.toml`) | Spec sections stable | Each PR cites exactly one section; one concern per PR; deps expressed as a DAG; **and a fresh non-author reviewer has certified the generated series against the spec** — the SERIES pass, recorded in the spec's certification block and gated by `keel decompose-check` |
 | 4 Route & Budget | Per-PR complexity score → model tier; wave cost estimate | PR prompts precise enough to score | Each PR has a tier; wave has an estimated cost vs all-Opus baseline |
 | 5 Implement | Branch/diff per PR | PR prompt + its spec section in hand; fresh context | Single-concern change; no invariant violated (edit-time hook did not block) |
 | 6 Gate | Deterministic gate results | Implementation believes it is done | ruff format/check, mypy, pytest, guardrail scripts all pass (fail-closed) |
@@ -220,7 +230,7 @@ links (this doc lives in a different repo).
 |---|---|---|
 | Decide | ADR log | `docs/adr/` |
 | Specify | Spec + prompt template | committed spec + `docs/llm/TASK_PROMPT_TEMPLATE.md` |
-| Decompose | orchestrated series (e.g. pr-pilot) | `docs/llm/PR_ORCHESTRATION.md`, `pr-series/`, `series.toml` |
+| Decompose | orchestrated series (e.g. pr-pilot) + the series review (`keel decompose-check`) | `docs/llm/PR_ORCHESTRATION.md`, `pr-series/`, `series.toml` |
 | Route & Budget | capacity-dispatch policy | bound in `method-bindings.md` — otherwise the scorer's own tier heuristics |
 | Implement | conventions + edit-time hook + TDD | `AGENTS.md`, `plugins/acme-contributor/hooks/pre-edit-boundary.py`, a TDD discipline skill |
 | Gate | guardrails + gate commands | `docs/llm/GUARDRAILS.md`, `scripts/check_*.py`, `docs/llm/DEV_WORKFLOW.md` |

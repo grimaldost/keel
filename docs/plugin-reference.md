@@ -9,7 +9,7 @@ bundled engine with `uvx --from ${CLAUDE_PLUGIN_ROOT} keel …`.
 |---|---|---|---|
 | `/keel-apply` | command | none | Invokes the `apply-method` skill to bind the method's slots in this project and run the phases (or the round's named subset). |
 | `/keel-check-ready <path-to-spec.md>` | command | `<path-to-spec.md>` | Runs the Definition-of-Ready gate from the bundled engine; reports the verdict and violations. Exit 0 Ready, 1 violations, 2 not-runnable. |
-| `/keel-premortem <path-to-spec.md>` | command | `<path-to-spec.md>` | Dispatches the `pre-mortem-review` agent, then the caller folds the findings, saves the artifact (B2) and records the certification block. |
+| `/keel-premortem <path-to-spec.md>` | command | `<path-to-spec.md>` | Dispatches the `pre-mortem-review` agent, then the caller folds the findings, saves the artifact (B2) and records the certification block. Carries the SERIES pass too — the same agent pointed at the generated series, recorded under `### Series review` and gated by `keel decompose-check` (D1/D2). |
 | `/keel-triage` | command | none | Runs the `reflection-triage.md` procedure over the series' feedback: sweep open rows, cluster by cause, promote each recurring trap to one durable check, and land it. |
 | `apply-method` | skill | — | The method playbook an agent reads: setup in a new project, the entry-read-the-bindings rule, and the phase-by-phase gates. |
 | `pre-mortem-review` | agent | — | Read-only fresh reviewer (Read/Grep/Glob). Reads `src/keel/templates/pre-mortem-prompt.md` at run start for its directives (ADR-0017) and returns findings ending in a machine-greppable `PREMORTEM-VERDICT:` line; it never edits the spec. |

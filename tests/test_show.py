@@ -10,7 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from keel.cli import app
-from keel.models import CHECK_IDS
+from keel.models import DOR_CHECK_IDS
 from keel.show import available, body
 from keel.templates import list_templates, templates_root
 
@@ -34,7 +34,7 @@ def test_the_check_projection_covers_the_catalogue():
     # reference block is already asserted to name every catalogued check; this pins that the
     # PROJECTION inherits that property rather than slicing part of it away.
     printed = body('checks')
-    missing = [check for check in CHECK_IDS if f'\n{check} ' not in f'\n{printed}']
+    missing = [check for check in DOR_CHECK_IDS if f'\n{check} ' not in f'\n{printed}']
     assert not missing, missing
 
 

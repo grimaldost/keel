@@ -1102,6 +1102,16 @@ recorded here explicitly. `[triage]`
   fixed per-PR questions. That report's Context block is already its specification.
 - **Ordering:** a singleton, and an expensive one to prescribe. Held for a second programme that
   runs the shape and reports what it caught — the same bar every other singleton here carries.
+- **Relationship to the Decompose gate (shipped 0.20.0).** Not superseded, and not the same check
+  moved earlier: **the two read different artifacts at different boundaries, and neither can
+  return the other's findings.** The Decompose gate reads the generated series *before* execution
+  and asks whether this DAG will build what the spec says; B58 reads integrated diffs, gate results
+  and notes *after* execution and asks whether the gates that went green certified anything. A
+  defect the decompose gate prevents never reaches B58's inputs, and a gate authored to observe
+  the wrong thing (KEEL-B52's class) is invisible to a reviewer reading prompts that have not run.
+  What the decompose gate does settle is the sequencing argument: it is mandatory because it is
+  cheap and preventive, while B58 stays optional and held, because an audit of work already merged
+  buys its findings at the late end of the cost-of-defect curve.
 - **Effort:** M · **Source:** `[triage D7]`
 
 ## Retire / fold candidates

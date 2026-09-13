@@ -9,7 +9,7 @@ from keel.check_ready import (
     _declared_kind,
     _field,
 )
-from keel.models import CHECK_IDS
+from keel.models import DOR_CHECK_IDS
 from keel.templates import list_templates, templates_root
 
 REQUIRED_SECTIONS = {
@@ -152,7 +152,9 @@ def test_the_reference_block_is_the_only_home_for_the_part_a_contract():
     # drops a letter would silently lose a fact the prose checklist used to carry as well.
     block = _reference_block()
     named = set(re.findall(r'^([ABRW]\d+) ', block, re.MULTILINE))
-    assert named == CHECK_IDS, f'reference block and check catalogue disagree: {named ^ CHECK_IDS}'
+    assert named == DOR_CHECK_IDS, (
+        f'reference block and DoR catalogue disagree: {named ^ DOR_CHECK_IDS}'
+    )
 
 
 def _directive_block() -> str:
