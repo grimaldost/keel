@@ -307,3 +307,17 @@ fires = ["A6"]
 why = "a citation that leaves the repository, where no sibling resolves: the basename search must NOT expand it, because the twin it would find is an unrelated in-repo file of the same name — the vendored-twin trap reached through a different door"
 find = "`src/tinyetl/regions.py:3`"
 replace = "`../fin-vault/src/tinyetl/regions.py:3`"
+
+[[mutant]]
+id = "A12-blank-line-confirmation"
+fires = ["A12"]
+why = "the measured silent failure: the coordinate resolves and records nothing. 8 of 35 ledger rows in one programme, then 90 of 125 in the next, sat on a blank line or a heading while the gate printed OK, and both programmes wrote a throwaway remapper because nothing said the rows had gone wrong"
+find = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |"
+replace = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:16` | yes |"
+
+[[mutant]]
+id = "A12-row-lands-in-another-section"
+fires = ["A12"]
+why = "the other half of the same failure: the row names §1, the confirmation resolves inside §4, and the row's own target cell — which the gate has held all along — was never read. A fold recorded against another section is a stale coordinate wearing a record's clothes"
+find = "| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"
+replace = "| FM-2 an unknown code was invented | §4 | `clean-series.md:54` | yes |"

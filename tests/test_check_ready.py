@@ -547,6 +547,104 @@ def test_fold_ledger_resolves_passes_a12(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
+# --- E1a: the row's target section is part of the assertion ------------------
+#
+# A12 resolved the anchor and stopped, so a row could name §1 and be confirmed against a blank
+# line, a heading, or a line three sections away — the row's own `Target` cell was never read.
+# Two programmes measured the consequence (8 of 35 rows wrong, then 90 of 125) while the gate
+# printed OK. The blank-span refusal holds for any target file; membership and the heading
+# refusal hold where the named span exists, which is the spec that carries the ledger.
+
+
+def _line_of(text: str, needle: str) -> int:
+    """The 1-based line number of the one line carrying `needle` (the fixture's own coordinate)."""
+    hits = [n for n, line in enumerate(text.splitlines(), 1) if needle in line]
+    assert len(hits) == 1, f'{needle!r} is on {len(hits)} lines; the fixture coordinate is unstable'
+    return hits[0]
+
+
+def test_fold_ledger_row_anchored_on_a_blank_line_fails_a12(tmp_path):
+    # The measured shape: the coordinate resolves, and confirms nothing.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    blank = _line_of(spec, 'Introduce `src/widget.py`') + 2  # the blank line before `### §2`
+    assert spec.splitlines()[blank - 1].strip() == ''
+    result = check_spec_ready(_write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{blank}')))
+    assert not result.passed, 'a fold confirmed against a blank line passed the gate'
+    assert any(v.check == 'A12' and 'blank' in v.message.lower() for v in result.violations), [
+        (v.check, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_row_anchored_outside_its_named_section_fails_a12(tmp_path):
+    # The row says §1; the anchor lands in §2. Both resolve, and only one of them is the record.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    elsewhere = _line_of(spec, 'Expose the widget.')  # §2's body
+    result = check_spec_ready(
+        _write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{elsewhere}'))
+    )
+    assert not result.passed, 'a fold recorded against another section passed the gate'
+    assert any(v.check == 'A12' and '§2' in v.message for v in result.violations), [
+        (v.check, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_row_anchored_on_another_sections_heading_fails_a12(tmp_path):
+    # The drifted row's other landing place: a heading that belongs to some other section.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    heading = _line_of(spec, '### §2 Wire the widget into the CLI')
+    result = check_spec_ready(_write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{heading}')))
+    assert not result.passed, "a fold confirmed against another section's heading passed the gate"
+    assert any(v.check == 'A12' and 'heading of §2' in v.message for v in result.violations), [
+        (v.check, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_row_anchored_on_its_own_section_heading_passes_a12(tmp_path):
+    # The boundary this repository's own ledgers drew before the rule existed: three of its specs
+    # anchor every row at the heading of the section the row names. That is a correct record of
+    # where the fold went, and a check that accused it would be reporting its own convention.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    heading = _line_of(spec, '### §1 Add the widget module')
+    result = check_spec_ready(_write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{heading}')))
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_row_inside_its_named_section_passes_a12(tmp_path):
+    # The control: the same shape, landed where the row says it landed.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `spec.md:LINE` | yes |\n')
+    inside = _line_of(spec, 'Introduce `src/widget.py`')
+    result = check_spec_ready(_write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{inside}')))
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_row_naming_no_section_keeps_the_anchor_contract(tmp_path):
+    # Verify-when-present: a row that names no §N presents no membership candidate and is held to
+    # the anchor contract alone — silence here, not an invented target.
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | (none) | `spec.md:LINE` | yes |\n')
+    elsewhere = _line_of(spec, 'Expose the widget.')
+    result = check_spec_ready(
+        _write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{elsewhere}'))
+    )
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_row_anchored_on_a_blank_line_of_another_file_fails_a12(tmp_path):
+    # The blank refusal is not a spec-only rule: a fold confirmed against an empty line of the
+    # module it changed confirms nothing there either.
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\n\nline three\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | `mod.py:2` | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any(v.check == 'A12' and 'blank' in v.message.lower() for v in result.violations)
+
+
 # --- T1.4: a confirmation cell may name a RANGE ------------------------------
 #
 # The standing field ask: a reviewer confirming a fold that spans several lines had to either

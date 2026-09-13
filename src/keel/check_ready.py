@@ -7,6 +7,7 @@ structure alone. See docs/design/2026-06-05-dor-gate-design.md and ADR-0002.
 
 import hashlib
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from keel.errors import format_error
@@ -447,7 +448,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     violations += _check_references(text, spec_path)
     violations += _check_section_refs(text, prose, section_ids)
     violations += _check_enforcement_claims(sections, text)
-    ledger_violations, ledger_warnings = _check_fold_ledger(cert, spec_path)
+    ledger_violations, ledger_warnings = _check_fold_ledger(cert, spec_path, text)
     violations += ledger_violations
     warnings += ledger_warnings
     if not structure_only:
@@ -600,6 +601,39 @@ def _id_or_title(title: str) -> str:
     return match.group(1) if match else title
 
 
+_HEADING_RE = re.compile(r'^#{1,6}[ \t]+')
+_NUMBERED_HEADING_RE = re.compile(r'^(#{1,6})[ \t]+(§\d+)\b')
+
+
+def _section_line_spans(text: str) -> dict[str, list[tuple[int, int]]]:
+    """Per `§N` id, the 1-based line spans of its section BODY, its own heading excluded.
+
+    A12's membership arm needs a section as a COORDINATE, which `_subsections` — a text split —
+    does not carry. A span ends at the next heading of the same level or shallower, so a `####`
+    sub-heading stays inside the section it belongs to. An id declared twice keeps both spans and
+    membership is satisfied by either: the failure mode of this check is a false accusation, and
+    that is the direction to be wrong in.
+    """
+    lines = text.splitlines()
+    levels = [
+        (number, len(line) - len(line.lstrip('#')))
+        for number, line in enumerate(lines, 1)
+        if _HEADING_RE.match(line)
+    ]
+    spans: dict[str, list[tuple[int, int]]] = {}
+    for number, line in enumerate(lines, 1):
+        match = _NUMBERED_HEADING_RE.match(line)
+        if match is None:
+            continue
+        level = len(match.group(1))
+        end = next(
+            (start - 1 for start, depth in levels if start > number and depth <= level), len(lines)
+        )
+        if end > number:
+            spans.setdefault(match.group(2), []).append((number + 1, end))
+    return spans
+
+
 def _resolve_base(spec_path: Path) -> Path:
     """The directory paths are resolved against: the spec's git root, else its parent."""
     start = spec_path.resolve().parent
@@ -740,10 +774,23 @@ def _snippet_delta(lines: list[str], snippet: str, claimed: int) -> str:
     return f'drift{found - claimed:+d}' if found is not None else ''
 
 
+@dataclass(frozen=True, slots=True)
+class _Resolved:
+    """What an anchor resolved TO: the file it landed in, and that file's lines.
+
+    The file travelled with the lines from 0.19.0 on, because A12's section-membership arm has to
+    know whether the anchor landed in the spec that carries the ledger — and a basename expansion
+    means the caller cannot re-derive that from the citation it passed in.
+    """
+
+    target: Path
+    lines: list[str]
+
+
 def _resolve_anchor(
     base: Path, path: str, line_no: int, where: str, check: str
-) -> tuple[list[str] | None, Violation | None, list[Warning]]:
-    """Resolve a `path:line` anchor: (file lines, None, warnings), else (None, Violation, []).
+) -> tuple[_Resolved | None, Violation | None, list[Warning]]:
+    """Resolve a `path:line` anchor: (resolution, None, warnings), else (None, Violation, []).
 
     KEEL-B04: a path that does not resolve as written but whose basename matches exactly one repo
     file resolves to that file, with a WARN naming the expansion — the gate already computed that
@@ -833,7 +880,7 @@ def _resolve_anchor(
             ),
             [],
         )
-    return lines, None, warnings
+    return _Resolved(target, lines), None, warnings
 
 
 def _bracket_balance(lines: list[str]) -> tuple[int, bool]:
@@ -1168,12 +1215,13 @@ def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[Wa
             )
             continue
         line_no = int(line_text)
-        lines, violation, resolve_warnings = _resolve_anchor(base, path, line_no, where, 'A6')
+        resolved, violation, resolve_warnings = _resolve_anchor(base, path, line_no, where, 'A6')
         warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
-        if snippet is not None and lines is not None:
+        if snippet is not None and resolved is not None:
+            lines = resolved.lines
             actual = ' '.join(lines[line_no - 1].split())
             if ' '.join(snippet.split()) not in actual:
                 violations.append(
@@ -1214,16 +1262,16 @@ def _check_anchor_ranges(text: str, spec_path: Path) -> tuple[list[Violation], l
                 Violation(where, f'anchor path {path!r} is not portable ({reason}).', 'A11')
             )
             continue
-        lines, violation, resolve_warnings = _resolve_anchor(base, path, hi, where, 'A11')
+        resolved, violation, resolve_warnings = _resolve_anchor(base, path, hi, where, 'A11')
         warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
-        if lo < 1 or lo > hi or lines is None:
+        if lo < 1 or lo > hi or resolved is None:
             violations.append(Violation(where, f'anchor range {lo}-{hi} is malformed.', 'A11'))
             continue
         if path.endswith(('.py', '.pyi')):
-            net, ever_negative = _bracket_balance(lines[lo - 1 : hi])
+            net, ever_negative = _bracket_balance(resolved.lines[lo - 1 : hi])
             if net > 0 or ever_negative:
                 violations.append(
                     Violation(
@@ -1499,18 +1547,115 @@ def _check_disposition(
     ]
 
 
+_SOLO_SECTION_RE = re.compile(r'^\*{0,2}(§\d+)\*{0,2}$')
+
+
+def _ledger_target_section(cells: list[str], header: list[str]) -> str:
+    """The one `§N` a fold-ledger row names as its target, or '' when it names none unambiguously.
+
+    Read by HEADER NAME, falling back to the cell that IS a bare `§N` — the read-what-it-is rule
+    `_ledger_anchor` already applies to the confirmation cell (KEEL-B03), so a ledger carrying a
+    round or severity column is read correctly. A row naming two sections presents no candidate
+    rather than a guess, and a row naming none is silent: membership is verify-when-present.
+    """
+    column = next(
+        (
+            index
+            for index, cell in enumerate(header)
+            if 'target' in cell.lower() or 'section' in cell.lower()
+        ),
+        None,
+    )
+    if column is not None and column < len(cells):
+        ids = _SECTION_ID_RE.findall(cells[column])
+        return ids[0] if len(ids) == 1 else ''
+    solo = [match.group(1) for cell in cells if (match := _SOLO_SECTION_RE.match(cell.strip()))]
+    return solo[0] if len(solo) == 1 else ''
+
+
+def _ledger_landing(
+    resolved: _Resolved,
+    lo: int,
+    hi: int | None,
+    where: str,
+    path: str,
+    *,
+    spec_spans: dict[str, list[tuple[int, int]]] | None,
+    target_section: str,
+) -> Violation | None:
+    """E1a: the row's confirmation must land on content, and inside the section the row names.
+
+    A12 resolved the coordinate and stopped there, so a row could name `§1` and be confirmed
+    against a blank line, a heading, or a line three sections away — all three resolve, and the
+    row's own target cell was never read. Two programmes measured it (8 of 35 rows wrong, then 90
+    of 125) while the gate printed `OK`, and both repaired it with a throwaway script because
+    nothing told them the rows had gone wrong.
+
+    The scope is stated rather than implied. The blank refusal holds for ANY target file: a fold
+    confirmed against an empty line confirms nothing wherever that line is. The heading refusal and
+    membership holds only where the named span exists, which is the spec that carries the ledger —
+    `spec_spans` is None for every other target. A row naming no `§N` makes no claim to check
+    (verify-when-present), and a `§N` this spec does not declare is A8's dangling reference.
+
+    A section's OWN heading line counts as inside it. That is not a softening: it is the boundary
+    this repository's own ledgers already drew. Three of its specs anchor every row at the heading
+    of the section that row names, deliberately and consistently, and refusing them would make a
+    correct record read as the failure this check exists to name. A heading belonging to some
+    OTHER section is that failure, and still fails — named as the section it landed in.
+
+    The cause keys group by failure kind per file, because that is what the incident is: one edit
+    above a self-anchored ledger moves every row at once, and 90 rows is one thing to fix.
+    """
+    lines, span = resolved.lines, (f'{lo}-{hi}' if hi else str(lo))
+    numbers = range(lo, (hi or lo) + 1)
+    if all(not lines[number - 1].strip() for number in numbers):
+        return Violation(
+            where,
+            f'the confirmation anchors {path}:{span}, which is blank — a coordinate that resolves '
+            'is not a record of anything. Cite the line the fold actually changed.',
+            'A12',
+            f'A12:{path}:blank-anchor',
+        )
+    if spec_spans is None:
+        return None
+    spans = spec_spans.get(target_section) if target_section else None
+    if not spans:
+        return None
+    # `start - 1` is the section's own heading line: the cite-the-section convention, allowed.
+    if any(start - 1 <= number <= end for start, end in spans for number in numbers):
+        return None
+    landed = next(
+        (
+            f'the heading of {section}' if start - 1 == lo else f'inside {section}'
+            for section, other in spec_spans.items()
+            for start, end in other
+            if start - 1 <= lo <= end
+        ),
+        'outside every numbered section',
+    )
+    return Violation(
+        where,
+        f'the row names {target_section} but the confirmation {path}:{span} is {landed} — a fold '
+        'recorded against another section is a stale coordinate, not a record. Re-anchor the '
+        'ledger (`keel re-anchor <spec> --by-content <ref>`), or correct the target section.',
+        'A12',
+        f'A12:{path}:section-drift',
+    )
+
+
 def _check_fold_ledger(
-    cert_body: str | None, spec_path: Path
+    cert_body: str | None, spec_path: Path, text: str
 ) -> tuple[list[Violation], list[Warning]]:
-    """A12 + R1: a claimed fold carries a ledger, and every ledger row's anchor resolves.
+    """A12 + R1: a claimed fold carries a ledger, and every row lands where the row says it did.
 
     R1 (a deliberate DoR tightening, NOT verify-when-present): a certification whose 'folded in'
     field names a non-trivial fold MUST carry a `### Fold ledger` with >=1 data row — so the DC3
     transformation-verification cannot be skipped by omission. A clean certify (folded in: none)
     dozes, so it does not retro-break. A12: when ledger rows are present, each row's `artifact:line`
-    confirmation must resolve (the fold was recorded against a real line); it does not judge the
-    fold's correctness — that stays Part B (ADR-0002). The blank/prose-cell case is exactly what
-    A6 does not catch.
+    confirmation must resolve, land on content, and — when it points into this spec and the row
+    names a `§N` — land inside that section (`_ledger_landing`); it does not judge the fold's
+    correctness, which stays Part B (ADR-0002). The blank/prose-cell case is exactly what A6 does
+    not catch.
     """
     if cert_body is None:
         return [], []
@@ -1531,6 +1676,8 @@ def _check_fold_ledger(
             ], []
         return [], []
     base = _resolve_base(spec_path)
+    spec_spans = _section_line_spans(text)
+    spec_target = spec_path.resolve()
     violations: list[Violation] = []
     warnings: list[Warning] = []
     for cells in rows:
@@ -1576,13 +1723,14 @@ def _check_fold_ledger(
         path, lo = match.group(1), int(match.group(2))
         hi = int(match.group(3)) if match.group(3) else None
         # A range resolves on its LAST line, exactly as A11 does; a single anchor is lo == hi.
-        lines, violation, resolve_warnings = _resolve_anchor(base, path, hi or lo, where, 'A12')
+        resolved, violation, resolve_warnings = _resolve_anchor(base, path, hi or lo, where, 'A12')
         warnings += resolve_warnings
         if violation is not None:
             violations.append(violation)
             continue
-        if lines is None:
+        if resolved is None:
             continue
+        lines = resolved.lines
         if hi is not None:
             if lo < 1 or lo > hi:
                 violations.append(Violation(where, f'anchor range {lo}-{hi} is malformed.', 'A12'))
@@ -1641,6 +1789,20 @@ def _check_fold_ledger(
                             f'A12:{path}:{delta}' if delta else '',
                         )
                     )
+                # Either way the coordinate is already reported as stale, and where a stale
+                # coordinate landed is not a second finding.
+                continue
+        landing = _ledger_landing(
+            resolved,
+            lo,
+            hi,
+            where,
+            path,
+            spec_spans=spec_spans if resolved.target.resolve() == spec_target else None,
+            target_section=_ledger_target_section(cells, header),
+        )
+        if landing is not None:
+            violations.append(landing)
     return violations, warnings
 
 
