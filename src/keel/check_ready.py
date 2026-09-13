@@ -297,7 +297,8 @@ def _kit_skew_warning(text: str, header: str) -> list[Warning]:
                 'W1',
                 f'WARN: this spec is unstamped — it declares no kit version, so kit↔gate skew is '
                 f'undetectable on it. Add `- **Kit:** {__version__}` to the header beside Date '
-                'and Status.',
+                'and Status: the value is a bare x.y.z, and a `v` prefix or a version with '
+                'trailing prose reads as no stamp at all.',
             )
         ]
     if stamp.split('.')[:2] == __version__.split('.')[:2]:
@@ -1145,10 +1146,19 @@ def _check_paths(
         if 'to be created' in cells[1].lower() and _extract_path(cells[1])
     ]
     violations: list[Violation] = []
-    for cells in rows:
+    for index, cells in enumerate(rows):
         module_cell = cells[1]
         if 'module' in module_cell.lower() and 'file' in module_cell.lower():
             continue
+        # The header is skipped by what it SAYS, so a header that names only one of the two words
+        # is read as a data row and fails as one — "the word 'Module' is not a path" is true and
+        # tells the author nothing. The form goes in the message, on the row that can be a header.
+        header_hint = (
+            ' If this row is the table header, the gate skips a header whose module column names '
+            'both words: `| Concept | Module / file |`.'
+            if index == 0
+            else ''
+        )
         path = _extract_path(module_cell)
         if not path:
             continue
@@ -1172,7 +1182,8 @@ def _check_paths(
             violations.append(
                 Violation(
                     'Concept → module map',
-                    f'referenced path {path!r} does not exist (nor marked "to be created").',
+                    f'referenced path {path!r} does not exist (nor marked "to be created").'
+                    f'{header_hint}',
                     'A5',
                 )
             )
@@ -1713,9 +1724,11 @@ def _check_fold_ledger(
                 Violation(
                     where,
                     f'no cell in this fold-ledger row is an `artifact:line` confirmation — the '
-                    f'confirmation column reads {read!r}. Anchor the row to `path:line` or '
-                    '`path:lo-hi`, e.g. `docs/design/your-spec.md:142`; an optional backticked '
-                    'snippet after it is verified against those lines.',
+                    f'confirmation column reads {read!r}. The row shape this gate reads is '
+                    '`| Finding | Target section | artifact:line | Confirmed |`: anchor the row '
+                    'to `path:line` or `path:lo-hi`, e.g. `docs/design/your-spec.md:142`, in '
+                    'whichever cell holds it; an optional backticked snippet after it is '
+                    'verified against those lines.',
                     'A12',
                 )
             )
@@ -2120,7 +2133,10 @@ def _check_certification_artifact(
             Violation(
                 where,
                 f'artifact {ref!r} carries no line-anchored `PREMORTEM-VERDICT:` line — it does '
-                "not look like a saved pre-mortem pass's output.",
+                "not look like a saved pre-mortem pass's output. The line this gate reads starts "
+                'the line (indentation aside) and leads with the bare token: '
+                '`PREMORTEM-VERDICT: CERTIFIED`, trailing prose allowed; where several appear, '
+                'the LAST one is the verdict.',
                 'B2',
             )
         ], []
@@ -2235,8 +2251,10 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
                 Violation(
                     'Pre-mortem certification',
                     'pre-mortem verdict is CONDITIONAL-CERTIFY but names no Operator; an '
-                    'operator-accepted conditional certify must record an "Operator:" field (the '
-                    'named owner who accepts "ready modulo a named fix").',
+                    'operator-accepted conditional certify records the named owner who accepts '
+                    '"ready modulo a named fix". The line this gate parses is '
+                    '`- **Operator:** <name>` on a line of its own — the label carries no '
+                    'parenthesis, so `- **Operator (the owner):** <name>` is read as prose.',
                     'B1',
                 )
             )
@@ -2245,9 +2263,9 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
         violations.append(
             Violation(
                 'Pre-mortem certification',
-                f'pre-mortem verdict is {verdict!r}, not "CERTIFIED" — the verdict field must '
-                'lead with the bare token CERTIFIED (trailing prose allowed), or '
-                'CONDITIONAL-CERTIFY with a named Operator.',
+                f'pre-mortem verdict is {verdict!r}, not "CERTIFIED" — the line this gate parses '
+                'is `- **Verdict:** CERTIFIED` (trailing prose after the token is allowed), or '
+                '`- **Verdict:** CONDITIONAL-CERTIFY` with a named Operator.',
                 'B1',
             )
         )
@@ -2255,7 +2273,9 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
         violations.append(
             Violation(
                 'Pre-mortem certification',
-                'pre-mortem certification names no reviewer (must be a non-author).',
+                'pre-mortem certification names no reviewer (must be a non-author) — the line '
+                'this gate parses is `- **Reviewer:** <name> (non-author)`, the label without a '
+                'parenthesis of its own.',
                 'B1',
             )
         )

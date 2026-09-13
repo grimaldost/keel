@@ -1829,3 +1829,71 @@ def test_an_absent_sibling_is_never_expanded_to_an_in_repo_twin_a6(tmp_path):
     left = [v for v in result.violations if 'leaves this repository' in v.message]
     assert left, [(v.where, v.message) for v in result.violations]
     assert not any('src/mod.py' in w.message for w in result.warnings), result.warnings
+
+
+# --- E2a/E2b: a rejection names the shape it wants ---------------------------
+#
+# Six distinct field grammars were discovered by iteration in one rite, each costing its own
+# run-read-fix cycle: the Operator line, the concept-map header, the ledger row, the artifact's
+# verdict line, the kit stamp. The gate parses a form and, until now, only ever said what was
+# wrong with what it read. A message that names the form it accepts ends the cycle in one run.
+
+
+def test_the_operator_rejection_prints_the_line_it_parses_b1(tmp_path):
+    # The parenthetical is the trap: `_field` reads `- **Label:** value`, so a label carrying a
+    # gloss in brackets is not the field at all, and "names no Operator" was true and unhelpful.
+    spec = READY_SPEC.replace(
+        '- **Verdict:** CERTIFIED',
+        '- **Verdict:** CONDITIONAL-CERTIFY\n- **Operator (the named owner):** Grimaldo',
+    )
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    message = ' '.join(v.message for v in result.violations if v.check == 'B1')
+    assert '- **Operator:**' in message
+    assert 'parenthes' in message.lower()
+
+
+def test_the_verdict_rejection_prints_the_line_it_parses_b1(tmp_path):
+    spec = READY_SPEC.replace('- **Verdict:** CERTIFIED', '- **Verdict:** looks good to me')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert any('- **Verdict:** CERTIFIED' in v.message for v in result.violations)
+
+
+def test_the_reviewer_rejection_prints_the_line_it_parses_b1(tmp_path):
+    spec = READY_SPEC.replace('- **Reviewer:** review-panel (non-author)', '')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert any('- **Reviewer:**' in v.message for v in result.violations)
+
+
+def test_the_concept_map_rejection_prints_its_header_a5(tmp_path):
+    # A header whose module column does not name both words is read as a data row, and the gate
+    # then complained that the word "Module" is not a path.
+    spec = READY_SPEC.replace('| Module / file it lives in |', '| Module |')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('| Concept | Module / file |' in v.message for v in result.violations)
+
+
+def test_the_fold_ledger_rejection_prints_the_row_shape_a12(tmp_path):
+    (tmp_path / '.git').mkdir()
+    spec = READY_SPEC + _ledger('| FM-1 | §1 | folded | yes |\n')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any(
+        '| Finding | Target section | artifact:line | Confirmed |' in v.message
+        for v in result.violations
+    )
+
+
+def test_the_artifact_rejection_prints_the_verdict_line_it_reads_b2(tmp_path):
+    (tmp_path / 'premortem.md').write_text('# artifact\n\nno verdict here\n', encoding='utf-8')
+    result = check_spec_ready(_write(tmp_path, _with_artifact_field('premortem.md')))
+    assert any('PREMORTEM-VERDICT: CERTIFIED' in v.message for v in result.violations)
+
+
+def test_the_unstamped_warning_says_what_a_stamp_must_look_like_w1(tmp_path):
+    # A `v`-prefixed stamp parses as no stamp at all: the value must be a bare x.y.z.
+    spec = READY_SPEC.replace(f'- **Kit:** {__version__}', f'- **Kit:** v{__version__}')
+    result = check_spec_ready(_write(tmp_path, spec))
+    warning = next(w for w in result.warnings if w.check == 'W1')
+    assert 'bare' in warning.message and f'`- **Kit:** {__version__}`' in warning.message
