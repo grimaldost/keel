@@ -1,13 +1,12 @@
 name: tag-watch
 
-# The one release artifact no test can see. tests/test_release_flow.py holds a
-# tagged CHANGELOG section's entry set frozen and asserts the tagging rule
-# itself; the version bump script (scripts/bump_version.py) keeps
-# pyproject.toml, .claude-plugin/plugin.json, src/keel/__init__.py and the
-# newest CHANGELOG heading in step. Nothing holds the tag itself, though, and
-# the tag is what `git show v0.20.0` and `git log v0.19.0..v0.20.0` answer
-# from: an untagged version leaves "what was released" unanswerable while
-# every other gate stays green.
+# The newest release is the one tag the test suite cannot see.
+# tests/test_release_flow.py (test_released_versions_carry_a_tag) asserts that
+# every released version from 0.4.0 carries a tag, except the newest: that one
+# is tagged only after its release PR merges, so the suite cannot demand it
+# without failing every release. It also skips itself in a checkout with no
+# tags. This watch runs on main after the merge, from a clone with the tags,
+# so the newest release is checked too and a tagless checkout cannot skip it.
 #
 # EVERY released version, not just the current one. A release superseded
 # before the next scheduled run would otherwise never be looked at again -- a
