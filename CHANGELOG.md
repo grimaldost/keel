@@ -3,6 +3,7 @@
 All notable changes to keel. Format: Keep a Changelog; versioning: SemVer. An entry that
 moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code — carries the
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
+Tags start at 0.4.0; earlier versions were released before the public history began.
 
 ## [0.20.0] - 2026-09-13
 

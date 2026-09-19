@@ -1,0 +1,90 @@
+name: tag-watch
+
+# The one release artifact no test can see. tests/test_release_flow.py holds a
+# tagged CHANGELOG section's entry set frozen and asserts the tagging rule
+# itself; the version bump script (scripts/bump_version.py) keeps
+# pyproject.toml, .claude-plugin/plugin.json, src/keel/__init__.py and the
+# newest CHANGELOG heading in step. Nothing holds the tag itself, though, and
+# the tag is what `git show v0.20.0` and `git log v0.19.0..v0.20.0` answer
+# from: an untagged version leaves "what was released" unanswerable while
+# every other gate stays green.
+#
+# EVERY released version, not just the current one. A release superseded
+# before the next scheduled run would otherwise never be looked at again -- a
+# watch that only ever asks about the newest release cannot see the one thing
+# it watches for.
+#
+# Scheduled rather than push-triggered, deliberately. CONTRIBUTING's release
+# discipline tags the release's last PR merge commit only after that PR has
+# already merged, so a push gate would fail every release by construction and
+# leave that commit permanently red even once tagged. An alarm that is wrong
+# at first is an alarm people learn to ignore. A scheduled run re-evaluates,
+# so the alarm clears by itself the next morning; workflow_dispatch clears it
+# immediately.
+#
+# Tags start at 0.4.0 (CHANGELOG preamble): 0.4.0 was the first public
+# release, with 0.2.0, 0.2.1 and 0.3.0 pre-publication history folded into
+# that commit, so there is nothing earlier to tag. The watch skips dated
+# versions older than the cut-off it reads from that sentence; with no such
+# sentence, every dated version is checked.
+
+# Least privilege: the check reads the checkout and its tags.
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  tagged:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: main
+          fetch-depth: 0 # full history, so the tags come with it
+      - name: every released version is tagged
+        # One Python step instead of a shell pipeline: nothing here can pass because
+        # an interpreter was missing or a pipe swallowed an exit status.
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, subprocess, sys
+
+          # Single-CHANGELOG repositories: one entry, tag prefix "v".
+          # craft-collection: one entry per plugins/<name>/CHANGELOG.md, prefix "<name>--v".
+          TARGETS = [(pathlib.Path("CHANGELOG.md"), "v")]
+
+          def released(path):
+              text = path.read_text(encoding="utf-8")
+              first = re.search(r"^## \[", text, re.M)
+              preamble = text[: first.start()] if first else text
+              cut = re.search(r"Tags start at (\d+)\.(\d+)\.(\d+)", preamble)
+              floor = tuple(map(int, cut.groups())) if cut else (0, 0, 0)
+              found = [tuple(map(int, v)) for v in re.findall(r"^## \[(\d+)\.(\d+)\.(\d+)\]", text, re.M)]
+              return found, [v for v in found if v >= floor]
+
+          def tagged(name):
+              probe = ["git", "rev-parse", "-q", "--verify", f"refs/tags/{name}"]
+              return subprocess.run(probe, capture_output=True).returncode == 0
+
+          missing, checked = [], 0
+          for path, prefix in TARGETS:
+              found, due = released(path)
+              if not found:
+                  # A CHANGELOG with no parseable version is a changed format, not a clean bill.
+                  print(f"::error::{path} has no '## [X.Y.Z]' heading this check can read.")
+                  sys.exit(1)
+              for version in due:
+                  name = prefix + ".".join(map(str, version))
+                  checked += 1
+                  if not tagged(name):
+                      missing.append(name)
+
+          if missing:
+              print("::error::Released versions with no tag: " + ", ".join(missing) + ". Tag the release PR's merge commit: git tag -a vX.Y.Z <merge-commit> -m 'keel X.Y.Z' && git push origin vX.Y.Z")
+              sys.exit(1)
+          print(f"{checked} released version(s) checked, all tagged.")
+          PY
