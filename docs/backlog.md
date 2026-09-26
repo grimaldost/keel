@@ -120,7 +120,9 @@ Two things the wave leaves for the operator, both deliberate:
   on when this branch is opened as a PR. That is the gate working: the release entry and the
   version bump are the merge step, and they have to reconcile with the in-flight 0.14.0 first.
   *Reconciled:* the wave merged as **0.14.0** on main (PR #17), claiming the number on main's line;
-  the unmerged branch renumbers when it lands.
+  the unmerged branch renumbers when it lands. *Closed:* it never landed — ADR-0019 folded its one
+  lasting result (the equivalence verdict) into the record and closed the branch, and it was
+  deleted from origin on 2026-09-19.
 - **Tags are local.** v0.11.1, v0.12.0, v0.13.0 and v0.13.1 were created at their release commits
   on main; `git push --tags` publishes them.
 
