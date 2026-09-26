@@ -589,6 +589,15 @@ recorded here explicitly. `[triage]`
   not done.** Until the adjudication lands, the body is unchanged, this row still gates net-new
   directive prose, and the 2,050-word cap in CONTRIBUTING stands where it is — the measurement is
   not a reason to raise it and not yet a reason to lower it.
+- **Re-opened 2026-09-19 — the structural result did not replicate.** The "18 existing
+  finding-lists" above were never kept: each trial's workspace was removed when the trial ended, so
+  the adjudication could not have run on them. The same matrix was run again with the raw stream
+  kept (same arms, specs, model id and configuration), and the 225-word core held only **2 of 6**
+  on both citation-grounding checks, where the first run had 6 of 6 — the property the compression
+  was to be licensed on (fathom `docs/reports/2026-09-19-premortem-ablation-v1-replication.md`).
+  The lists now exist; the blinded reading is **deferred to a later review round**. Nothing above
+  changes in consequence: the body is unchanged, this row still gates net-new directive prose, and
+  no directive is retired on the structural axis.
 - **Effort:** L · **Source:** `[review]` `[research]` `[cross-review]`
 
 ### KEEL-B10 — Move the domain lenses out of the always-on bodies into a selected profile file
