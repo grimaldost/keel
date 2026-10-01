@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0 # full history AND tags: the release-flow tag assertions skip a tagless checkout, and the default shallow checkout is exactly that
           persist-credentials: false
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - run: uv lock --check # the committed uv.lock (a version site; CONTRIBUTING, "Release discipline") must be current; a stale lock reds CI
       - run: uv sync --group dev
       - run: uv run ruff format --check .
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - env:
           GH_TOKEN: ${{ github.token }}
         run: uvx zizmor==1.30.0 --min-severity high .github/workflows
