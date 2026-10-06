@@ -594,7 +594,7 @@ recorded here explicitly. `[triage]`
   the adjudication could not have run on them. The same matrix was run again with the raw stream
   kept (same arms, specs, model id and configuration), and the 225-word core held only **2 of 6**
   on both citation-grounding checks, where the first run had 6 of 6 — the property the compression
-  was to be licensed on (fathom `docs/reports/2026-09-19-premortem-ablation-v1-replication.md`).
+  was to be licensed on (the eval harness's 2026-09-19 replication report, maintainer-local).
   The lists now exist; the blinded reading is **deferred to a later review round**. Nothing above
   changes in consequence: the body is unchanged, this row still gates net-new directive prose, and
   no directive is retired on the structural axis.

@@ -102,9 +102,10 @@ CHANGELOG rather than claiming a clean bill.
 
 The controlled experiment against a disciplined baseline (designed 2026-06-06, maintainer-local) never
 ran. At the ADR-0013 deadline keel retired the comparative headline instead of running it: the best
-available instrument evidence — the public `fathom` eval harness (`github.com/grimaldost/fathom`, its
-ledgers committed) — shows current strong models at the correctness ceiling on every self-contained task
-bank tried (0/180 correctness failures at n=45 on the two hardest banks), so a matched-pair run at
+available instrument evidence — the public `fathom` eval harness (`github.com/grimaldost/fathom`; the
+ledgers behind these figures have been kept in the maintainer's private data repository since
+2026-10-06 and are no longer public) — shows current strong models at the correctness ceiling
+on every self-contained task bank tried (0/180 correctness failures at n=45 on the two hardest banks), so a matched-pair run at
 authoring-feasible task scale cannot distinguish the method from a disciplined baseline; it would return
 a null by instrument, not a verdict. What stands is observational only: *designed to, and so far observed
 to*. The observational ledger (per wave: failure modes predicted → materialized → catch cost) continues
