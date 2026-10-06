@@ -123,3 +123,9 @@ slot) is left to a future release and not built here.
   record; the "pending" wording in ADR-0012 and in historical CHANGELOG entries stays as provenance
   (an Accepted decision is superseded, not edited).
 - ADR-0013's remaining items are all now resolved: items 1–3 by 0.12.0, item 4 by this ADR.
+
+## Amendment, 2026-10-06
+
+The fathom repository was split on 2026-10-06 into a public engine and a private data repository.
+The ledgers this record cites ("its ledgers committed and pushed", "fathom's public ledgers") now live in the
+private repository, so they are no longer publicly verifiable. The record above is unchanged.
