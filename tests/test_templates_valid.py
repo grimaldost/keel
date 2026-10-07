@@ -50,7 +50,12 @@ REQUIRED_SECTIONS = {
         'Instrument defeatability',
         'pre-registered',
     ],
-    'review-checklist.md': ['Scope', 'Correctness'],
+    'review-checklist.md': [
+        'Scope',
+        'Correctness',
+        'flagged defect class is gone',
+        'would the test fail if the load-bearing predicate were subtly wrong',
+    ],
     'reflection-triage.md': [
         'Procedure',
         'Exit gate',
@@ -304,3 +309,18 @@ def test_contains_still_fails_on_missing_needles():
     text = 'Feasibility-grounding ran FIRST'
     missing_needle = 'Feasibility-grounding ran SECOND'
     assert not _contains(text, missing_needle)
+
+
+def test_review_checklist_has_exactly_ten_items():
+    """The review checklist carries exactly 10 checkable items (SW9, Q7d).
+
+    When the measured count changes, this test must be updated and the change
+    recorded in CHANGELOG.md under an appropriate entry (Added/Changed/Fixed).
+    The count of 10 is measured from the template's `- [ ]` markers.
+    """
+    text = (templates_root() / 'review-checklist.md').read_text(encoding='utf-8')
+    items = len(re.findall(r'^\s*-\s*\[\s*\]\s', text, re.MULTILINE))
+    assert items == 10, (
+        f'review-checklist.md has {items} checkable items; expected 10. '
+        'If the count changed intentionally, update this test and record the change in CHANGELOG.md'
+    )

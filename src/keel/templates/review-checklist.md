@@ -18,14 +18,17 @@ without a prompt, starting with the one this checklist exists for.
       checker that bailed early must fail the gate, not pass it.
 - [ ] **Scope** — single concern; cites exactly one spec section; no unrelated
       refactor ("while I'm here").
-- [ ] **Correctness** — does what the cited section's acceptance criterion says.
+- [ ] **Correctness** — on initial review, does what the cited section's acceptance criterion says;
+      on re-review after REQUEST_CHANGES, check that every instance of the flagged defect class is gone,
+      not only the cited line.
 - [ ] **Invariants** — respects every boundary/lock/immutability/contract named in
       the spec's "Invariants touched".
 - [ ] **Typing** — fully typed; no new type-checker suppressions without reason.
 - [ ] **Errors** — no silent `except`; failures surface; user-facing errors use the
       project's error format.
-- [ ] **Tests** — behavior changes have tests; tests assert behavior, not
-      implementation; no skip/xfail added to mask a real failure.
+- [ ] **Tests** — behavior changes have tests; would the test fail if the load-bearing predicate
+      were subtly wrong? For a registry or allow-list, derive the set from spec and assert equality,
+      not membership; no skip/xfail added to mask a real failure.
 - [ ] **Docs** — public API/config/contract changes are documented.
 - [ ] **No coupling smell** — no reaching through `getattr`/private attrs to dodge
       a boundary.

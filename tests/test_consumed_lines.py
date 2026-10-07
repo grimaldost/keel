@@ -32,7 +32,7 @@ CONSUMED = {
         '      checker that bailed early must fail the gate, not pass it.',
         '- [ ] **Scope** — single concern; cites exactly one spec section; no unrelated',
         '- [ ] **Invariants** — respects every boundary/lock/immutability/contract named in',
-        '- [ ] **Tests** — behavior changes have tests; tests assert behavior, not',
+        '- [ ] **Tests** — behavior changes have tests; would the test fail',
         '- [ ] **No coupling smell** — no reaching through `getattr`/private attrs to dodge',
     ],
 }

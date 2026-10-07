@@ -202,6 +202,16 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
 
 ### Changed
 
+- **Review checklist sharpens re-review and test adequacy** (SW9, Q7d, 2026-10-06 triage). The
+  Correctness item now distinguishes initial review (does what the acceptance criterion says) from
+  re-review after REQUEST_CHANGES (every instance of the flagged defect class is gone, not only the
+  cited line). The Tests item now asks whether the test would fail if the load-bearing predicate
+  were subtly wrong, and for a registry or allow-list, instructs the reviewer to derive the set
+  from spec and assert equality, not membership. Both are rewrites of existing items with no new
+  item added; the count remains 10. The template has external consumers (sibling projects resolve
+  pointers to these lines), so this entry records the intentional rewording. The test suite gains
+  a needle assertion for each rewrite and a pin on the item count (exactly 10 `- [ ]` items).
+  Class: documentation and process clarification; no new checks, so no spec in flight can newly fail.
 - **W5 names a declared body amendment** (E7b, 2026-10-06 triage). The method has no form for
   editing a certified body, so a post-certification edit surfaced as the generic "certified against
   an earlier revision" W5, the same text an accidental drift gets. When the hash mismatch is not W7's
