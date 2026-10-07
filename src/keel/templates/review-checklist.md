@@ -26,9 +26,10 @@ without a prompt, starting with the one this checklist exists for.
 - [ ] **Typing** — fully typed; no new type-checker suppressions without reason.
 - [ ] **Errors** — no silent `except`; failures surface; user-facing errors use the
       project's error format.
-- [ ] **Tests** — behavior changes have tests; would the test fail if the load-bearing predicate
-      were subtly wrong? For a registry or allow-list, derive the set from spec and assert equality,
-      not membership; no skip/xfail added to mask a real failure.
+- [ ] **Tests** — behavior changes have tests; tests assert behavior, not
+      implementation; would the test fail if the load-bearing predicate were subtly wrong? For a
+      registry or allow-list, derive the set from spec and assert equality, not membership; no
+      skip/xfail added to mask a real failure.
 - [ ] **Docs** — public API/config/contract changes are documented.
 - [ ] **No coupling smell** — no reaching through `getattr`/private attrs to dodge
       a boundary.
