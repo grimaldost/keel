@@ -23,17 +23,11 @@ from keel.models import DOR_CHECK_IDS, GateResult, Probe, Violation, Warning, co
 # prose view (`_mask_inline_spans` space-fills inline-code spans, including a span hard-wrapped
 # across a line break), so documented CLI syntax like `keel init <target>` in backticks is fine —
 # even wrapped mid-span — while a leftover bare `<title>` heading placeholder fails (A3).
-# TBD, FIXME and ??? fire wherever they appear. TODO fires only in a marker form, so prose that uses
-# the word (Portuguese "TODO o sistema") passes: `TODO:`, `TODO(`, `# TODO`, or the token standing
-# alone (a whole line, a list item, a table cell, or a backticked code span holding only it).
-_PLACEHOLDER_RE = re.compile(
-    r'\b(?:TBD|FIXME)\b|\?\?\?'
-    r'|\bTODO(?=[:(])'
-    r'|#[ \t]*TODO\b'
-    r'|`TODO`'
-    r'|^[ \t]*(?:(?:[-*+]|\d+[.)])[ \t]+)?TODO[ \t]*$'
-    r'|(?<=\|)[ \t]*TODO[ \t]*(?=\||$)'
-)
+# TBD, FIXME and ??? fire wherever they appear. TODO fires unless a word follows it on its line, so
+# prose that uses the word (Portuguese "TODO o sistema") passes, while `TODO:`, `TODO(`, a field
+# value (`- **Owner:** TODO`), a task item, `TODO.` ending a sentence, a lone line, list item, table
+# cell or backticked `TODO` all fire. `# TODO` fires whatever follows it.
+_PLACEHOLDER_RE = re.compile(r'\b(?:TBD|FIXME)\b|\?\?\?|\bTODO\b(?![ \t]+\w)|#[ \t]*TODO\b')
 _PLACEHOLDER_TOKEN_RE = re.compile(r'TBD|TODO|FIXME|\?\?\?')
 _ANGLE_PLACEHOLDER_RE = re.compile(r'<[a-z][^>\n]{2,}>')
 _SECTION_ID_RE = re.compile(r'§\d+')
@@ -1152,8 +1146,8 @@ def _check_placeholders(text: str, prose: str) -> list[Violation]:
     stamped `### §1 <title>` heading or an unfilled `<the observable condition ...>` acceptance
     criterion is caught. The legacy tokens keep scanning the fence-masked line: a backticked `TODO`
     still fires, matching the spec-template's fence-only quoting doctrine.
-    TODO is a marker only in the forms `_PLACEHOLDER_RE` lists; the word inside a sentence is
-    not a placeholder.
+    TODO with a word after it on the same line is prose, not a placeholder; every other TODO,
+    and `# TODO` whatever follows it, fires (`_PLACEHOLDER_RE`).
     """
     violations: list[Violation] = []
     for lineno, (line, masked) in enumerate(

@@ -144,6 +144,13 @@ def _a3(tmp_path, replacement):
         _A3_PROSE + '\n\n| TODO |\n\n',
         _A3_PROSE + '\n\n| a | TODO\n\n',
         _A3_PROSE + ' A backticked `TODO` still counts.',
+        # The token ending a field value, a task item or a sentence is a placeholder too: only a
+        # TODO with a word after it on the same line is prose.
+        _A3_PROSE + '\n\n- **Owner:** TODO\n\n',
+        _A3_PROSE + '\n\n**Rollback:** TODO\n\n',
+        _A3_PROSE + '\n\nOwner: TODO\n\n',
+        _A3_PROSE + '\n\n- [ ] TODO\n\n',
+        _A3_PROSE + ' The rollback plan is TODO.',
         _A3_PROSE + ' TBD later.',
         _A3_PROSE + ' FIXME later.',
         _A3_PROSE + ' ??? later.',
