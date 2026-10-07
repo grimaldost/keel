@@ -7,14 +7,14 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 
 ## [0.21.0] - 2026-10-07
 
-A release focused on closing gaps between what the gate checks and what could go undetected. The gate
-now warns when a newer keel version has run on the machine, detects when an acceptance criterion
-reaches into a file another section creates, and requires explicit records of fold decisions and
-exempted anchors. The pre-mortem directive and spec template move toward measurements of their own
-marginal effect, shrinking the always-on directive by one-third (0.20.0's move of profile selection
-out of the directive completes here). Five rows from the 2026-10-06 triage (W8, E4a, E5b, E6a, SW13,
-SW17); the measurement that unlocks the directive compression waits on the owner's pending
-adjudication (KEEL-B09).
+New gate checks and fold-ledger structure, a handful of check relaxations, template and agent
+wording from the 2026-10-06 triage, and two `keel re-anchor` fixes. Three new warnings (W8, W9,
+W10) join the Definition-of-Ready reference block; the new blocking arms (the `Sibling sweep`
+column, the `new-instrument:` marker, the `Anchor waivers` table) fire only when their structure
+is present, and A3 and A4 are relaxed, so no spec in flight can newly fail. The one new signal on
+upgrade is W1's kit-skew WARN on specs stamped 0.20.0, which is warn-only. Body budgets after
+this release: directive 1,668/2,050 (unchanged); contract notes 499/500 (unchanged); agent
+wrapper 531/550; Definition-of-Ready prose 942/950; reference-block maximum 61/61 (W2, unchanged).
 
 ### Added
 
@@ -237,7 +237,11 @@ adjudication (KEEL-B09).
   `-r<N>` for a later round), followed by the directive to stamp `keel spec-hash` after the last
   fold and before editing. A missing directive-file report, which the agent names when the template
   is unreachable, is now reported on the second line (after the save path), not the first. The agent
-  wrapper's word budget stays within 550 (now 531, was 499 before this and adjacent rewrites). Tests
+  wrapper's word budget measures 531 (cap 550; was 499). The
+  instruction adds 33 words to the wrapper's output-contract bullet and displaces only the
+  parenthetical "(`<spec-stem>.premortem.md`, B2)", which becomes "(B2)" with the path moved into
+  the new sentence, and the word "first" in the missing-directive line, which becomes "second".
+  Tests
   add `.premortem.md` and `keel spec-hash` to the output-contract tokens. The template file
   `pre-mortem-prompt.md` is unchanged. Class: output contract only; no prompt, template, or check
   changes, so no spec in flight can newly fail.
@@ -315,8 +319,9 @@ adjudication (KEEL-B09).
   now states the certified spec's lifetime: certified spec anchors describe the tree at
   certification, and from PR01 the DoD gates take over the certified state. A Part B checklist item
   is added: every repository named in the manifest's `Repo` column has its gate commands in the
-  spec's Gate commands section. The DoR prose is now 946 words (cap 950), well within the budget
-  freed by the deletion. The Definition-of-Ready reference block is unchanged, so it remains
+  spec's Gate commands section. The DoR prose measures 942 words (cap 950); across
+  this release it nets +7 from 935, because the 34 deleted words are offset by the lifetime
+  sentence, the Part B item, and the reviewer items added by SW11 and Q7c below. The Definition-of-Ready reference block is unchanged, so it remains
   identical in the full and core templates. Class: documentation and process clarification; no
   new checks, so no spec in flight can newly fail.
 - **Reflection-triage procedure gains in-repo mode and family-aware promotions** (E11c, Q8a,
