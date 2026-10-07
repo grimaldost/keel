@@ -169,8 +169,11 @@ A row whose fold adds a new test instrument opens its Confirmed cell with `new-i
 the backticked command that read the finding's `consumed_input` chain, then what it printed. A12
 fails the row when a bare word follows the marker.
 
-| Finding | Target section | artifact:line | Confirmed |
-|---|---|---|---|
+The Sibling sweep cell holds the command run over the changed fact's other statements and the lines
+it changed, or `none`. A12 fails the row when the cell is empty.
+
+| Finding | Target section | artifact:line | Confirmed | Sibling sweep |
+|---|---|---|---|---|
 
 ### Series review
 

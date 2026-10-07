@@ -847,10 +847,173 @@ def test_the_templates_fold_ledger_documents_the_new_instrument_marker_a12(tmp_p
         ('new-instrument: `git grep -n two mod.py` → mod.py:2', True),
         ('new-instrument: yes', False),
     ):
-        row = f'| FM-1 | §1 | `mod.py:2` | {confirmed} |\n'
+        # The template's ledger carries a Sibling sweep column (SW13), so the row fills it.
+        row = f'| FM-1 | §1 | `mod.py:2` | {confirmed} | none |\n'
         spec = READY_SPEC + '\n' + block.rstrip('\n') + '\n' + row
         result = check_spec_ready(_write(tmp_path, spec))
         assert result.passed is ok, (confirmed, [(v.check, v.message) for v in result.violations])
+
+
+# --- SW13: a `Sibling sweep` column records the sweep over the fact's other statements ---------
+#
+# A fold changes one statement of a fact; the fact's other statements stay as they were, and the
+# next round's finding is the stale sibling the fold created. A ledger whose header carries a
+# `Sibling sweep` column records, per row, the command run over those statements and the lines it
+# changed, or `none`. A12 fails a row whose cell in that column is empty. A ledger without the
+# column is checked exactly as before (verify-when-present).
+
+_SWEEP_HEADER = (
+    '| Finding | Target section | artifact:line | Confirmed | Sibling sweep |\n'
+    '|---|---|---|---|---|\n'
+)
+
+
+def _sweep_ledger(tmp_path, table: str):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    return check_spec_ready(_write(tmp_path, READY_SPEC + '\n\n### Fold ledger\n\n' + table))
+
+
+def _sweep_hits(result) -> list:
+    return [v for v in result.violations if v.check == 'A12' and 'Sibling sweep' in v.message]
+
+
+@pytest.mark.parametrize('sweep', ['', '   ', '**', '-', '\u2013', '—'])
+def test_fold_ledger_empty_sibling_sweep_cell_fails_a12(tmp_path, sweep):
+    # A dash is how a markdown table writes an empty cell; `none` is the declaration.
+    result = _sweep_ledger(
+        tmp_path, _SWEEP_HEADER + f'| FM-1 | §1 | `mod.py:2` | yes | {sweep} |\n'
+    )
+    assert not result.passed, f'a Sibling sweep cell reading {sweep!r} passed the gate'
+    hits = _sweep_hits(result)
+    assert hits, [(v.check, v.message) for v in result.violations]
+    assert '`none`' in hits[0].message, hits[0].message
+
+
+def test_fold_ledger_row_short_of_the_sibling_sweep_column_fails_a12(tmp_path):
+    # A row that stops before the column renders with that cell empty, and is read that way.
+    result = _sweep_ledger(tmp_path, _SWEEP_HEADER + '| FM-1 | §1 | `mod.py:2` | yes |\n')
+    assert not result.passed
+    assert _sweep_hits(result), [(v.check, v.message) for v in result.violations]
+
+
+@pytest.mark.parametrize(
+    'sweep',
+    [
+        'none',
+        '`none`',
+        'None',
+        '`git grep -n "line two" .` → mod.py:2 only; no other statement changed',
+        "`rg -n 'two' docs/ src/` → changed docs/a.md:4, src/b.py:9",
+    ],
+)
+def test_fold_ledger_filled_sibling_sweep_cell_passes_a12(tmp_path, sweep):
+    result = _sweep_ledger(
+        tmp_path, _SWEEP_HEADER + f'| FM-1 | §1 | `mod.py:2` | yes | {sweep} |\n'
+    )
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_sibling_sweep_column_is_found_by_header_name_a12(tmp_path):
+    # Any position, any case: the column is read by its header, as the target section is.
+    table = (
+        '| Finding | **sibling sweep** | Target section | artifact:line | Confirmed |\n'
+        '|---|---|---|---|---|\n'
+        '| FM-1 | none | §1 | `mod.py:2` | yes |\n'
+        '| FM-2 |  | §1 | `mod.py:1` | yes |\n'
+    )
+    result = _sweep_ledger(tmp_path, table)
+    hits = _sweep_hits(result)
+    assert [v.where for v in hits] == ['Fold ledger FM-2'], [
+        (v.check, v.where, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_sibling_sweep_column_keeps_the_target_section_read_a12(tmp_path):
+    # The new column must not displace the `§N` membership read: the row names §1, the anchor
+    # lands in §2, and that still fails even with the sweep column ahead of the target column.
+    (tmp_path / '.git').mkdir()
+    table = (
+        '| Finding | Sibling sweep | Target section | artifact:line | Confirmed |\n'
+        '|---|---|---|---|---|\n'
+        '| FM-1 | none | §1 | `spec.md:LINE` | yes |\n'
+    )
+    spec = READY_SPEC + '\n\n### Fold ledger\n\n' + table
+    elsewhere = _line_of(spec, 'Expose the widget.')  # §2's body
+    result = check_spec_ready(
+        _write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{elsewhere}'))
+    )
+    assert not result.passed
+    assert any(v.check == 'A12' and '§2' in v.message for v in result.violations), [
+        (v.check, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_sibling_sweep_row_wider_than_its_header_is_a_column_break_a12(tmp_path):
+    # The column-break rule counts the new column like any other.
+    result = _sweep_ledger(
+        tmp_path, _SWEEP_HEADER + '| FM-1 | §1 | `mod.py:2` | yes | rg -n a | b src/ |\n'
+    )
+    assert not result.passed
+    assert any(v.check == 'A12' and 'column break' in v.message for v in result.violations)
+
+
+@pytest.mark.parametrize(
+    'table',
+    [
+        '| Finding | Target | artifact:line |\n|---|---|---|\n| FM-1 | §1 | `mod.py:2` |\n',
+        '| Finding | Target | artifact:line | Confirmed |\n|---|---|---|---|\n'
+        '| FM-1 | §1 | `mod.py:2` | yes |\n',
+        '| Finding | Target | artifact:line | Confirmed | Round |\n|---|---|---|---|---|\n'
+        '| FM-1 | §1 | `mod.py:2` | yes |  |\n',
+    ],
+    ids=['three-column', 'four-column', 'other-fifth-column'],
+)
+def test_fold_ledger_without_a_sibling_sweep_column_is_checked_as_before_a12(tmp_path, table):
+    # Verify-when-present: every ledger written before the column existed keeps passing.
+    result = _sweep_ledger(tmp_path, table)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_the_dor_reference_line_states_the_sibling_sweep_rule_a12():
+    # The rule is a contract, so it lives in the A12 line of the reference block; the core sheet
+    # carries the same block (test_core_variants), and the line's cap is test_body_budgets'.
+    sheet = (templates_root() / 'definition-of-ready.md').read_text(encoding='utf-8')
+    a12 = next(line for line in sheet.splitlines() if line.startswith('A12 '))
+    assert '`Sibling sweep`' in a12 and '`none`' in a12, a12
+
+
+def test_the_templates_fold_ledger_carries_the_sibling_sweep_column_a12(tmp_path):
+    # CONTRIBUTING 2a: read through the shipped template's own ledger block, in both arms, so the
+    # column the template documents is the one the gate reads.
+    for template_path in (
+        templates_root() / 'spec-template.md',
+        templates_root() / 'core' / 'spec-template.md',
+    ):
+        template = template_path.read_text(encoding='utf-8')
+        found = re.search(
+            r'^### Fold ledger\n.*?(?=^---$|^### )', template, re.MULTILINE | re.DOTALL
+        )
+        assert found is not None, f'{template_path} carries no `### Fold ledger` block'
+        block = found.group(0)
+        assert '| Finding | Target section | artifact:line | Confirmed | Sibling sweep |' in block
+        for sweep, ok in (
+            ('none', True),
+            ('`git grep -n two mod.py` → mod.py:2', True),
+            ('', False),
+        ):
+            row = f'| FM-1 | §1 | `mod.py:2` | yes | {sweep} |\n'
+            work = tmp_path / template_path.parent.name / (sweep[:4].strip('`') or 'empty')
+            work.mkdir(parents=True)
+            (work / '.git').mkdir()
+            (work / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+            spec = READY_SPEC + '\n' + block.rstrip('\n') + '\n' + row
+            result = check_spec_ready(_write(work, spec))
+            assert result.passed is ok, (
+                template_path.name,
+                sweep,
+                [(v.check, v.message) for v in result.violations],
+            )
 
 
 # --- T1.4: a confirmation cell may name a RANGE ------------------------------

@@ -372,3 +372,29 @@ fires = []
 why = "E6a's negative control: the same marked row carrying a backticked command and its output is the record the marker asks for, and fires nothing"
 find = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |"
 replace = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | new-instrument: `git grep -n ORDER_COLUMNS src/tinyetl/` -> 2 hits, orders.py |"
+
+[[mutant]]
+id = "A12-sibling-sweep-empty-cell"
+fires = ["A12"]
+why = "SW13: a fold changes one statement of a fact and the fact's other statements stay as they were, so the next round's finding is the stale sibling the fold created. A ledger that carries a Sibling sweep column records, per row, the command run over those statements and the lines it changed, or none; a row whose cell is empty is that record missing, and it fails"
+find = """| Finding | Target section | artifact:line | Confirmed |
+|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"""
+replace = """| Finding | Target section | artifact:line | Confirmed | Sibling sweep |
+|---|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes | `git grep -n ORDER_COLUMNS src/` -> orders.py only, no line changed |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |  |"""
+
+[[mutant]]
+id = "A12-sibling-sweep-filled"
+fires = []
+why = "SW13's negative control: the same ledger with every Sibling sweep cell filled, a command and what it changed on one row and none on the other, is the record the column asks for, and fires nothing"
+find = """| Finding | Target section | artifact:line | Confirmed |
+|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"""
+replace = """| Finding | Target section | artifact:line | Confirmed | Sibling sweep |
+|---|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes | `git grep -n ORDER_COLUMNS src/` -> orders.py only, no line changed |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes | none |"""

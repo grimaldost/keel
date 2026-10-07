@@ -122,8 +122,8 @@ a non-blank line and — pointing into this spec — inside the `§N` the row na
 A backticked snippet after it is verified against those lines; a `.py` range must close its
 brackets. The ledger is the FIRST table here.*
 
-| Finding | Target section | artifact:line | Confirmed |
-|---|---|---|---|
+| Finding | Target section | artifact:line | Confirmed | Sibling sweep |
+|---|---|---|---|---|
 
 ---
 *Most Definition-of-Ready checks pass by construction here — numbered sections, per-section

@@ -77,6 +77,32 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   a negative control (the same row with its command and output fires nothing). Class:
   verify-when-present; the marker is new, so a ledger without it is checked exactly as before and
   no spec in flight can newly fail.
+- **The fold ledger gains a `Sibling sweep` column, checked by A12** (SW13, 2026-09-26 and
+  2026-10-06 triages; `(consumer-affecting)`: a spec scaffolded from the template now carries the
+  column, and A12 holds every row to it). A fold changes one statement of a fact and leaves the
+  fact's other statements as they were. In one field report a spec stated one fact in five places,
+  each fold updated one of them, and every blocking finding of rounds 2 to 4 was created by the
+  previous fold. The directive's prose rule to sweep the artifact for siblings was already shipped
+  and the class recurred in three reports, so the rule moves to the ledger row, which every fold
+  writes. The ledger header in the full and core spec templates becomes
+  `| Finding | Target section | artifact:line | Confirmed | Sibling sweep |`. The cell holds the
+  command run over the fact's other statements and the lines it changed, or `none`. When a
+  ledger's header names a `Sibling sweep` column (in any position, any case), A12 fails a row whose
+  cell there is empty, a bare dash, or missing because the row stops short of the column; `none`
+  or any other content passes. The column is found by its header name, as the target section is,
+  so the target-section read and the column-break rule are unchanged, and a test holds each with
+  the column present. The full template states the cell's content in a plain line under the E6a
+  line, so no italic contract-note words are added (499/500, unchanged); the core template takes
+  the header only. The A12 line of the Definition-of-Ready reference block states the rule
+  ("an empty `Sibling sweep` cell fails (`none` passes)"), identically in the full and core sheets,
+  and measures 59 words (was 60, cap 61) because it displaces words in the same line: "when a
+  `### Fold ledger` sub-table is present:" becomes "each `### Fold ledger` row:", "— or
+  `artifact:lo-hi` —" becomes "(or `artifact:lo-hi`)", and "read from whichever cell IS one"
+  becomes "in any cell". The adversarial corpus gains a positive control (the clean ledger
+  rewritten with the column and one empty cell fires exactly A12) and a negative control (every
+  cell filled fires nothing); the E6a template test's row gains the fifth cell. Class:
+  verify-when-present; a ledger without the column, the three- and four-column legacy shapes
+  included, is checked exactly as before, so no spec in flight can newly fail.
 
 ### Changed
 

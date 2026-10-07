@@ -1681,6 +1681,29 @@ def _records_command_and_output(claim: str) -> bool:
     return False
 
 
+# SW13: a ledger whose header names a `Sibling sweep` column owes, per row, the command run over
+# the changed fact's other statements and the lines it changed, or `none`. A dash is how a markdown
+# table writes an empty cell, so it is read as one; `none` is the declaration.
+_SIBLING_SWEEP_RE = re.compile(r'sibling[\s-]+sweep\b', re.IGNORECASE)
+_EMPTY_CELL_RE = re.compile(r'[-\u2013\u2014]?')  # nothing, or a hyphen, en dash or em dash
+
+
+def _sibling_sweep_column(header: list[str]) -> int | None:
+    """The index of the header cell named `Sibling sweep`, or None when the ledger has none.
+
+    Read by HEADER NAME, as `_ledger_target_section` reads the target, so the column may sit
+    anywhere; a ledger without it is the legacy shape and owes nothing (verify-when-present).
+    """
+    return next(
+        (
+            index
+            for index, cell in enumerate(header)
+            if _SIBLING_SWEEP_RE.match(re.sub(r'[`*]', '', cell).strip())
+        ),
+        None,
+    )
+
+
 def _fold_claimed(cert_body: str) -> bool:
     """R1 trigger: True if the certification's 'folded in' field names a non-trivial fold.
 
@@ -2029,6 +2052,8 @@ def _check_fold_ledger(
     correctness, which stays Part B (ADR-0002). The blank/prose-cell case is exactly what A6 does
     not catch. A row marked `new-instrument:` also owes a backticked command and its output in that
     cell (E6a); the marker is new, so the arm is verify-when-present and no older ledger fails it.
+    A ledger whose header names a `Sibling sweep` column owes a filled cell there on every row, and
+    `none` fills it (SW13); the column is new, so a ledger without it is checked as before.
     """
     if cert_body is None:
         return [], []
@@ -2051,6 +2076,7 @@ def _check_fold_ledger(
     base = _resolve_base(spec_path)
     spec_spans = _section_line_spans(text)
     spec_target = spec_path.resolve()
+    sweep_column = _sibling_sweep_column(header)
     violations: list[Violation] = []
     warnings: list[Warning] = []
     for cells in rows:
@@ -2094,6 +2120,22 @@ def _check_fold_ledger(
                     'A12',
                 )
             )
+        # SW13, verify-when-present: only a ledger whose header names the column owes the cell. A
+        # row that stops short of the column renders that cell empty, and is read the same way.
+        if sweep_column is not None:
+            sweep = cells[sweep_column] if sweep_column < len(cells) else ''
+            if _EMPTY_CELL_RE.fullmatch(re.sub(r'[`*\s]', '', sweep)):
+                violations.append(
+                    Violation(
+                        where,
+                        'the ledger carries a `Sibling sweep` column and this row leaves it empty '
+                        "— a fold that changes one statement of a fact leaves the fact's other "
+                        'statements as they were. Record the command run over them and the lines '
+                        'it changed, e.g. `git grep -n retry_limit docs/ src/` -> changed '
+                        'docs/ops.md:12, or `none`.',
+                        'A12',
+                    )
+                )
         match = _ledger_anchor(cells)
         if match is None:
             read = re.sub(r'\*', '', cells[2]).strip()
