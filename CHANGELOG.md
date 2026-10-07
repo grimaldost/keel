@@ -48,9 +48,9 @@ notes 499/500; agent wrapper 540/550; Definition-of-Ready prose 942/950; referen
   through to the path branch and failed A13 with "a requirements register at 'none'" on top of
   its expected placeholder findings. The check now reads the leading token, as it already did for
   a path, and treats `none`, `n/a`, `-` or `—` there (trailing `.`, `,`, `;` or `:` ignored) as no
-  register, so `none (the owner gave no standing orders)` declares none too. The template is
-  unchanged: moving the alternatives into its italic note would cost contract-note words at
-  499/500. Tests: four header values with trailing text, and the reproduction end to end
+  register, so `none (the owner gave no standing orders)` declares none too. The template's
+  `Requirements:` line is unchanged: moving the alternatives into its italic note would cost
+  contract-note words at 499/500. Tests: four header values with trailing text, and the reproduction end to end
   (`keel new-spec`, then `keel check-ready` on the stamp, with no A13 finding). Class: a
   relaxation; the values read as "no register" are a strict superset of 0.21.0's and every other
   value resolves to the same path, so no spec that passed on 0.21.0 can newly fail.
