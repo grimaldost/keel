@@ -106,6 +106,17 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
 
 ### Changed
 
+- **W5 names a declared body amendment** (E7b, 2026-10-06 triage). The method has no form for
+  editing a certified body, so a post-certification edit surfaced as the generic "certified against
+  an earlier revision" W5, the same text an accidental drift gets. When the hash mismatch is not W7's
+  (removing the amendments does not reproduce the recorded hash) and an `## Amendment` span carries a
+  `- **Edits sections:** §N, …` line, W5 now says the hash changed by a declared amendment editing
+  those sections, that the reviewer has not seen them as edited, and that the declaration is recorded,
+  not verified. With no such line the W5 text is unchanged, an operator-accepted CONDITIONAL-CERTIFY
+  keeps its suffix, and the letter stays W5 so ledger counts keep their meaning. W7's "certified
+  content intact" stays the only claim the gate recomputes. Class: a message branch inside an
+  existing warning; no check changes and exit codes are unchanged, so no spec in flight can newly
+  fail. No template or contract-note prose is added.
 - **A8's rejection names the fence form** (E2b, 2026-10-06 triage; absorbs D1d). The message for a
   dangling `§N` offered a cue before the glyph or backticks, both of which alter a verbatim quote
   that carries another document's section number. It now also says such a quote goes in a fenced

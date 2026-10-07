@@ -258,6 +258,32 @@ def spec_hash_without_amendments(spec_path: Path) -> str:
     return _hash_over(spec_path, drop_amendments=True)
 
 
+_EDITS_SECTIONS_REF_RE = re.compile(r'§\s*\d+(?:\.\d+)*')
+
+
+def declared_amendment_edits(spec_path: Path) -> list[str]:
+    """The sections an `## Amendment` declares it edits, from its `Edits sections:` line.
+
+    The line is `- **Edits sections:** §2, §4`, read from any amendment span (fenced text masked, as
+    for the hash) and from nowhere else. Only the `§N` references in it count; a line naming none
+    declares nothing. This is a DECLARATION: it is returned so a message can quote it, and nothing
+    compares it with what changed, so it never becomes a recomputed claim like W7's.
+    """
+    raw = _read_spec_text(spec_path, purpose='amendment declaration')
+    refs: list[str] = []
+    in_amendment = False
+    for masked, line in zip(_mask_fenced(raw).splitlines(), raw.splitlines(), strict=True):
+        if re.match(r'^##[ 	]+\S', masked):
+            in_amendment = _AMENDMENT_HEADING_RE.match(masked) is not None
+        elif in_amendment:
+            declared = _field(line, 'edits sections')
+            for ref in _EDITS_SECTIONS_REF_RE.findall(declared):
+                ref = re.sub(r'\s+', '', ref)
+                if ref not in refs:
+                    refs.append(ref)
+    return refs
+
+
 def _hash_over(spec_path: Path, *, drop_amendments: bool) -> str:
     """The canonical hash's one implementation — what is removed lives here and nowhere else."""
     raw = _read_spec_text(spec_path, purpose='spec-hash')
@@ -2601,11 +2627,24 @@ def _check_certification_artifact(
                         'pass. The reviewer has not seen it (B2).',
                     ),
                 ]
-            warning = (
-                'WARN: the artifact was certified against an earlier revision of this spec '
-                '(Spec-hash mismatch) — re-run the pass on the current spec, or accept knowingly '
-                '(B2).'
-            )
+            declared_edits = declared_amendment_edits(spec_path)
+            if declared_edits:
+                # E7b: the author declared that an amendment edits certified sections. Name it —
+                # but as a declaration. W7's "certified content intact" is the only claim this
+                # gate recomputes; nothing here checks that the declared sections are the ones
+                # that changed. The letter stays W5 so ledger counts keep their meaning.
+                warning = (
+                    'WARN: the spec hash changed by a declared amendment editing '
+                    f'{", ".join(declared_edits)} — the reviewer has not seen those sections as '
+                    'edited. The declaration is recorded, not verified: re-run the pass on the '
+                    'current spec, or accept knowingly (B2).'
+                )
+            else:
+                warning = (
+                    'WARN: the artifact was certified against an earlier revision of this spec '
+                    '(Spec-hash mismatch) — re-run the pass on the current spec, or accept '
+                    'knowingly (B2).'
+                )
             # On an operator close (an operator-accepted CONDITIONAL-CERTIFY), a condition
             # discharged after the pass moves the hash by design, so this mismatch is expected —
             # name it, but only there (a blanket clause would bless arbitrary post-cert edits).

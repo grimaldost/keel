@@ -141,3 +141,94 @@ def test_a_mention_of_the_word_is_not_a_section(tmp_path):
     spec = _spec(tmp_path, body='Introduce the widget, per the `## Amendment` convention.')
     _certify(spec, spec_hash(spec))
     assert spec_hash_without_amendments(spec) == spec_hash(spec)
+
+
+# --- E7b: a declared body amendment is named in W5 ---------------------------------------------
+# The method has no sanctioned form for editing a certified body, so the edit lands as W5 "certified
+# against an earlier revision" — the same text an accidental drift gets. An `Edits sections:` line
+# in an `## Amendment` records what the author says they edited. It is a declaration: the message
+# says so, and nothing recomputes it (W7's "certified content intact" stays the only derived claim).
+
+GADGET = """### §2 Add the gadget
+Build the gadget.
+
+"""
+
+EDITING_AMENDMENT = """
+## Amendment
+
+Reworded the gadget after the pass.
+
+- **Edits sections:** §2
+"""
+
+
+def _two_sections(tmp_path):
+    spec = _spec(tmp_path)
+    marker = '## Pre-mortem certification'
+    text = spec.read_text(encoding='utf-8').replace(marker, GADGET + marker)
+    spec.write_text(text, encoding='utf-8')
+    return spec
+
+
+def _w5_message(spec):
+    return next(w.message for w in check_spec_ready(spec).warnings if w.check == 'W5')
+
+
+def _edit_section_two(spec, tail):
+    certified_hash = spec_hash(spec)
+    edited = spec.read_text(encoding='utf-8').replace('Build the gadget.', 'Build the new gadget.')
+    spec.write_text(edited + tail, encoding='utf-8')
+    _certify(spec, certified_hash)
+
+
+def test_a_declared_body_edit_is_named_in_w5(tmp_path):
+    spec = _two_sections(tmp_path)
+    _edit_section_two(spec, EDITING_AMENDMENT)
+    warns = _warns(spec)
+    assert 'W5' in warns and 'W7' not in warns
+    message = _w5_message(spec)
+    assert 'declared amendment' in message and '§2' in message
+    assert 'not verified' in message and 'reviewer has not seen' in message
+    assert 'earlier revision' not in message
+
+
+def test_an_undeclared_body_edit_keeps_the_stale_certification_text(tmp_path):
+    spec = _two_sections(tmp_path)
+    _edit_section_two(spec, AMENDMENT)
+    message = _w5_message(spec)
+    assert 'earlier revision' in message and 'declared amendment' not in message
+
+
+def test_a_declaration_with_no_amendment_edit_still_gives_w7(tmp_path):
+    # Nothing certified changed, so W7's derived claim wins over a (here redundant) declaration.
+    spec = _two_sections(tmp_path)
+    certified_hash = spec_hash(spec)
+    spec.write_text(spec.read_text(encoding='utf-8') + EDITING_AMENDMENT, encoding='utf-8')
+    _certify(spec, certified_hash)
+    warns = _warns(spec)
+    assert 'W7' in warns and 'W5' not in warns
+
+
+def test_the_declaration_is_read_from_any_amendment_span(tmp_path):
+    spec = _two_sections(tmp_path)
+    _edit_section_two(spec, AMENDMENT + EDITING_AMENDMENT.replace('§2', '§1, §2'))
+    message = _w5_message(spec)
+    assert '§1, §2' in message
+
+
+def test_a_declaration_outside_an_amendment_section_is_not_read(tmp_path):
+    spec = _two_sections(tmp_path)
+    _edit_section_two(spec, '\n## Notes\n\n- **Edits sections:** §2\n')
+    assert 'declared amendment' not in _w5_message(spec)
+
+
+def test_an_operator_close_keeps_its_suffix_when_an_edit_is_declared(tmp_path):
+    spec = _two_sections(tmp_path)
+    text = spec.read_text(encoding='utf-8').replace(
+        '- **Verdict:** CERTIFIED', '- **Verdict:** CONDITIONAL-CERTIFY\n- **Operator:** A. Owner'
+    )
+    spec.write_text(text, encoding='utf-8')
+    _edit_section_two(spec, EDITING_AMENDMENT)
+    message = _w5_message(spec)
+    assert 'operator' in message.lower() and '§2' in message
