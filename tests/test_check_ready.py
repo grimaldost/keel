@@ -1726,6 +1726,17 @@ def test_dangling_section_ref_names_the_cross_document_escape_a8(tmp_path):
     assert dangling and 'ADR-0002' in dangling[0].message, dangling
 
 
+def test_dangling_section_ref_names_the_fence_form_a8(tmp_path):
+    # A verbatim quote that carries another document's §N cannot take a cue without altering the
+    # quote; the form that fits is a fenced block, which is masked before every check. The
+    # message named the cue and the backtick but not the fence (E2b).
+    bad = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See §9 for the cutover.')
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    dangling = [v for v in result.violations if v.check == 'A8']
+    assert dangling and 'fenced' in dangling[0].message, dangling
+
+
 def test_vendored_only_basename_match_is_refused_and_names_the_twin_a6(tmp_path):
     # KEEL-B04 made expansion possible; in an estate that vendors its dependencies the twin is
     # the likeliest unique match, so the WARN read "resolved, carry on" over the wrong file.

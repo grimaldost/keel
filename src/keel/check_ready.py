@@ -1960,7 +1960,9 @@ def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[V
                         f'reference {sid} resolves to no numbered section — `§` is '
                         "reserved for this spec's own sections. To cite another document's "
                         'section, put a cue before the glyph (`docs/doctrine.md '
-                        f'§6`, `ADR-0002 §3`) or backtick the mention.',
+                        f'§6`, `ADR-0002 §3`) or backtick the mention; a verbatim quote that '
+                        "carries another document's §N goes in a fenced block, which is masked "
+                        'before every check.',
                         'A8',
                     )
                 )

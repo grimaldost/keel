@@ -26,6 +26,11 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
 
 ### Changed
 
+- **A8's rejection names the fence form** (E2b, 2026-10-06 triage; absorbs D1d). The message for a
+  dangling `§N` offered a cue before the glyph or backticks, both of which alter a verbatim quote
+  that carries another document's section number. It now also says such a quote goes in a fenced
+  block, which the gate masks before every check. Class: a message-string extension on one
+  existing check; detection is unchanged, so no spec in flight can newly fail.
 - **`keel re-anchor --body` refuses a certified spec** (SW5, same triage; `(consumer-affecting)`:
   the verb gains exit 2). `--body` rewrites prose anchors, which are content the certification hash
   covers, and drift after certification goes through an `## Amendment` (owner decision
