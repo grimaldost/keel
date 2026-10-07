@@ -202,7 +202,9 @@ def _manifest_a4(tmp_path, manifest):
     return [v for v in check_spec_ready(_write(tmp_path, spec)).violations if v.check == 'A4']
 
 
-@pytest.mark.parametrize('repo_header', ['Repo', 'Repository', 'repo', 'REPOSITORY'])
+@pytest.mark.parametrize(
+    'repo_header', ['Repo', 'Repository', 'repo', 'REPOSITORY', '**Repo**', '`Repo`']
+)
 def test_repo_column_lets_a_section_take_one_row_per_repository_a4(tmp_path, repo_header):
     manifest = (
         f'| PR | {repo_header} | Implements section | Wave | One concern? |\n'
@@ -241,6 +243,27 @@ def test_blank_repo_cells_are_one_key_a4(tmp_path):
     found = _manifest_a4(tmp_path, manifest)
     assert len(found) == 1
     assert '§2' in found[0].message and 'not a bijection' in found[0].message
+
+
+def test_a_repo_cell_is_read_without_its_markdown_a4(tmp_path):
+    # `a` and a are one repository, so the same section in both is still one too many.
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | a | §1 | yes |\n| PR02 | `a` | §2 | yes |\n| PR03 | **a** | §2 | yes |\n'
+    )
+    found = _manifest_a4(tmp_path, manifest)
+    assert len(found) == 1
+    assert '§2' in found[0].message and "'a'" in found[0].message
+
+
+def test_a_blank_repo_cell_counts_as_one_more_repository_a4(tmp_path):
+    # Stated in the CHANGELOG: a blank cell may mean the spec's own repository, which the gate
+    # cannot tell from a named one, so it is a separate key rather than a collision.
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | a | §1 | yes |\n| PR02 | a | §2 | yes |\n| PR03 |  | §2 | yes |\n'
+    )
+    assert _manifest_a4(tmp_path, manifest) == []
 
 
 @pytest.mark.parametrize(

@@ -1175,6 +1175,11 @@ def _check_placeholders(text: str, prose: str) -> list[Violation]:
     return violations
 
 
+def _plain_cell(cell: str) -> str:
+    """A table cell without its markdown emphasis and backticks: `**Repo**` reads as `Repo`."""
+    return re.sub(r'[`*]', '', cell).strip()
+
+
 def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[Violation]:
     """A4: the PR↔section manifest is a true bijection — one section per PR, one PR per section.
 
@@ -1185,8 +1190,9 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
 
     An optional `Repo` (or `Repository`) column re-keys the PR side on (section, repo cell): a
     section that spans repositories takes one row per repository, the same pair twice still fails,
-    and every section still needs a row. A blank repo cell is its own key, so a manifest without
-    the column, or with it left empty, checks exactly as before (E3c).
+    and every section still needs a row. The header and the repo cells are read without markdown
+    emphasis or backticks. A blank repo cell is its own key, distinct from every named repository,
+    so a manifest without the column, or with it left empty, checks exactly as before (E3c).
     """
     if manifest_body is None:
         return [
@@ -1207,7 +1213,7 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
         (
             i
             for i, h in enumerate(header)
-            if i != section_col and h.lower() in ('repo', 'repository')
+            if i != section_col and _plain_cell(h).lower() in ('repo', 'repository')
         ),
         None,
     )
@@ -1218,7 +1224,7 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
         cell = row[section_col] if section_col < len(row) else ''
         ids = _SECTION_ID_RE.findall(cell)
         cited.extend(ids)
-        repo = row[repo_col] if repo_col is not None and repo_col < len(row) else ''
+        repo = _plain_cell(row[repo_col]) if repo_col is not None and repo_col < len(row) else ''
         keys.extend((sid, repo) for sid in ids)
         if len(ids) != 1:
             pr = row[0].strip() if row else '(row)'
@@ -1749,11 +1755,7 @@ def _sibling_sweep_column(header: list[str]) -> int | None:
     anywhere; a ledger without it is the legacy shape and owes nothing (verify-when-present).
     """
     return next(
-        (
-            index
-            for index, cell in enumerate(header)
-            if _SIBLING_SWEEP_RE.match(re.sub(r'[`*]', '', cell).strip())
-        ),
+        (index for index, cell in enumerate(header) if _SIBLING_SWEEP_RE.match(_plain_cell(cell))),
         None,
     )
 
@@ -2795,7 +2797,7 @@ def _conditional_rows(cert_body: str | None) -> list[tuple[str, str]]:
     lines = _first_table_lines(block or '')
     if not lines:
         return []
-    header = [re.sub(r'[`*]', '', cell).strip().lower() for cell in _split_cells(lines[0])]
+    header = [_plain_cell(cell).lower() for cell in _split_cells(lines[0])]
     column = header.index('status') if 'status' in header else None
     rows: list[tuple[str, str]] = []
     for line in lines[1:]:

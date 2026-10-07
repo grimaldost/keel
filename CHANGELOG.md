@@ -307,11 +307,15 @@ wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum 61/6
   triage). In a programme spread over several repositories, a section whose change lands in two of
   them needs one PR in each, and A4 failed the second row as "not a bijection", so the manifest
   could not record the split. A manifest may now carry an optional `Repo` (or `Repository`, any
-  case) column. When it does, A4 counts coverage per section and repo cell: a section may take one
-  row per repository, the same section twice in one repository still fails as "not a bijection"
-  (the message now names the repository), and every section still needs at least one row. A blank
-  repo cell is its own key, and a manifest without the column, a `Wave` column alone included, is
-  checked exactly as before. The full spec template names the optional `Repo` and `Wave` columns in
+  case) column; the header and its cells are read without markdown emphasis or backticks, so
+  `**Repo**` is the column and `` `a` `` is repository `a`. When it does, A4 counts coverage per
+  section and repo cell: a section may take one row per repository, the same section twice in one
+  repository still fails as "not a bijection" (the message now names the repository), and every
+  section still needs at least one row. A blank repo cell counts as one more repository, distinct
+  from every named one, because it may mean the spec's own repository and the gate cannot tell:
+  §2 in repo `a` plus §2 with a blank cell passes, and two blank cells for §2 fail. A manifest
+  without the column, a `Wave` column alone included, is checked exactly as before. The full spec
+  template names the optional `Repo` and `Wave` columns in
   a plain paragraph under the manifest (the gate does not read `Wave`), so no italic contract-note
   words are added (499/500, unchanged) and nothing is displaced; the core template is untouched.
   The A4 line of the Definition-of-Ready reference block is extended identically in the full and
