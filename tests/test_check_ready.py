@@ -2478,6 +2478,13 @@ def test_the_field_case_warns_w8_and_exits_zero(tmp_path):
         '`grep -rn legacy.example ./docs/ | wc -l` prints 0 once the host is retired.',
         '`git grep -n legacy.example -- docs/*.html` prints nothing once the host is retired.',
         '`grep -rn legacy.example .` prints nothing once the host is retired, repo wide.',
+        # The "prints nothing" idiom: the grep sits inside a command substitution.
+        '`test -z "$(grep -rn legacy.example docs/)"` holds once the host is retired.',
+        '`[ -z "$(git grep -n legacy.example -- docs/)" ]` holds once the host is retired.',
+        # A `)` inside the quoted pattern does not close the substitution.
+        '`test -z "$(grep -rn \'f(x)\' docs/)"` holds once the host is retired.',
+        # Each substitution is its own command.
+        '`test -z "$(grep -rn a src/)" && test -z "$(rg legacy.example docs/)"` holds.',
     ],
 )
 def test_every_grep_form_over_the_created_path_warns_w8(tmp_path, criterion):
@@ -2494,6 +2501,9 @@ def test_every_grep_form_over_the_created_path_warns_w8(tmp_path, criterion):
         f"`grep -rn '{_W8_CREATED}' src/` prints nothing once the host is retired.",
         # No path argument at all: not a path-scoped criterion.
         '`git grep -n docs/render` prints nothing once the host is retired, as checked.',
+        # A substituted grep whose scope misses, and one whose `)` sits inside its quoted pattern.
+        '`test -z "$(grep -rn legacy.example src/)"` holds once the host is retired.',
+        '`test -z "$(grep -rn \'docs/(old)\' src/)"` holds once the host is retired.',
         # A criterion with no command.
         'a reviewer confirms the legacy host appears nowhere in the published pages.',
     ],

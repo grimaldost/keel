@@ -37,9 +37,10 @@ wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum 61/6
   same wave created a render fixture. The scope grew when that section landed, and satisfying the
   criterion destroyed working data after seven pre-mortem rounds. The spec stated both halves and
   nothing joined them. W8 reads each §N criterion paragraph (A2's span) for backticked `grep`, `rg`
-  or `git grep` commands and takes their path arguments as the scope: the first positional is the
-  pattern unless `-e`/`-f` supplies it, a pipe or redirect ends the command, and a command that
-  names no path is not a candidate. It warns when a scope is, or is a directory or glob over, a
+  or `git grep` commands, one that opens the code span or one inside a `$(…)` substitution (the
+  "prints nothing" form `test -z "$(grep …)"`, read up to its closing parenthesis), and takes their
+  path arguments as the scope: the first positional is the pattern unless `-e`/`-f` supplies it, a
+  pipe or redirect ends the command, and a command that names no path is not a candidate. It warns when a scope is, or is a directory or glob over, a
   concept-map "to be created" path that a different section claims under A5's rule (now one
   helper, `_claims`, shared by both checks), and names the criterion's section, the scope, the path
   and the creating section. `DOR_CHECK_IDS` gains W8, so the gate ledger's probes carry it; its

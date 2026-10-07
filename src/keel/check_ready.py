@@ -1361,7 +1361,9 @@ def _check_paths(
     return violations
 
 
-_GREP_COMMAND_RE = re.compile(r'!?[ \t]*(git[ \t]+grep|grep|rg)(?=\s|$)')
+# A grep command opens the span (`! grep …` included) or a `$(` substitution inside it — the
+# "prints nothing" idiom `test -z "$(grep …)"`.
+_GREP_COMMAND_RE = re.compile(r'(?:^!?|\$\()[ \t]*(git[ \t]+grep|grep|rg)(?=\s|$)')
 # Per tool, the short options whose value is the next token. A cluster ends at the first such
 # letter (`-rne PAT`), and `e`/`f` supply the pattern, so every positional is then a path.
 _GREP_VALUE_SHORT = {'grep': 'efmABCdD', 'git grep': 'efmABC', 'rg': 'efgtTmABCMrEj'}
@@ -1388,18 +1390,44 @@ _GREP_VALUE_LONG = frozenset(
 _SHELL_OPERATOR_CHARS = frozenset('|&;<>()')
 
 
+def _substitution_body(rest: str) -> str:
+    """`rest` up to the `)` that closes the `$(` it follows; a quoted `)` does not close it."""
+    depth, quote = 0, ''
+    for index, char in enumerate(rest):
+        if quote:
+            quote = '' if char == quote else quote
+        elif char in '\'"':
+            quote = char
+        elif char == '(':
+            depth += 1
+        elif char == ')':
+            if depth == 0:
+                return rest[:index]
+            depth -= 1
+    return rest
+
+
 def _grep_scopes(command: str) -> list[str]:
-    """The path arguments of a `grep`, `rg` or `git grep` command, or [] (W8).
+    """The path arguments of each `grep`, `rg` or `git grep` command in a code span, or [] (W8).
+
+    A command opens the span or a `$(` substitution inside it, read up to its closing `)`.
+    """
+    scopes: list[str] = []
+    for match in _GREP_COMMAND_RE.finditer(command):
+        rest = command[match.end() :]
+        if match.group(0).startswith('$('):
+            rest = _substitution_body(rest)
+        scopes += _grep_arguments(' '.join(match.group(1).split()), rest)
+    return scopes
+
+
+def _grep_arguments(tool: str, rest: str) -> list[str]:
+    """The path arguments that follow one `tool` command word.
 
     The first positional is the pattern unless `-e`/`-f` supplied it, and every later positional
     is a path. A pipe, redirect or list operator ends the command. A command naming no path
     searches wherever it runs, so it is not path-scoped and yields nothing.
     """
-    match = _GREP_COMMAND_RE.match(command)
-    if match is None:
-        return []
-    tool = ' '.join(match.group(1).split())
-    rest = command[match.end() :]
     try:
         lexer = shlex.shlex(rest, posix=False, punctuation_chars=True)
         lexer.whitespace_split = True
