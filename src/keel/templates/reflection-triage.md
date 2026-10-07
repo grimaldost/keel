@@ -8,8 +8,7 @@ compounds. A series is not "done reflecting" until recurring traps are promoted.
 
 - `reflections.jsonl` (or wherever the project's reflection sink writes), plus the
   review/fix logs from the series.
-- For in-repo mode: the method's own feedback intake (`docs/feedback/` in the method repo),
-  if the method runs as an installed plugin and rows are shared through it.
+- In-repo mode (a pass over the method's own inbox): the method repo's `docs/feedback/` intake.
 
 ## Procedure
 

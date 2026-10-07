@@ -647,9 +647,9 @@ recorded here explicitly. `[triage]`
   axis; a pilot sample constructed to contain one instance per named axis; an exact reconciliation
   ledger for the write side and a cutover-discriminating check for the read side; state that a
   unit-green suite is explicitly not a data-level gate.
-- **Status:** **shipped** 2026-09-13 (0.20.0), with residue (Q7e). The data-pipeline profile
-  shipped in 0.18.0 as the characterization sheet and gate; the residue (heaviest downstream
-  consumer suite and output-shape pins) shipped in 0.21.0 by Q7e.
+- **Status:** **shipped** 2026-08-29 (0.18.0), with residue Q7e (shipped in 0.21.0). The
+  data-pipeline profile shipped in 0.18.0 as the characterization sheet and gate; the residue
+  (heaviest downstream consumer suite and output-shape pins) shipped in 0.21.0 by Q7e.
 - **Effort:** M · **Source:** `[triage Q7b]` `[research]`
 
 ### KEEL-B12 — A measurement profile that can return "no verdict"

@@ -22,7 +22,8 @@ wrapper 531/550; Definition-of-Ready prose 942/950; reference-block maximum 61/6
   `(consumer-affecting)`: one new stdout line). A user with two copies installed (a tool install and
   the plugin's) could gate a spec with the older one and read its verdict as current. The command now
   reads the local gate ledger through the new `newest_gate_version` (int-tuple max, so 0.10.0 beats
-  0.9.0; malformed rows ignored; `None` when the ledger is off or missing) and, when the newest
+  0.9.0; malformed rows ignored; `None` when the ledger is off, missing or unreadable: the read
+  is fail-open like the write, so a permission fault never reaches the exit code) and, when the newest
   recorded version exceeds the running one, prints `WARN: keel <newest> has run on this machine;
   this is keel <running> — upgrade (uv tool upgrade keel) or run the plugin's copy` before the
   verdict. The line is about the machine, not the spec: it is not a `GateResult` warning, has no
@@ -217,20 +218,22 @@ wrapper 531/550; Definition-of-Ready prose 942/950; reference-block maximum 61/6
   fields: 'Producers and pinned literals (measured)' (each producer writing what the spec governs,
   each gate pinning a count or literal over it, with command and output), 'Heaviest downstream
   consumer's suite' (the consumer whose tests gate the change, not only the library's own), and
-  'Output shape a consumer reads' (columns the frozen contract pins, passthroughs included). The
-  Definition-of-Ready gains a matching reviewer item: 'Heaviest downstream consumer's tests gate
-  the change' (the reviewer names the consumer's test suite gating the load, and reviews output-shape
-  coverage). Template-only addition; no check or parser changes, so no spec in flight can newly fail.
+  'Output shape a consumer reads' (columns the frozen contract pins, passthroughs included). A
+  matching reviewer item, 'Heaviest downstream consumer's tests gate the change' (the reviewer names
+  the consumer's test suite gating the load, and reviews output-shape coverage), is added to the
+  reviewer's items (Definition of Ready, Part B) in `pre-mortem-profiles.md`. Template-only
+  addition; no check or parser changes, so no spec in flight can newly fail.
 - **The measurement profile adds a bounded pilot and a no-verdict decision rule** (Q7c, KEEL-B12,
   2026-10-06 triage). The measurement design sheet gains two author-filled fields: 'Bounded real
   pilot' (a minimal real deployment before the full paid run; every arm produces well-formed,
   non-degenerate output; the smallest footprint that tests all arms) and 'Decision rule — no
   verdict' (when no arm discriminates on any criterion, specify the decision boundary that makes it
-  a no-verdict rather than a null). The Definition-of-Ready gains two matching reviewer items: one
-  certifies a bounded pilot ran all arms before the paid run with well-formed output; another
-  certifies the decision rule distinguishes no-verdict from each null and states the exact boundary.
-  The power precheck (Reps / power & MEWD) remains unchanged. Template-only addition; no check or
-  parser changes, so no spec in flight can newly fail.
+  a no-verdict rather than a null). Two matching reviewer items are added to the reviewer's items
+  (Definition of Ready, Part B) in `pre-mortem-profiles.md`: one certifies a bounded pilot ran all
+  arms before the paid run with well-formed output; another certifies the decision rule
+  distinguishes no-verdict from each null and states the exact boundary. The power precheck (Reps /
+  power & MEWD) remains unchanged. Template-only addition; no check or parser changes, so no spec in
+  flight can newly fail.
 - **Reviewer's returned message opens with the save instruction** (SW12, 2026-10-06 triage). The
   pre-mortem agent wrapper rewrites the output invariant for B2 (the returned artifact that the
   caller saves verbatim). The message now opens with the save path (`<spec-stem>.premortem.md`, or
@@ -251,24 +254,27 @@ wrapper 531/550; Definition-of-Ready prose 942/950; reference-block maximum 61/6
 - **Review checklist sharpens re-review and test adequacy** (SW9, Q7d, 2026-10-06 triage). The
   Correctness item now distinguishes initial review (does what the acceptance criterion says) from
   re-review after REQUEST_CHANGES (every instance of the flagged defect class is gone, not only the
-  cited line). The Tests item now asks whether the test would fail if the load-bearing predicate
-  were subtly wrong, and for a registry or allow-list, instructs the reviewer to derive the set
-  from spec and assert equality, not membership. Both are rewrites of existing items with no new
-  item added; the count remains 10. The template has external consumers (sibling projects resolve
-  pointers to these lines), so this entry records the intentional rewording. The test suite gains
+  cited line). The Tests item keeps its first line and the clause "tests assert behavior, not
+  implementation", and adds the question whether the test would fail if the load-bearing predicate
+  were subtly wrong and, for a registry or allow-list, the instruction to derive the set from spec
+  and assert equality, not membership. Both are rewrites of existing items with no new item added;
+  the count remains 10. The template has external consumers (sibling projects resolve pointers to
+  these lines): the Correctness item is not among the lines `tests/test_consumed_lines.py` pins, and
+  the Tests item's pinned first line is byte-identical, so no consumer pointer moves. The test suite gains
   a needle assertion for each rewrite and a pin on the item count (exactly 10 `- [ ]` items).
   Class: documentation and process clarification; no new checks, so no spec in flight can newly fail.
 - **W5 names a declared body amendment** (E7b, 2026-10-06 triage). The method has no form for
   editing a certified body, so a post-certification edit surfaced as the generic "certified against
-  an earlier revision" W5, the same text an accidental drift gets. When the hash mismatch is not W7's
-  (removing the amendments does not reproduce the recorded hash) and an `## Amendment` span carries a
-  `- **Edits sections:** §N, …` line, W5 now says the hash changed by a declared amendment editing
-  those sections, that the reviewer has not seen them as edited, and that the declaration is recorded,
-  not verified. With no such line the W5 text is unchanged, an operator-accepted CONDITIONAL-CERTIFY
-  keeps its suffix, and the letter stays W5 so ledger counts keep their meaning. W7's "certified
-  content intact" stays the only claim the gate recomputes. Class: a message branch inside an
-  existing warning; no check changes and exit codes are unchanged, so no spec in flight can newly
-  fail. No template or contract-note prose is added.
+  an earlier revision" W5, the same text an accidental drift gets. When the hash mismatch is not
+  W7's (removing the amendments does not reproduce the recorded hash) and an `## Amendment` span, or
+  the latest `### Amendment review` subsection of the certification (the field the spec template
+  carries, see SW10), carries a `- **Edits sections:** §N, …` line, W5 now says the hash changed by
+  a declared amendment editing those sections, that the reviewer has not seen them as edited, and
+  that the declaration is recorded, not verified. With no such line the W5 text is unchanged, an
+  operator-accepted CONDITIONAL-CERTIFY keeps its suffix, and the letter stays W5 so ledger counts
+  keep their meaning. W7's "certified content intact" stays the only claim the gate recomputes.
+  Class: a message branch inside an existing warning; no check changes and exit codes are unchanged,
+  so no spec in flight can newly fail. No template or contract-note prose is added.
 - **A8's rejection names the fence form** (E2b, 2026-10-06 triage; absorbs D1d). The message for a
   dangling `§N` offered a cue before the glyph or backticks, both of which alter a verbatim quote
   that carries another document's section number. It now also says such a quote goes in a fenced
@@ -311,19 +317,20 @@ wrapper 531/550; Definition-of-Ready prose 942/950; reference-block maximum 61/6
   repositories a section spans; that hole stays with the Definition-of-Ready's Part B review (row
   E3d). Class: a relaxation; with a `Repo` column the failure set is a subset of the old one, so
   nothing that passed before can fail now and no spec in flight can newly fail.
-- **Definition-of-Ready clarifies the certified spec's lifetime and adds Part B item for gate command
-  coverage** (Q4b, E3d, 2026-10-06 triage). A prose restatement of the Part A reference block is
-  deleted from both the full and core templates (34 words: "A prose restatement of that block used to sit
-  here; it was a lossy paraphrase of the same facts, and a reader who trusted it over the block
-  trusted the older of two copies."). On new lines in the full sheet only, the Definition-of-Ready
-  now states the certified spec's lifetime: certified spec anchors describe the tree at
-  certification, and from PR01 the DoD gates take over the certified state. A Part B checklist item
-  is added: every repository named in the manifest's `Repo` column has its gate commands in the
-  spec's Gate commands section. The DoR prose measures 942 words (cap 950); across
-  this release it nets +7 from 935, because the 34 deleted words are offset by the lifetime
-  sentence, the Part B item, and the reviewer items added by SW11 and Q7c below. The Definition-of-Ready reference block is unchanged, so it remains
-  identical in the full and core templates. Class: documentation and process clarification; no
-  new checks, so no spec in flight can newly fail.
+- **Definition-of-Ready clarifies the certified spec's lifetime and adds Part B item for gate
+  command coverage** (Q4b, E3d, 2026-10-06 triage). A prose restatement of the Part A reference
+  block is deleted from both the full and core templates (34 words: "A prose restatement of that
+  block used to sit here; it was a lossy paraphrase of the same facts, and a reader who trusted it
+  over the block trusted the older of two copies."). On new lines in the full sheet only, the
+  Definition-of-Ready now states the certified spec's lifetime: certified spec anchors describe the
+  tree at certification, and from PR01 the DoD gates take over the certified state. A Part B
+  checklist item is added: every repository named in the manifest's `Repo` column has its gate
+  commands in the spec's Gate commands section. The DoR prose measures 942 words (cap 950); across
+  this release it nets +7 from 935, all in `definition-of-ready.md`: the 34 deleted words are offset
+  by the lifetime sentence and the Part B item. (The reviewer items SW11 and Q7c add live in
+  `pre-mortem-profiles.md`, which the DoR prose count does not include.) The Definition-of-Ready
+  reference block is unchanged, so it remains identical in the full and core templates. Class:
+  documentation and process clarification; no new checks, so no spec in flight can newly fail.
 - **Reflection-triage procedure gains in-repo mode and family-aware promotions** (E11c, Q8a,
   2026-10-06 triage). The Inputs section now documents the method's own feedback intake
   (`docs/feedback/` in the method repo) for in-repo mode, where the method maintains its own
