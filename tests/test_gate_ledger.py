@@ -30,6 +30,7 @@ from keel.gate_ledger import (
     LedgerLine,
     ledger_path,
     line_for_run,
+    newest_gate_version,
     read_lines,
     serialize,
 )
@@ -200,3 +201,39 @@ def test_gate_health_on_an_absent_ledger_says_so_and_exits_zero(monkeypatch, tmp
     out = runner.invoke(app, ['gate-health'])
     assert out.exit_code == 0
     assert 'no runs' in out.output.lower()
+
+
+# --- newest_gate_version (SW17) ------------------------------------------------
+
+
+def _write_rows(path: Path, *gates: object) -> Path:
+    path.write_text(''.join(json.dumps({'gate': gate}) + '\n' for gate in gates), encoding='utf-8')
+    return path
+
+
+def test_newest_gate_version_compares_numerically_not_lexically(tmp_path):
+    ledger = _write_rows(tmp_path / 'l.jsonl', '0.9.0', '0.10.0', '0.2.0')
+    assert newest_gate_version(ledger) == '0.10.0'
+
+
+def test_newest_gate_version_ignores_malformed_rows(tmp_path):
+    ledger = tmp_path / 'l.jsonl'
+    ledger.write_text(
+        '{"gate": "0.3.0"}\n'
+        'not json at all\n'
+        '{"no_gate": 1}\n'
+        '{"gate": 7}\n'
+        '{"gate": "99.0"}\n'
+        '{"gate": "v99.0.0"}\n'
+        '{"gate": "99.0.0-rc1"}\n'
+        '[1, 2]\n'
+        '{"gate": "0.4.1"}\n',
+        encoding='utf-8',
+    )
+    assert newest_gate_version(ledger) == '0.4.1'
+
+
+def test_newest_gate_version_is_none_without_a_usable_ledger(tmp_path):
+    assert newest_gate_version(None) is None
+    assert newest_gate_version(tmp_path / 'missing.jsonl') is None
+    assert newest_gate_version(_write_rows(tmp_path / 'junk.jsonl', 'x', 3)) is None

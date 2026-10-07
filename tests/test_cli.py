@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -410,3 +411,66 @@ def test_decompose_check_missing_spec_exits_2(tmp_path):
     result = runner.invoke(app, ['decompose-check', str(tmp_path / 'nope.md')])
     assert result.exit_code == 2
     assert 'not found' in result.output.lower()
+
+
+# --- the newer-keel warning (SW17) ---------------------------------------------
+
+
+def _ledger_with(tmp_path, monkeypatch, gate: str) -> Path:
+    ledger = tmp_path / 'newer-ledger.jsonl'
+    ledger.write_text(json.dumps({'gate': gate}) + '\n', encoding='utf-8')
+    monkeypatch.setenv('KEEL_GATE_LEDGER', str(ledger))
+    return ledger
+
+
+def _write_spec(tmp_path, *, ready: bool) -> Path:
+    spec = tmp_path / 'spec.md'
+    text = READY_SPEC
+    if not ready:
+        text = text.replace('- **Verdict:** CERTIFIED', '- **Verdict:** not yet certified')
+    spec.write_text(text, encoding='utf-8')
+    return spec
+
+
+def test_check_ready_warns_when_a_newer_keel_has_run_on_this_machine(tmp_path, monkeypatch):
+    _ledger_with(tmp_path, monkeypatch, '99.0.0')
+    spec = _write_spec(tmp_path, ready=True)
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    warn = [line for line in result.output.splitlines() if line.startswith('WARN: keel 99.0.0')]
+    assert len(warn) == 1
+    assert f'this is keel {__version__}' in warn[0]
+    assert 'uv tool upgrade keel' in warn[0]
+    assert result.exit_code == 0
+
+
+def test_the_newer_keel_warning_leaves_the_failing_exit_code_alone(tmp_path, monkeypatch):
+    _ledger_with(tmp_path, monkeypatch, '99.0.0')
+    spec = _write_spec(tmp_path, ready=False)
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert 'WARN: keel 99.0.0 has run on this machine' in result.output
+    assert result.exit_code == 1
+
+
+def test_no_newer_keel_warning_for_an_equal_or_older_version(tmp_path, monkeypatch):
+    spec = _write_spec(tmp_path, ready=True)
+    for gate in (__version__, '0.0.1'):
+        _ledger_with(tmp_path, monkeypatch, gate)
+        result = runner.invoke(app, ['check-ready', str(spec)])
+        assert 'has run on this machine' not in result.output
+        assert result.exit_code == 0
+
+
+def test_no_newer_keel_warning_when_the_ledger_is_off_or_missing(tmp_path, monkeypatch):
+    spec = _write_spec(tmp_path, ready=True)
+    monkeypatch.setenv('KEEL_GATE_LEDGER', 'off')
+    assert 'has run on this machine' not in runner.invoke(app, ['check-ready', str(spec)]).output
+    monkeypatch.setenv('KEEL_GATE_LEDGER', str(tmp_path / 'missing.jsonl'))
+    assert 'has run on this machine' not in runner.invoke(app, ['check-ready', str(spec)]).output
+
+
+def test_the_default_test_ledger_is_not_the_developers_real_one(tmp_path):
+    # The autouse fixture in conftest.py: no test may append to the real ledger.
+    from keel.gate_ledger import ledger_path
+
+    path = ledger_path()
+    assert path is not None and path != Path.home() / '.keel' / 'gate-ledger.jsonl'

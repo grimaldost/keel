@@ -11,7 +11,7 @@ from keel.bindings import check_bindings
 from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready, spec_hash
 from keel.decompose_check import check_decomposition
-from keel.gate_ledger import ledger_path, read_lines, record_run
+from keel.gate_ledger import ledger_path, newest_gate_version, read_lines, record_run, version_key
 from keel.models import DOR_CHECK_IDS, GateResult
 from keel.reanchor import CertifiedBodyError, reanchor
 from keel.show import available, body
@@ -160,6 +160,15 @@ def check_ready_cmd(
         result = check_spec_ready(spec, structure_only=structure_only)
         record_run(spec, result, structure_only=structure_only)
         return result
+
+    # Not a GateResult warning: it is about the machine, not the spec, so it has no check letter
+    # and no ledger field, and it never changes the exit code.
+    newest = newest_gate_version(ledger_path())
+    if newest is not None and (version_key(newest) or ()) > (version_key(__version__) or ()):
+        typer.echo(
+            f'WARN: keel {newest} has run on this machine; this is keel {__version__} — '
+            "upgrade (uv tool upgrade keel) or run the plugin's copy"
+        )
 
     _emit(run, hint=_spec_template_hint)
 

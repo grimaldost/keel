@@ -9,6 +9,21 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 
 Placeholder section for release 0.21.0 entries. Release date to be updated at merge.
 
+### Added
+
+- **`keel check-ready` warns when a newer keel has run on this machine** (SW17, 2026-10-06 triage;
+  `(consumer-affecting)`: one new stdout line). A user with two copies installed (a tool install and
+  the plugin's) could gate a spec with the older one and read its verdict as current. The command now
+  reads the local gate ledger through the new `newest_gate_version` (int-tuple max, so 0.10.0 beats
+  0.9.0; malformed rows ignored; `None` when the ledger is off or missing) and, when the newest
+  recorded version exceeds the running one, prints `WARN: keel <newest> has run on this machine;
+  this is keel <running> — upgrade (uv tool upgrade keel) or run the plugin's copy` before the
+  verdict. The line is about the machine, not the spec: it is not a `GateResult` warning, has no
+  check letter and no ledger field, and exit codes are unchanged. The test suite gains a
+  `tests/conftest.py` autouse fixture that points `KEEL_GATE_LEDGER` at a per-test file, so the
+  suite no longer appends to the developer's real ledger. Class: a standing signal on one command's
+  output; no check changes, so no spec in flight can newly fail.
+
 ### Changed
 
 - **`keel re-anchor --body` refuses a certified spec** (SW5, same triage; `(consumer-affecting)`:
