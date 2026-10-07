@@ -52,6 +52,10 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   repointed lines differ. The shared reader `_read_spec_text` gains an optional `newline` keyword;
   its default is the old read, so check-ready results, the anchor regexes and `spec-hash` are
   untouched.
+- **`keel check-ready` docs clarify when a bare command is equivalent** (SW16, same triage).
+  The command docs said a persistent `keel` on PATH is equivalent to the `uvx` form, but this
+  holds only when the tool's version matches the plugin's. The docs now state the equivalence
+  condition and name the upgrade path. Class: a documentation correction; no code or check changes.
 
 ## [0.20.0] - 2026-09-13
 

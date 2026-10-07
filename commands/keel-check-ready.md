@@ -8,9 +8,9 @@ plugin bundle (no separate CLI install needed):
 
 `uvx --from ${CLAUDE_PLUGIN_ROOT} keel check-ready $ARGUMENTS`
 
-If the user has a persistent `keel` on PATH (`uv tool install …`, see
-`${CLAUDE_PLUGIN_ROOT}/docs/installation.md`), a bare `keel check-ready $ARGUMENTS`
-is equivalent.
+A persistent `keel` on PATH is equivalent only when `keel --version` prints this
+plugin's version; otherwise upgrade it (`uv tool upgrade keel`) or use the command
+above.
 
 Report the verdict and any violations. The gate checks Part A well-formedness and
 requires a recorded blind pre-mortem certification (ADR-0002): exit 0 = Ready,
