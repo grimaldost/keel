@@ -321,3 +321,117 @@ fires = ["A12"]
 why = "the other half of the same failure: the row names §1, the confirmation resolves inside §4, and the row's own target cell — which the gate has held all along — was never read. A fold recorded against another section is a stale coordinate wearing a record's clothes"
 find = "| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"
 replace = "| FM-2 an unknown code was invented | §4 | `clean-series.md:54` | yes |"
+
+[[mutant]]
+id = "W8-grep-scope-over-a-created-path"
+fires = ["W8"]
+why = "a criterion's grep scope covers a file another section creates: the scope grows when that section lands, so the criterion measures code it was never written about, and satisfying it can mean deleting the new file's working content. The spec states both halves, the concept map's 'to be created' row and the grep, and nothing joined them"
+find = "their sum, asserted by a unit test."
+replace = "their sum, asserted by a unit test, and `grep -rn 'float(' src/tinyetl/` prints nothing."
+
+[[mutant]]
+id = "A6-waiver-without-reason"
+fires = ["A6"]
+why = "E5b: a waiver exempts an anchor from A6 only with the reason it cannot resolve. A row that names none is not a waiver and fails, even over an anchor that resolves, because the record itself is incomplete"
+find = "## PR ↔ section manifest"
+replace = """## Anchor waivers
+
+| Anchor | Reason |
+|---|---|
+| `src/tinyetl/regions.py:3` |  |
+
+## PR ↔ section manifest"""
+
+[[mutant]]
+id = "A6-waived-sibling-anchor"
+fires = []
+why = "E5b's negative control: an anchor into a repository the gate cannot read is legitimate evidence, and a waiver with its reason keeps A6 silent on it. Without the waiver row this is A6-absent-sibling"
+find = """row, asserted by a docs-sync check.
+
+## Requirements ledger"""
+replace = """row, asserted by a docs-sync check, as `../docs-site/status.md:4` records.
+
+## Anchor waivers
+
+| Anchor | Reason |
+|---|---|
+| `../docs-site/status.md:4` | the status page lives in a sibling repository this gate cannot read |
+
+## Requirements ledger"""
+
+[[mutant]]
+id = "A12-new-instrument-bare-word"
+fires = ["A12"]
+why = "E6a: a row whose fold adds a new test instrument owes, in its Confirmed cell, the command that read the finding's input chain and what that command printed. In the field the defect each fold introduced survived four rounds while every row confirmed with a word; a marked row with a word after the marker is that record, and it now fails"
+find = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |"
+replace = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | new-instrument: yes |"
+
+[[mutant]]
+id = "A12-new-instrument-with-its-command"
+fires = []
+why = "E6a's negative control: the same marked row carrying a backticked command and its output is the record the marker asks for, and fires nothing"
+find = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |"
+replace = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | new-instrument: `git grep -n ORDER_COLUMNS src/tinyetl/` -> 2 hits, orders.py |"
+
+[[mutant]]
+id = "A12-sibling-sweep-empty-cell"
+fires = ["A12"]
+why = "SW13: a fold changes one statement of a fact and the fact's other statements stay as they were, so the next round's finding is the stale sibling the fold created. A ledger that carries a Sibling sweep column records, per row, the command run over those statements and the lines it changed, or none; a row whose cell is empty is that record missing, and it fails"
+find = """| Finding | Target section | artifact:line | Confirmed |
+|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"""
+replace = """| Finding | Target section | artifact:line | Confirmed | Sibling sweep |
+|---|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes | `git grep -n ORDER_COLUMNS src/` -> orders.py only, no line changed |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |  |"""
+
+[[mutant]]
+id = "A12-sibling-sweep-filled"
+fires = []
+why = "SW13's negative control: the same ledger with every Sibling sweep cell filled, a command and what it changed on one row and none on the other, is the record the column asks for, and fires nothing"
+find = """| Finding | Target section | artifact:line | Confirmed |
+|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"""
+replace = """| Finding | Target section | artifact:line | Confirmed | Sibling sweep |
+|---|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes | `git grep -n ORDER_COLUMNS src/` -> orders.py only, no line changed |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes | none |"""
+
+[[mutant]]
+id = "W9-open-condition-under-a-conditional-certify"
+fires = ["B1", "W9"]
+why = "the field miss: an operator-accepted CONDITIONAL-CERTIFY named a condition that gated a later section, the condition was still open when the work reached it, and the gate printed only the generic conditional warning. A conditions table records each condition with what it gates and its status, and an open row is quoted. B1 fires with it because its conditional warning is inherent to the verdict"
+artifact_verdict = "CONDITIONAL-CERTIFY"
+find = """- **Verdict:** CERTIFIED
+- **Certification artifact:** `clean-series.premortem.md`
+- **Date:** 2026-08-11
+- **Post-fold coherence:** re-read after the fold; §2 and §5 still agree on the unit.
+- **Failure modes considered & folded in:** two, both re-anchored below.
+
+### Fold ledger
+
+| Finding | Target section | artifact:line | Confirmed |
+|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"""
+replace = """- **Verdict:** CONDITIONAL-CERTIFY
+- **Operator:** the data owner
+- **Certification artifact:** `clean-series.premortem.md`
+- **Date:** 2026-08-11
+- **Post-fold coherence:** re-read after the fold; §2 and §5 still agree on the unit.
+- **Failure modes considered & folded in:** two, both re-anchored below.
+
+### Fold ledger
+
+| Finding | Target section | artifact:line | Confirmed |
+|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |
+
+### Conditions
+
+| Gates | Condition | Status | Evidence |
+|---|---|---|---|
+| §5 | the region display names are confirmed with the data owner before the report renders them | open |  |"""

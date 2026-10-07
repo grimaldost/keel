@@ -1,9 +1,13 @@
 """Behaviour of the Definition-of-Ready gate (check_spec_ready)."""
 
+import re
+import subprocess
+
 import pytest
 
 from keel import __version__
 from keel.check_ready import check_spec_ready, spec_hash
+from keel.templates import templates_root
 
 # A well-formed, pre-mortem-certified spec in the spec-template.md shape. It carries the header
 # `Kit:` stamp the template ships (T0.3), so the W1 unstamped nudge is not the ambient state of
@@ -119,11 +123,169 @@ def test_placeholder_token_fails_a3(tmp_path):
     assert any('TODO' in v.message for v in result.violations)
 
 
+_A3_PROSE = 'Introduce `src/widget.py`.'
+
+
+def _a3(tmp_path, replacement):
+    bad = READY_SPEC.replace(_A3_PROSE, replacement)
+    assert bad != READY_SPEC
+    return [v for v in check_spec_ready(_write(tmp_path, bad)).violations if v.check == 'A3']
+
+
+@pytest.mark.parametrize(
+    'replacement',
+    [
+        _A3_PROSE + ' TODO: finalize.',
+        _A3_PROSE + ' TODO(owner) finalize.',
+        _A3_PROSE + '\n\n# TODO\n\n',
+        _A3_PROSE + '\n\nTODO\n\n',
+        _A3_PROSE + '\n\n- TODO\n\n',
+        _A3_PROSE + '\n\n1. TODO\n\n',
+        _A3_PROSE + '\n\n| TODO |\n\n',
+        _A3_PROSE + '\n\n| a | TODO\n\n',
+        _A3_PROSE + ' A backticked `TODO` still counts.',
+        # The token ending a field value, a task item or a sentence is a placeholder too: only a
+        # TODO with a word after it on the same line is prose.
+        _A3_PROSE + '\n\n- **Owner:** TODO\n\n',
+        _A3_PROSE + '\n\n**Rollback:** TODO\n\n',
+        _A3_PROSE + '\n\nOwner: TODO\n\n',
+        _A3_PROSE + '\n\n- [ ] TODO\n\n',
+        _A3_PROSE + ' The rollback plan is TODO.',
+        _A3_PROSE + ' TBD later.',
+        _A3_PROSE + ' FIXME later.',
+        _A3_PROSE + ' ??? later.',
+    ],
+)
+def test_a3_fires_on_marker_forms(tmp_path, replacement):
+    assert _a3(tmp_path, replacement)
+
+
+@pytest.mark.parametrize(
+    'replacement',
+    [
+        _A3_PROSE + ' TODO o sistema usa o widget.',
+        _A3_PROSE + ' Cobre TODO caso de borda.',
+        _A3_PROSE + ' TODO list items are tracked elsewhere.',
+        _A3_PROSE + ' The TODO marker is discussed in prose.',
+    ],
+)
+def test_a3_ignores_todo_followed_by_a_word(tmp_path, replacement):
+    assert not _a3(tmp_path, replacement)
+
+
+def test_a3_reports_one_violation_per_todo_marker(tmp_path):
+    found = _a3(tmp_path, _A3_PROSE + ' # TODO: finalize.')
+    assert len(found) == 1
+    assert 'TODO' in found[0].message
+
+
 def test_uncovered_section_fails_a4(tmp_path):
     bad = READY_SPEC.replace('| PR02 | §2 | yes |\n', '')
     result = check_spec_ready(_write(tmp_path, bad))
     assert not result.passed
     assert any('§2' in v.message and 'cover' in v.message.lower() for v in result.violations)
+
+
+# E3c: a manifest may carry an optional `Repo` (or `Repository`) column, and with it A4 keys on
+# (section, repo) — a section that spans two repositories takes one PR row per repository. The
+# relaxation is the only change: the same (section, repo) twice still fails, every section still
+# needs a row, and a manifest without the column (a `Wave` column alone included) is unchanged.
+_MANIFEST_ROWS = (
+    '| PR | Implements section | One concern? |\n|---|---|---|\n'
+    '| PR01 | §1 | yes |\n| PR02 | §2 | yes |\n'
+)
+
+
+def _manifest_a4(tmp_path, manifest):
+    spec = READY_SPEC.replace(_MANIFEST_ROWS, manifest)
+    assert spec != READY_SPEC
+    return [v for v in check_spec_ready(_write(tmp_path, spec)).violations if v.check == 'A4']
+
+
+@pytest.mark.parametrize(
+    'repo_header', ['Repo', 'Repository', 'repo', 'REPOSITORY', '**Repo**', '`Repo`']
+)
+def test_repo_column_lets_a_section_take_one_row_per_repository_a4(tmp_path, repo_header):
+    manifest = (
+        f'| PR | {repo_header} | Implements section | Wave | One concern? |\n'
+        '|---|---|---|---|---|\n'
+        '| PR01 | a | §1 | 1 | yes |\n| PR02 | a | §2 | 2 | yes |\n| PR03 | b | §2 | 2 | yes |\n'
+    )
+    assert _manifest_a4(tmp_path, manifest) == []
+
+
+def test_repo_column_still_fails_one_section_twice_in_one_repository_a4(tmp_path):
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | a | §1 | yes |\n| PR02 | a | §2 | yes |\n| PR03 | a | §2 | yes |\n'
+    )
+    found = _manifest_a4(tmp_path, manifest)
+    assert len(found) == 1
+    assert '§2' in found[0].message and 'not a bijection' in found[0].message
+    assert "'a'" in found[0].message
+
+
+def test_repo_column_still_fails_an_uncovered_section_a4(tmp_path):
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | a | §1 | yes |\n| PR02 | b | §1 | yes |\n'
+    )
+    found = _manifest_a4(tmp_path, manifest)
+    assert [v.message for v in found] == ['section §2 is not covered by any PR.']
+
+
+def test_blank_repo_cells_are_one_key_a4(tmp_path):
+    # A blank Repo cell is its own key, so a column left empty checks exactly as no column does.
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 |  | §1 | yes |\n| PR02 |  | §2 | yes |\n| PR03 |  | §2 | yes |\n'
+    )
+    found = _manifest_a4(tmp_path, manifest)
+    assert len(found) == 1
+    assert '§2' in found[0].message and 'not a bijection' in found[0].message
+
+
+def test_a_repo_cell_is_read_without_its_markdown_a4(tmp_path):
+    # `a` and a are one repository, so the same section in both is still one too many.
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | a | §1 | yes |\n| PR02 | `a` | §2 | yes |\n| PR03 | **a** | §2 | yes |\n'
+    )
+    found = _manifest_a4(tmp_path, manifest)
+    assert len(found) == 1
+    assert '§2' in found[0].message and "'a'" in found[0].message
+
+
+def test_a_blank_repo_cell_counts_as_one_more_repository_a4(tmp_path):
+    # Stated in the CHANGELOG: a blank cell may mean the spec's own repository, which the gate
+    # cannot tell from a named one, so it is a separate key rather than a collision.
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | a | §1 | yes |\n| PR02 | a | §2 | yes |\n| PR03 |  | §2 | yes |\n'
+    )
+    assert _manifest_a4(tmp_path, manifest) == []
+
+
+@pytest.mark.parametrize(
+    'manifest',
+    [
+        # no Repo column: one section in two rows is the many-to-one A4 forbids, as before
+        '| PR | Implements section | One concern? |\n|---|---|---|\n'
+        '| PR01 | §1 | yes |\n| PR02 | §2 | yes |\n| PR03 | §2 | yes |\n',
+        # a Wave column alone relaxes nothing
+        '| PR | Implements section | Wave | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | §1 | 1 | yes |\n| PR02 | §2 | 1 | yes |\n| PR03 | §2 | 2 | yes |\n',
+    ],
+)
+def test_without_a_repo_column_one_section_in_two_rows_still_fails_a4(tmp_path, manifest):
+    found = _manifest_a4(tmp_path, manifest)
+    assert [v.message for v in found] == ['section §2 is covered by 2 PRs (not a bijection).']
+
+
+def test_spec_template_names_the_optional_repo_and_wave_columns():
+    text = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    manifest = text.split('## PR ↔ section manifest', 1)[1].split('\n## ', 1)[0]
+    assert '`Repo`' in manifest and '`Wave`' in manifest
 
 
 def test_missing_path_fails_a5(tmp_path):
@@ -209,6 +371,73 @@ def test_conditional_certify_without_operator_fails_b1(tmp_path):
     result = check_spec_ready(_write(tmp_path, bad))
     assert not result.passed
     assert any('operator' in v.message.lower() for v in result.violations)
+
+
+def _with_verdict_source(verdict: str, source: str | None, operator: str = '') -> str:
+    """READY_SPEC with the Verdict line replaced and, when given, a Verdict source line after it."""
+    lines = f'- **Verdict:** {verdict}'
+    if source is not None:
+        lines += f'\n- **Verdict source:** {source}'
+    if operator:
+        lines += f'\n- **Operator:** {operator}'
+    return READY_SPEC.replace('- **Verdict:** CERTIFIED', lines)
+
+
+def test_verdict_source_blind_round_on_certified_passes_b1(tmp_path):
+    # E7a: the optional `Verdict source:` line is read; on a CERTIFIED spec it changes nothing, and
+    # it is not a second Verdict line (its label does not match the verdict-line scan).
+    result = check_spec_ready(_write(tmp_path, _with_verdict_source('CERTIFIED', 'blind-round')))
+    assert result.passed, [v.message for v in result.violations]
+    assert not any('Verdict lines' in v.message for v in result.violations)
+    assert not any(w.check == 'B1' for w in result.warnings)
+
+
+def test_verdict_source_is_echoed_in_the_conditional_certify_warn(tmp_path):
+    # E7a: the conditional-certify WARN names the recorded source; pass/fail is unchanged.
+    spec = _with_verdict_source('CONDITIONAL-CERTIFY', 'operator-close', operator='grimaldo')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+    b1 = [w.message for w in result.warnings if w.check == 'B1']
+    assert len(b1) == 1 and '(verdict source: operator-close)' in b1[0]
+
+
+def test_verdict_source_unknown_value_is_echoed_not_rejected(tmp_path):
+    # E7a: the vocabulary is record-only; an unknown value is echoed, never a new failure.
+    spec = _with_verdict_source('CONDITIONAL-CERTIFY', 'some-new-form', operator='grimaldo')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+    assert any('(verdict source: some-new-form)' in w.message for w in result.warnings)
+
+
+def test_verdict_source_record_only_values_do_not_rescue_needs_revision(tmp_path):
+    # SW23 (owner decision 2, built as "no"): oracle-accepted and waived are recorded reasons, not
+    # a pass. A NEEDS-REVISION spec still fails B1, and the message now says why it was recorded.
+    for source in ('oracle-accepted: the render parity fixture', 'waived: no reviewer available'):
+        spec = _with_verdict_source('NEEDS-REVISION', source)
+        result = check_spec_ready(_write(tmp_path, spec))
+        assert not result.passed, source
+        b1 = [v.message for v in result.violations if v.check == 'B1']
+        assert b1 and f'(verdict source: {source})' in b1[0], source
+
+
+def test_verdict_source_conditional_certify_without_operator_still_fails(tmp_path):
+    # SW23: a record-only source does not stand in for the named Operator.
+    spec = _with_verdict_source('CONDITIONAL-CERTIFY', 'waived: not needed')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('operator' in v.message.lower() for v in result.violations)
+
+
+def test_spec_without_verdict_source_is_unchanged(tmp_path):
+    # E7a: a missing field passes as before and adds no echo to any message.
+    spec = _with_verdict_source('CONDITIONAL-CERTIFY', None, operator='grimaldo')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed
+    assert not any('verdict source' in w.message for w in result.warnings)
+    bad = _with_verdict_source('NEEDS-REVISION', None)
+    failed = check_spec_ready(_write(tmp_path, bad))
+    assert not failed.passed
+    assert not any('verdict source' in v.message for v in failed.violations)
 
 
 def test_clean_certified_emits_only_the_b2_adoption_warn(tmp_path):
@@ -643,6 +872,246 @@ def test_fold_ledger_row_anchored_on_a_blank_line_of_another_file_fails_a12(tmp_
     result = check_spec_ready(_write(tmp_path, spec))
     assert not result.passed
     assert any(v.check == 'A12' and 'blank' in v.message.lower() for v in result.violations)
+
+
+# --- E6a: a new-instrument row records its grounding command -----------------
+#
+# Folds that wrote a new test instrument by analogy carried the defect class into the next round,
+# four rounds running in one field report, while each row's Confirmed cell said "yes". A row that
+# introduces a new instrument now says so with a `new-instrument:` marker, and A12 holds the rest of
+# that cell to a backticked command and the output it printed. Unmarked rows are untouched.
+
+_INSTRUMENT_FORM = 'new-instrument: `<command>` <its output>'
+
+
+def _instrument_ledger(tmp_path, confirmed: str):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger(f'| FM-1 | §1 | `mod.py:2` | {confirmed} |\n')
+    return check_spec_ready(_write(tmp_path, spec))
+
+
+@pytest.mark.parametrize(
+    'rest',
+    [
+        'yes',
+        'done',
+        '`pytest`',  # one token is a name, not a command
+        '`git grep -n load_run_id src/`',  # a command with nothing after it records no output
+    ],
+)
+def test_fold_ledger_new_instrument_row_without_command_and_output_fails_a12(tmp_path, rest):
+    result = _instrument_ledger(tmp_path, f'new-instrument: {rest}')
+    assert not result.passed, f'a new-instrument row confirmed by {rest!r} passed the gate'
+    hits = [v for v in result.violations if v.check == 'A12' and 'new-instrument' in v.message]
+    assert hits, [(v.check, v.message) for v in result.violations]
+    assert _INSTRUMENT_FORM in hits[0].message, hits[0].message
+    assert rest in hits[0].message
+
+
+@pytest.mark.parametrize(
+    'confirmed',
+    [
+        'new-instrument: `git grep -n load_run_id src/` → 1 hit, src/run.py:41',
+        '**new-instrument:** `uv run pytest tests/test_run.py -q` → 3 passed',
+        'new-instrument: ran `rg -n "a | b" src/` and it printed 0 matches',
+    ],
+)
+def test_fold_ledger_new_instrument_row_with_command_and_output_passes_a12(tmp_path, confirmed):
+    result = _instrument_ledger(tmp_path, confirmed)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_unmarked_row_keeps_its_one_word_confirmation_a12(tmp_path):
+    # Verify-when-present: every ledger written before the marker existed confirms with a word.
+    result = _instrument_ledger(tmp_path, 'yes')
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_the_templates_fold_ledger_documents_the_new_instrument_marker_a12(tmp_path):
+    # CONTRIBUTING 2a: the rule is read through the shipped template's own ledger block, so the
+    # documented marker is the one the gate reads, and the line that documents it neither breaks
+    # the table parse beneath it nor fires a check of its own in a filled-in spec. The form is
+    # stated in prose there (a nested backtick span would leave `<…>` exposed to A3).
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    found = re.search(r'^### Fold ledger\n.*?(?=^### )', template, re.MULTILINE | re.DOTALL)
+    assert found is not None, 'spec-template.md carries no `### Fold ledger` block'
+    block = found.group(0)
+    prose = ' '.join(block.split())
+    assert '`new-instrument:`' in prose and 'backticked command' in prose, prose
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    for confirmed, ok in (
+        ('new-instrument: `git grep -n two mod.py` → mod.py:2', True),
+        ('new-instrument: yes', False),
+    ):
+        # The template's ledger carries a Sibling sweep column (SW13), so the row fills it.
+        row = f'| FM-1 | §1 | `mod.py:2` | {confirmed} | none |\n'
+        spec = READY_SPEC + '\n' + block.rstrip('\n') + '\n' + row
+        result = check_spec_ready(_write(tmp_path, spec))
+        assert result.passed is ok, (confirmed, [(v.check, v.message) for v in result.violations])
+
+
+# --- SW13: a `Sibling sweep` column records the sweep over the fact's other statements ---------
+#
+# A fold changes one statement of a fact; the fact's other statements stay as they were, and the
+# next round's finding is the stale sibling the fold created. A ledger whose header carries a
+# `Sibling sweep` column records, per row, the command run over those statements and the lines it
+# changed, or `none`. A12 fails a row whose cell in that column is empty. A ledger without the
+# column is checked exactly as before (verify-when-present).
+
+_SWEEP_HEADER = (
+    '| Finding | Target section | artifact:line | Confirmed | Sibling sweep |\n'
+    '|---|---|---|---|---|\n'
+)
+
+
+def _sweep_ledger(tmp_path, table: str):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    return check_spec_ready(_write(tmp_path, READY_SPEC + '\n\n### Fold ledger\n\n' + table))
+
+
+def _sweep_hits(result) -> list:
+    return [v for v in result.violations if v.check == 'A12' and 'Sibling sweep' in v.message]
+
+
+@pytest.mark.parametrize('sweep', ['', '   ', '**', '-', '\u2013', '—'])
+def test_fold_ledger_empty_sibling_sweep_cell_fails_a12(tmp_path, sweep):
+    # A dash is how a markdown table writes an empty cell; `none` is the declaration.
+    result = _sweep_ledger(
+        tmp_path, _SWEEP_HEADER + f'| FM-1 | §1 | `mod.py:2` | yes | {sweep} |\n'
+    )
+    assert not result.passed, f'a Sibling sweep cell reading {sweep!r} passed the gate'
+    hits = _sweep_hits(result)
+    assert hits, [(v.check, v.message) for v in result.violations]
+    assert '`none`' in hits[0].message, hits[0].message
+
+
+def test_fold_ledger_row_short_of_the_sibling_sweep_column_fails_a12(tmp_path):
+    # A row that stops before the column renders with that cell empty, and is read that way.
+    result = _sweep_ledger(tmp_path, _SWEEP_HEADER + '| FM-1 | §1 | `mod.py:2` | yes |\n')
+    assert not result.passed
+    assert _sweep_hits(result), [(v.check, v.message) for v in result.violations]
+
+
+@pytest.mark.parametrize(
+    'sweep',
+    [
+        'none',
+        '`none`',
+        'None',
+        '`git grep -n "line two" .` → mod.py:2 only; no other statement changed',
+        "`rg -n 'two' docs/ src/` → changed docs/a.md:4, src/b.py:9",
+    ],
+)
+def test_fold_ledger_filled_sibling_sweep_cell_passes_a12(tmp_path, sweep):
+    result = _sweep_ledger(
+        tmp_path, _SWEEP_HEADER + f'| FM-1 | §1 | `mod.py:2` | yes | {sweep} |\n'
+    )
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_sibling_sweep_column_is_found_by_header_name_a12(tmp_path):
+    # Any position, any case: the column is read by its header, as the target section is.
+    table = (
+        '| Finding | **sibling sweep** | Target section | artifact:line | Confirmed |\n'
+        '|---|---|---|---|---|\n'
+        '| FM-1 | none | §1 | `mod.py:2` | yes |\n'
+        '| FM-2 |  | §1 | `mod.py:1` | yes |\n'
+    )
+    result = _sweep_ledger(tmp_path, table)
+    hits = _sweep_hits(result)
+    assert [v.where for v in hits] == ['Fold ledger FM-2'], [
+        (v.check, v.where, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_sibling_sweep_column_keeps_the_target_section_read_a12(tmp_path):
+    # The new column must not displace the `§N` membership read: the row names §1, the anchor
+    # lands in §2, and that still fails even with the sweep column ahead of the target column.
+    (tmp_path / '.git').mkdir()
+    table = (
+        '| Finding | Sibling sweep | Target section | artifact:line | Confirmed |\n'
+        '|---|---|---|---|---|\n'
+        '| FM-1 | none | §1 | `spec.md:LINE` | yes |\n'
+    )
+    spec = READY_SPEC + '\n\n### Fold ledger\n\n' + table
+    elsewhere = _line_of(spec, 'Expose the widget.')  # §2's body
+    result = check_spec_ready(
+        _write(tmp_path, spec.replace('spec.md:LINE', f'spec.md:{elsewhere}'))
+    )
+    assert not result.passed
+    assert any(v.check == 'A12' and '§2' in v.message for v in result.violations), [
+        (v.check, v.message) for v in result.violations
+    ]
+
+
+def test_fold_ledger_sibling_sweep_row_wider_than_its_header_is_a_column_break_a12(tmp_path):
+    # The column-break rule counts the new column like any other.
+    result = _sweep_ledger(
+        tmp_path, _SWEEP_HEADER + '| FM-1 | §1 | `mod.py:2` | yes | rg -n a | b src/ |\n'
+    )
+    assert not result.passed
+    assert any(v.check == 'A12' and 'column break' in v.message for v in result.violations)
+
+
+@pytest.mark.parametrize(
+    'table',
+    [
+        '| Finding | Target | artifact:line |\n|---|---|---|\n| FM-1 | §1 | `mod.py:2` |\n',
+        '| Finding | Target | artifact:line | Confirmed |\n|---|---|---|---|\n'
+        '| FM-1 | §1 | `mod.py:2` | yes |\n',
+        '| Finding | Target | artifact:line | Confirmed | Round |\n|---|---|---|---|---|\n'
+        '| FM-1 | §1 | `mod.py:2` | yes |  |\n',
+    ],
+    ids=['three-column', 'four-column', 'other-fifth-column'],
+)
+def test_fold_ledger_without_a_sibling_sweep_column_is_checked_as_before_a12(tmp_path, table):
+    # Verify-when-present: every ledger written before the column existed keeps passing.
+    result = _sweep_ledger(tmp_path, table)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_the_dor_reference_line_states_the_sibling_sweep_rule_a12():
+    # The rule is a contract, so it lives in the A12 line of the reference block; the core sheet
+    # carries the same block (test_core_variants), and the line's cap is test_body_budgets'.
+    sheet = (templates_root() / 'definition-of-ready.md').read_text(encoding='utf-8')
+    a12 = next(line for line in sheet.splitlines() if line.startswith('A12 '))
+    assert '`Sibling sweep`' in a12 and '`none`' in a12, a12
+
+
+def test_the_templates_fold_ledger_carries_the_sibling_sweep_column_a12(tmp_path):
+    # CONTRIBUTING 2a: read through the shipped template's own ledger block, in both arms, so the
+    # column the template documents is the one the gate reads.
+    for template_path in (
+        templates_root() / 'spec-template.md',
+        templates_root() / 'core' / 'spec-template.md',
+    ):
+        template = template_path.read_text(encoding='utf-8')
+        found = re.search(
+            r'^### Fold ledger\n.*?(?=^---$|^### )', template, re.MULTILINE | re.DOTALL
+        )
+        assert found is not None, f'{template_path} carries no `### Fold ledger` block'
+        block = found.group(0)
+        assert '| Finding | Target section | artifact:line | Confirmed | Sibling sweep |' in block
+        for sweep, ok in (
+            ('none', True),
+            ('`git grep -n two mod.py` → mod.py:2', True),
+            ('', False),
+        ):
+            row = f'| FM-1 | §1 | `mod.py:2` | yes | {sweep} |\n'
+            work = tmp_path / template_path.parent.name / (sweep[:4].strip('`') or 'empty')
+            work.mkdir(parents=True)
+            (work / '.git').mkdir()
+            (work / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+            spec = READY_SPEC + '\n' + block.rstrip('\n') + '\n' + row
+            result = check_spec_ready(_write(work, spec))
+            assert result.passed is ok, (
+                template_path.name,
+                sweep,
+                [(v.check, v.message) for v in result.violations],
+            )
 
 
 # --- T1.4: a confirmation cell may name a RANGE ------------------------------
@@ -1726,6 +2195,17 @@ def test_dangling_section_ref_names_the_cross_document_escape_a8(tmp_path):
     assert dangling and 'ADR-0002' in dangling[0].message, dangling
 
 
+def test_dangling_section_ref_names_the_fence_form_a8(tmp_path):
+    # A verbatim quote that carries another document's §N cannot take a cue without altering the
+    # quote; the form that fits is a fenced block, which is masked before every check. The
+    # message named the cue and the backtick but not the fence (E2b).
+    bad = READY_SPEC.replace('Expose the widget.', 'Expose the widget. See §9 for the cutover.')
+    result = check_spec_ready(_write(tmp_path, bad))
+    assert not result.passed
+    dangling = [v for v in result.violations if v.check == 'A8']
+    assert dangling and 'fenced' in dangling[0].message, dangling
+
+
 def test_vendored_only_basename_match_is_refused_and_names_the_twin_a6(tmp_path):
     # KEEL-B04 made expansion possible; in an estate that vendors its dependencies the twin is
     # the likeliest unique match, so the WARN read "resolved, carry on" over the wrong file.
@@ -1922,3 +2402,546 @@ def test_build_output_only_basename_match_is_refused_and_names_the_copy_a6(tmp_p
     assert f'{tree}/run/models/instruments.sql' in refused[0].message
     assert 'cite the source it was copied from' in refused[0].message
     assert not any('instruments.sql' in w.message for w in result.warnings), result.warnings
+
+
+# --- E4a: a criterion's grep scope vs a path another section creates (W8) -----
+#
+# The field case: a late section's acceptance criterion was a path-scoped grep that had to print
+# nothing, over a directory in which an earlier section of the same wave created a render
+# fixture. The scope grew when that section landed, and satisfying the criterion destroyed working
+# data. The spec stated both halves — the concept map's "to be created" row and the grep — and
+# nothing joined them. A warning, because a scope over existing structure can be deliberate.
+
+_W8_CREATED = 'docs/render/sample.html'
+_W8_FIELD = "`git grep -n 'legacy.example' docs/` prints nothing once the host is retired."
+
+
+def _w8_spec(criterion: str, *, creator: int = 2) -> str:
+    """Eight sections; `creator` creates the render fixture and §8 carries `criterion`."""
+    sections = []
+    for n in range(1, 9):
+        body = (
+            f'Step {n} of the wave. **Acceptance criterion:** a unit test asserts step {n} holds.'
+        )
+        if n == 8:
+            body = f'Retire the legacy host. **Acceptance criterion:** {criterion}'
+        if n == creator:
+            body = f'Add the render fixture `{_W8_CREATED}`. {body}'
+        sections.append(f'### §{n} Step {n}\n{body}\n')
+    manifest = ''.join(f'| PR0{n} | §{n} | yes |\n' for n in range(1, 9))
+    return (
+        f'# Spec — legacy host retirement\n\n- **Status:** ready (DoR passed)\n'
+        f'- **Kit:** {__version__}\n\n## Numbered sections\n\n'
+        + '\n'.join(sections)
+        + '\n## Concept → module map\n\n| Concept | Module / file it lives in |\n|---|---|\n'
+        f'| render fixture | `{_W8_CREATED}` (to be created) |\n\n'
+        '## PR ↔ section manifest\n\n| PR | Implements section | One concern? |\n|---|---|---|\n'
+        + manifest
+        + '\n## Pre-mortem certification\n\n- **Reviewer:** review-panel (non-author)\n'
+        '- **Verdict:** CERTIFIED\n- **Date:** 2026-06-05\n'
+        '- **Failure modes considered & folded in:** none outstanding\n'
+    )
+
+
+def _w8(tmp_path, criterion: str, **kwargs):
+    result = check_spec_ready(_write(tmp_path, _w8_spec(criterion, **kwargs)))
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+    return [w for w in result.warnings if w.check == 'W8']
+
+
+def test_the_field_case_warns_w8_and_exits_zero(tmp_path):
+    from typer.testing import CliRunner
+
+    from keel.cli import app
+
+    spec = _write(tmp_path, _w8_spec(_W8_FIELD))
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    w8 = [w for w in result.warnings if w.check == 'W8']
+    assert len(w8) == 1, result.warnings
+    # Names the criterion's section, the scope, the path and the section that creates it.
+    for needle in ('§8', '`docs/`', f'`{_W8_CREATED}`', '§2'):
+        assert needle in w8[0].message, (needle, w8[0].message)
+    run = CliRunner().invoke(app, ['check-ready', str(spec)])
+    assert run.exit_code == 0, run.output
+    assert _W8_CREATED in run.output
+
+
+@pytest.mark.parametrize(
+    'criterion',
+    [
+        _W8_FIELD,
+        '`grep -rn legacy.example docs` prints nothing once the host is retired.',
+        '`rg -n -e legacy.example docs/render/` prints nothing once the host is retired.',
+        "`rg --glob '*.html' legacy.example docs/` prints nothing once the host is retired.",
+        f'`! grep -q legacy.example {_W8_CREATED}` holds once the host is retired.',
+        '`grep -rn legacy.example ./docs/ | wc -l` prints 0 once the host is retired.',
+        '`git grep -n legacy.example -- docs/*.html` prints nothing once the host is retired.',
+        '`grep -rn legacy.example .` prints nothing once the host is retired, repo wide.',
+        # The "prints nothing" idiom: the grep sits inside a command substitution.
+        '`test -z "$(grep -rn legacy.example docs/)"` holds once the host is retired.',
+        '`[ -z "$(git grep -n legacy.example -- docs/)" ]` holds once the host is retired.',
+        # A `)` inside the quoted pattern does not close the substitution.
+        '`test -z "$(grep -rn \'f(x)\' docs/)"` holds once the host is retired.',
+        # Each substitution is its own command.
+        '`test -z "$(grep -rn a src/)" && test -z "$(rg legacy.example docs/)"` holds.',
+    ],
+)
+def test_every_grep_form_over_the_created_path_warns_w8(tmp_path, criterion):
+    assert len(_w8(tmp_path, criterion)) == 1
+
+
+@pytest.mark.parametrize(
+    'criterion',
+    [
+        # A scope with no overlap, including a prefix that stops inside a path segment.
+        '`git grep -n legacy.example src/` prints nothing once the host is retired.',
+        '`grep -rn legacy.example docs/rend` prints nothing once the host is retired.',
+        # The pattern names the path; the scope is elsewhere.
+        f"`grep -rn '{_W8_CREATED}' src/` prints nothing once the host is retired.",
+        # No path argument at all: not a path-scoped criterion.
+        '`git grep -n docs/render` prints nothing once the host is retired, as checked.',
+        # A substituted grep whose scope misses, and one whose `)` sits inside its quoted pattern.
+        '`test -z "$(grep -rn legacy.example src/)"` holds once the host is retired.',
+        '`test -z "$(grep -rn \'docs/(old)\' src/)"` holds once the host is retired.',
+        # A criterion with no command.
+        'a reviewer confirms the legacy host appears nowhere in the published pages.',
+    ],
+)
+def test_a_grep_scope_that_misses_the_created_path_is_silent_w8(tmp_path, criterion):
+    assert _w8(tmp_path, criterion) == []
+
+
+def test_a_grep_in_the_section_that_creates_the_path_is_silent_w8(tmp_path):
+    assert _w8(tmp_path, _W8_FIELD, creator=8) == []
+
+
+def test_w8_candidates_are_the_path_scoped_grep_criteria(tmp_path):
+    def probe(criterion: str):
+        result = check_spec_ready(_write(tmp_path, _w8_spec(criterion)))
+        return next((p.candidates, p.fired) for p in result.probes if p.check == 'W8')
+
+    assert probe(_W8_FIELD) == (1, 1)
+    assert probe('`git grep -n legacy.example src/` prints nothing, as checked here.') == (1, 0)
+    assert probe('a reviewer confirms the legacy host appears nowhere in the pages.') == (0, 0)
+    # `2>/dev/null` lexes as `2` then `>`: a file descriptor, not a path argument.
+    assert probe('`git grep -n legacy.example 2>/dev/null` prints nothing here.') == (0, 0)
+
+
+# E5b (KEEL-B20): an `Anchor waivers` table exempts the anchors it lists from A6, matched by their
+# exact `path:line` text. A row names a reason or fails; a spec with no block is unchanged.
+_WAIVED = '`missing/mod.py:9`'
+_WAIVER_REASON = 'the module lives in a sibling repository this gate cannot read'
+
+
+def _waivers(*rows: str, level: str = '##') -> str:
+    return f'{level} Anchor waivers\n\n| Anchor | Reason |\n|---|---|\n' + '\n'.join(rows) + '\n\n'
+
+
+def _waiver_spec(tmp_path, cite: str, block: str):
+    (tmp_path / '.git').mkdir(exist_ok=True)
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', f'Introduce `src/widget.py`. See {cite}.'
+    ).replace('## PR ↔ section manifest', block + '## PR ↔ section manifest')
+    return _write(tmp_path, spec)
+
+
+def _a6(result):
+    return [(v.where, v.message) for v in result.violations if v.check == 'A6']
+
+
+def test_a_listed_anchor_with_a_reason_is_silent_a6(tmp_path):
+    spec = _waiver_spec(tmp_path, _WAIVED, _waivers(f'| {_WAIVED} | {_WAIVER_REASON} |'))
+    result = check_spec_ready(spec)
+    assert result.passed, _a6(result) or result.violations
+
+
+def test_an_unlisted_anchor_still_fails_beside_a_waiver_a6(tmp_path):
+    # Exact `path:line` text: a waiver for line 9 says nothing about line 10 of the same file.
+    spec = _waiver_spec(
+        tmp_path,
+        f'{_WAIVED} and `missing/mod.py:10`',
+        _waivers(f'| {_WAIVED} | {_WAIVER_REASON} |'),
+    )
+    result = check_spec_ready(spec)
+    assert [where for where, _ in _a6(result)] == ['missing/mod.py:10']
+
+
+def test_a_waiver_row_without_a_reason_fails_a6(tmp_path):
+    # A waiver with no reason is not a waiver: the row fails, and the anchor is not exempted.
+    spec = _waiver_spec(tmp_path, _WAIVED, _waivers(f'| {_WAIVED} |  |'))
+    result = check_spec_ready(spec)
+    assert not result.passed
+    messages = [message for _, message in _a6(result)]
+    assert any('waiver names no reason' in m and 'missing/mod.py:9' in m for m in messages), (
+        messages
+    )
+    assert 'missing/mod.py:9' in [where for where, _ in _a6(result)]
+
+
+def test_the_waiver_table_is_not_scanned_as_anchors_a6_a11(tmp_path):
+    # The block is the waiver's record, not prose: a reason may cite where the referent went, and
+    # neither A6 nor A11 reads the block's cells (as `_mask_fold_ledger` does for A12's rows).
+    reason = 'the §1 move puts it at `missing/new.py:4`, body `missing/new.py:4-6`'
+    spec = _waiver_spec(tmp_path, _WAIVED, _waivers(f'| {_WAIVED} | {reason} |'))
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+
+
+def test_a_waiver_row_is_an_a6_candidate(tmp_path):
+    # A check never fires without a counted candidate, so a row counts even when its anchor cell
+    # is written unbackticked and no prose anchor exists.
+    spec = _waiver_spec(tmp_path, 'the module', _waivers('| missing/mod.py:9 |  |'))
+    probe = next(p for p in check_spec_ready(spec).probes if p.check == 'A6')
+    assert (probe.candidates, probe.fired) == (1, 1)
+
+
+def test_a_waiver_added_inside_an_amendment_warns_w7_not_w5(tmp_path):
+    # Owner 2026-09-19: a certified body does not change. The waiver goes in `### Anchor waivers`
+    # under `## Amendment`, so B2 reads the moved hash as an addition (W7), not a revision (W5).
+    (tmp_path / '.git').mkdir()
+    certified = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', f'Introduce `src/widget.py`. See {_WAIVED}.'
+    ).replace(
+        '- **Date:** 2026-06-05',
+        '- **Certification artifact:** `spec.premortem.md`\n- **Date:** 2026-06-05',
+    )
+    spec = _write(tmp_path, certified)
+    (tmp_path / 'spec.premortem.md').write_text(
+        f'PREMORTEM-VERDICT: CERTIFIED\nSpec-hash: {spec_hash(spec)}\n', encoding='utf-8'
+    )
+    amendment = '\n## Amendment\n\n' + _waivers(f'| {_WAIVED} | {_WAIVER_REASON} |', level='###')
+    spec.write_text(certified + amendment, encoding='utf-8')
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+    warned = {w.check for w in result.warnings}
+    assert 'W7' in warned and 'W5' not in warned, result.warnings
+
+
+def test_the_templates_waiver_block_is_the_one_the_gate_reads_a6(tmp_path):
+    # CONTRIBUTING 2a: a parser tested only on synthetic fixtures can doze on the shipped template.
+    # The scaffold's own block, given one row, must exempt that anchor and fire nothing else.
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    found = re.search(r'^## Anchor waivers\n.*?(?=^## )', template, re.MULTILINE | re.DOTALL)
+    assert found is not None, 'spec-template.md documents no `## Anchor waivers` block'
+    block = found.group(0).rstrip('\n') + f'\n| {_WAIVED} | {_WAIVER_REASON} |\n\n'
+    result = check_spec_ready(_waiver_spec(tmp_path, _WAIVED, block))
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+
+
+# --- Q5a (KEEL-B15): condition rows under a CONDITIONAL-CERTIFY (W9) -----------------------------
+#
+# The field miss: an operator-accepted CONDITIONAL-CERTIFY named a condition that gated §15, the
+# condition was still open when work reached §15, and the gate printed only B1's generic
+# conditional WARN, so nothing said which work the open condition held back. A `### Conditions`
+# table under the certification records each condition with the section or commit it gates and
+# its status; W9 quotes every row that is not met or waived. A warning: the verdict is already
+# operator-accepted, and the table is new structure, so a spec without it is checked as before.
+
+_W9_HEADER = '| Gates | Condition | Status | Evidence |\n|---|---|---|---|\n'
+_W9_OPEN = '| §15 | the fixture is regenerated from the frozen sample | open |  |'
+_W9_MET = '| §1 | the widget id is stable across runs | met | `make()` test pinned in PR01 |'
+
+
+def _w9_text(rows: list[str] | None, *, verdict: str = 'CONDITIONAL-CERTIFY') -> str:
+    """READY_SPEC with §2 renumbered §15, `verdict` (an Operator when conditional), a named
+    artifact and, when `rows` is not None, a `### Conditions` table holding them."""
+    cert = f'- **Verdict:** {verdict}\n'
+    if verdict == 'CONDITIONAL-CERTIFY':
+        cert += '- **Operator:** the release owner\n'
+    cert += '- **Certification artifact:** `spec.premortem.md`'
+    text = (
+        READY_SPEC.replace('### §2 Wire', '### §15 Wire')
+        .replace('| PR02 | §2 | yes |', '| PR02 | §15 | yes |')
+        .replace('- **Verdict:** CERTIFIED', cert)
+    )
+    if rows is not None:
+        text += '\n### Conditions\n\n' + _W9_HEADER + ''.join(f'{row}\n' for row in rows)
+    return text
+
+
+def _w9_write(tmp_path, text: str, *, verdict: str = 'CONDITIONAL-CERTIFY'):
+    """Write the spec and its saved pass (verdict agreeing, hash current), so B2 stays silent."""
+    (tmp_path / '.git').mkdir(exist_ok=True)
+    spec = _write(tmp_path, text)
+    (tmp_path / 'spec.premortem.md').write_text(
+        f'PREMORTEM-VERDICT: {verdict}\nSpec-hash: {spec_hash(spec)}\n', encoding='utf-8'
+    )
+    return spec
+
+
+def _w9_result(tmp_path, rows: list[str] | None, *, verdict: str = 'CONDITIONAL-CERTIFY'):
+    result = check_spec_ready(_w9_write(tmp_path, _w9_text(rows, verdict=verdict), verdict=verdict))
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+    return result
+
+
+def _w9_probe(result) -> tuple[int, int]:
+    return next((p.candidates, p.fired) for p in result.probes if p.check == 'W9')
+
+
+def test_an_open_condition_gating_a_later_section_is_quoted_w9_and_exits_zero(tmp_path):
+    from typer.testing import CliRunner
+
+    from keel.cli import app
+
+    spec = _w9_write(tmp_path, _w9_text([_W9_MET, _W9_OPEN]))
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    w9 = [w.message for w in result.warnings if w.check == 'W9']
+    assert len(w9) == 1, result.warnings
+    assert w9[0].startswith('WARN: ') and w9[0].endswith(_W9_OPEN), w9[0]
+    assert _w9_probe(result) == (2, 1)
+    run = CliRunner().invoke(app, ['check-ready', str(spec)])
+    assert run.exit_code == 0, run.output
+    assert _W9_OPEN in run.output
+
+
+def test_every_condition_met_or_waived_leaves_only_the_b1_warn(tmp_path):
+    waived = '| abc1234 | the sample data is refreshed | waived | the operator accepts the gap |'
+    result = _w9_result(tmp_path, [_W9_MET, waived])
+    assert [w.check for w in result.warnings] == ['B1'], result.warnings
+    assert _w9_probe(result) == (2, 0)
+
+
+def test_each_open_condition_gives_its_own_warn_w9(tmp_path):
+    second = '| §1 | the CLI help names the widget command | open | |'
+    result = _w9_result(tmp_path, [_W9_OPEN, _W9_MET, second])
+    w9 = [w.message for w in result.warnings if w.check == 'W9']
+    assert len(w9) == 2 and w9[0].endswith(_W9_OPEN) and w9[1].endswith(second), w9
+
+
+@pytest.mark.parametrize(
+    'status',
+    ['met', '**met**', '`met`', 'Met — 2026-10-01', 'waived', 'Waived: the operator accepts it'],
+)
+def test_a_met_or_waived_status_is_discharged_w9(tmp_path, status):
+    row = f'| §15 | the fixture is regenerated from the frozen sample | {status} | PR02 |'
+    result = _w9_result(tmp_path, [row])
+    assert not [w for w in result.warnings if w.check == 'W9'], result.warnings
+
+
+@pytest.mark.parametrize('status', ['open', '', 'done', 'not met', 'metadata pending', 'pending'])
+def test_any_other_status_warns_w9(tmp_path, status):
+    row = f'| §15 | the fixture is regenerated from the frozen sample | {status} |  |'
+    result = _w9_result(tmp_path, [row])
+    w9 = [w.message for w in result.warnings if w.check == 'W9']
+    assert len(w9) == 1 and w9[0].endswith(row), w9
+
+
+def test_a_row_that_stops_before_the_status_column_warns_w9(tmp_path):
+    row = '| §15 | the fixture is regenerated from the frozen sample |'
+    result = _w9_result(tmp_path, [row])
+    w9 = [w.message for w in result.warnings if w.check == 'W9']
+    assert len(w9) == 1 and w9[0].endswith(row), w9
+
+
+def test_a_certified_spec_with_a_conditions_table_is_silent_w9(tmp_path):
+    result = _w9_result(tmp_path, [_W9_OPEN], verdict='CERTIFIED')
+    assert result.warnings == (), result.warnings
+    assert _w9_probe(result) == (0, 0)
+
+
+def test_a_conditional_certify_without_the_table_is_unchanged_w9(tmp_path):
+    result = _w9_result(tmp_path, None)
+    assert [w.check for w in result.warnings] == ['B1'], result.warnings
+    assert _w9_probe(result) == (0, 0)
+
+
+def test_structure_only_does_not_read_the_conditions_w9(tmp_path):
+    spec = _w9_write(tmp_path, _w9_text([_W9_OPEN]))
+    result = check_spec_ready(spec, structure_only=True)
+    assert not [w for w in result.warnings if w.check == 'W9'], result.warnings
+    assert _w9_probe(result) == (0, 0)
+
+
+def test_the_templates_conditions_block_is_the_one_the_gate_reads_w9(tmp_path):
+    # CONTRIBUTING 2a: the scaffold's own block, given one open row, must fire W9 and nothing new.
+    # The fold ledger stays the first table of the certification, so the block follows it.
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    cert = template.split('## Pre-mortem certification', 1)[1]
+    assert cert.index('### Fold ledger') < cert.index('### Conditions'), 'Conditions precede ledger'
+    first_table = next(line for line in cert.splitlines() if line.startswith('|'))
+    assert first_table.startswith('| Finding |'), first_table
+    found = re.search(r'^### Conditions\n.*?(?=^### )', cert, re.MULTILINE | re.DOTALL)
+    assert found is not None, 'spec-template.md documents no `### Conditions` block'
+    block = found.group(0).rstrip('\n') + f'\n{_W9_OPEN}\n'
+    assert _W9_HEADER in block, (
+        'the template table is not `| Gates | Condition | Status | Evidence |`'
+    )
+    result = check_spec_ready(_w9_write(tmp_path, _w9_text(None) + '\n' + block))
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+    assert [w.check for w in result.warnings] == ['B1', 'W9'], result.warnings
+    assert result.warnings[1].message.endswith(_W9_OPEN)
+
+
+# --- Q5b (KEEL-B15): the recorded Base commit is still in HEAD's history (W10) -------------------
+#
+# A certification records what the pass reviewed, and a rebase, a reset or a force-push can move
+# the branch away from it: the spec still reads certified while the history the reviewer saw is
+# gone. The full template records the reviewed commit as `- **Base:**`, and W10 asks git whether
+# that commit is still an ancestor of HEAD. It is the gate's only subprocess call, so it fails
+# open: no repository, no git, a git that cannot answer, or a placeholder value is silence. These
+# controls need a real repository, which the adversarial corpus does not stage, so they live here
+# and the corpus records W10 as a named exception.
+
+_UNKNOWN_SHA = '0123456789abcdef0123456789abcdef01234567'
+
+
+def _git(repo, *args: str) -> str:
+    identity = ('-c', 'user.email=t@example.invalid', '-c', 'user.name=test')
+    return subprocess.run(
+        ['git', '-C', str(repo), *identity, *args],
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+        check=True,
+    ).stdout.strip()
+
+
+def _commit(repo, message: str) -> str:
+    _git(repo, 'commit', '-q', '--allow-empty', '-m', message)
+    return _git(repo, 'rev-parse', 'HEAD')
+
+
+def _two_commit_repo(repo) -> tuple[str, str]:
+    """A real repository with two commits; (first, second), HEAD at the second."""
+    _git(repo, 'init', '-q')
+    return _commit(repo, 'one'), _commit(repo, 'two')
+
+
+def _rewritten_repo(repo) -> str:
+    """A repository whose second commit a reset and a new commit left out of HEAD's history."""
+    first, second = _two_commit_repo(repo)
+    _git(repo, 'reset', '-q', '--hard', first)
+    _commit(repo, 'three, after the reset')
+    return second
+
+
+def _w10_spec(directory, base: str | None):
+    """READY_SPEC, with `- **Base:** <base>` under its Verdict when `base` is not None."""
+    cert = '- **Verdict:** CERTIFIED' + ('' if base is None else f'\n- **Base:** {base}')
+    return _write(directory, READY_SPEC.replace('- **Verdict:** CERTIFIED', cert))
+
+
+def _w10(result) -> list[str]:
+    return [w.message for w in result.warnings if w.check == 'W10']
+
+
+def _w10_probe(result) -> tuple[int, int]:
+    return next((p.candidates, p.fired) for p in result.probes if p.check == 'W10')
+
+
+def test_a_base_that_is_an_ancestor_of_head_is_silent_w10(tmp_path):
+    first, _ = _two_commit_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, first))
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (1, 0)
+
+
+def test_a_base_left_behind_by_a_reset_warns_w10_and_exits_zero(tmp_path):
+    from typer.testing import CliRunner
+
+    from keel.cli import app
+
+    orphaned = _rewritten_repo(tmp_path)
+    spec = _w10_spec(tmp_path, orphaned)
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    w10 = _w10(result)
+    assert len(w10) == 1, result.warnings
+    assert w10[0].startswith('WARN: ') and orphaned in w10[0], w10[0]
+    assert 'not an ancestor of HEAD' in w10[0], w10[0]
+    assert _w10_probe(result) == (1, 1)
+    run = CliRunner().invoke(app, ['check-ready', str(spec)])
+    assert run.exit_code == 0, run.output
+    assert orphaned in run.output
+
+
+def test_a_base_that_does_not_resolve_warns_w10(tmp_path):
+    _two_commit_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, _UNKNOWN_SHA))
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    w10 = _w10(result)
+    assert len(w10) == 1 and _UNKNOWN_SHA in w10[0], result.warnings
+    assert 'does not resolve' in w10[0], w10[0]
+
+
+@pytest.mark.parametrize('form', ['`{sha}`', '{sha} (main when the pass ran)', '{short}'])
+def test_the_base_is_read_from_its_leading_token_w10(tmp_path, form):
+    # The path-valued field rule (`_first_path_token`): a backticked value, trailing prose and an
+    # abbreviated SHA all name the commit.
+    orphaned = _rewritten_repo(tmp_path)
+    value = form.format(sha=orphaned, short=orphaned[:10])
+    w10 = _w10(check_spec_ready(_w10_spec(tmp_path, value)))
+    assert len(w10) == 1 and orphaned[:10] in w10[0], w10
+
+
+def test_a_spec_outside_any_repository_is_silent_w10(tmp_path):
+    result = check_spec_ready(_w10_spec(tmp_path, _UNKNOWN_SHA))
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+def test_no_base_field_is_silent_w10(tmp_path):
+    _two_commit_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, None))
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+@pytest.mark.parametrize('value', ['', 'main', 'v0.20.0', 'abc12', 'the reviewed tree'])
+def test_a_base_that_is_not_a_commit_sha_is_not_read_w10(tmp_path, value):
+    # Only a hex object name is a candidate: a ref name moves on its own, and a value that cannot
+    # start with `-` cannot reach git as an option.
+    _two_commit_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, value))
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+def test_the_templates_base_placeholder_is_silent_w10(tmp_path):
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    cert = template.split('## Pre-mortem certification', 1)[1]
+    line = next((ln for ln in cert.splitlines() if ln.startswith('- **Base:**')), None)
+    assert line is not None, 'spec-template.md records no `- **Base:**` in its certification'
+    _two_commit_repo(tmp_path)
+    spec = _write(
+        tmp_path,
+        READY_SPEC.replace('- **Verdict:** CERTIFIED', f'- **Verdict:** CERTIFIED\n{line}'),
+    )
+    result = check_spec_ready(spec)
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+def test_structure_only_does_not_read_the_base_w10(tmp_path):
+    orphaned = _rewritten_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, orphaned), structure_only=True)
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+def test_a_git_directory_git_cannot_read_is_silent_w10(tmp_path):
+    # The suite's own convention: an empty `.git` marks a repository root for path resolution
+    # without being a repository. git refuses it (exit 128), and that is a fault, not a finding.
+    (tmp_path / '.git').mkdir()
+    result = check_spec_ready(_w10_spec(tmp_path, _UNKNOWN_SHA))
+    assert _w10(result) == [], result.warnings
+
+
+@pytest.mark.parametrize(
+    'fault',
+    [FileNotFoundError('git'), PermissionError('git'), subprocess.TimeoutExpired('git', 5)],
+)
+def test_a_git_that_cannot_run_is_silent_w10(tmp_path, monkeypatch, fault):
+    orphaned = _rewritten_repo(tmp_path)
+
+    def broken(*args, **kwargs):
+        raise fault
+
+    monkeypatch.setattr('keel.check_ready.subprocess.run', broken)
+    result = check_spec_ready(_w10_spec(tmp_path, orphaned))
+    assert _w10(result) == [], result.warnings

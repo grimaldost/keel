@@ -151,10 +151,16 @@ def test_every_check_in_the_catalogue_has_a_positive_control(tmp_path):
     # decompose gate's D-letters are unreachable from this corpus by construction, not by omission,
     # and carry their own controls in the same form (`tests/test_decompose_check.py`). Set equality
     # against DOR_CHECK_IDS still makes a NEW DoR letter mandatory here.
+    #
+    # W10 is the second exception, for the D-letters' reason: it asks git whether the recorded
+    # Base commit is an ancestor of HEAD, and a materialized fixture is a plain directory, not a
+    # repository, so no one-edit mutant can make it fire. Its positive control builds a real
+    # repository and lives with the check (`tests/test_check_ready.py`, the W10 block).
     covered = {check for mutant in MUTANTS for check in mutant['fires']}
     missing = DOR_CHECK_IDS - covered
-    assert missing == {'A3'}, (
-        f'unexpected checks without a positive control: {sorted(missing)}. A3 is the recorded '
+    assert missing == {'A3', 'W10'}, (
+        f'unexpected checks without a positive control: {sorted(missing)}. A3 is a recorded '
         'exception: its power is already proven in the field (7 fires across the 44-doc control '
-        'arm), so a mutant would add nothing.'
+        'arm), so a mutant would add nothing. W10 is the other: it needs a git repository, which '
+        'the corpus does not stage, and its control is in tests/test_check_ready.py.'
     )

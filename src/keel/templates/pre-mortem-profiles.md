@@ -30,6 +30,8 @@ certification.
 - **Correctness oracle (not "ran green"):** <what decides "correct", distinct from the run completing>
 - **Measured-unit causal path:** <treatment end — the measured path READS what the treatment changes (not inert); measured-unit end — capabilities beyond the intended input enumerated, no side channel to the ground truth>
 - **Enforcement of isolation invariants:** <each leakage/isolation invariant, and the buildable mechanism that enforces it, claimed by a numbered section/PR>
+- **Bounded real pilot:** <a minimal run with real deployment before the full paid run; every arm (baseline, control, decoy) produces well-formed, non-degenerate output; what is the smallest footprint that tests all arms>
+- **Decision rule — no verdict:** <when no arm discriminates on any criterion, the result is no verdict, not a null; specify the decision boundary that triggers it>
 - **Pre-registered analysis plan:** <the analysis fixed before results are seen>
 ```
 
@@ -64,6 +66,14 @@ axes the design sheet names, and they are ordered — feasibility short-circuits
 - [ ] **Every isolation / safety / leakage invariant names a buildable enforcement mechanism**
       claimed by a numbered §/PR — not a bare assertion, and not a smoke test that tests a jail no
       PR creates.
+- [ ] **A bounded real pilot runs all arms before the full paid run** — the pilot is a minimal
+      deployment (smallest viable footprint) that exercises every arm (baseline, control, decoy),
+      and the reviewer confirmed each arm produces well-formed, non-degenerate output; a pilot
+      that exercises only the happy path is not a pilot.
+- [ ] **The decision rule names the no-verdict boundary** — when no arm discriminates on any
+      criterion, the experiment delivers no verdict rather than a null (a distinction from every
+      other outcome). State what distinguishes the no-verdict state from each null (feasibility,
+      power, defeatability, causal path) and the exact decision boundary that triggers it.
 - [ ] **The analysis plan is pre-registered** — fixed before results are seen, not chosen after.
 
 ### Which probe fired
@@ -98,6 +108,9 @@ Part A and multiple blind rounds.
 - **Read-side cutover check:** <what DISCRIMINATES the new read path from the old one; a check both paths pass proves nothing>
 - **Pinned clocks:** <every clock pin the spec fixes, and what each read predicate admits AT those values>
 - **Closed vocabularies consumed:** <each staged column read by an enum or accepted-values list, and the owner of that list>
+- **Producers and pinned literals (measured):** <each producer writing what the spec governs, and each gate pinning a count or literal over it, with the command and its output>
+- **Heaviest downstream consumer's suite:** <the consumer whose tests gate the change, not only the library's own>
+- **Output shape a consumer reads:** <the columns the frozen contract pins, passthroughs included>
 ```
 
 ### The reviewer's items (Definition of Ready, Part B)
@@ -118,3 +131,7 @@ Part A and multiple blind rounds.
 - [ ] **Every staged literal is checked against the closed vocabulary that OWNS it** — the enum's
       member list or the accepted-values set, read from the owner rather than from the spec. A
       value minted upstream against a closed vocabulary ships until first consumption raises.
+- [ ] **Heaviest downstream consumer's tests gate the change** — the reviewer named the consumer
+      whose test suite gates the load (not only the library's own gating tests), and reviewed its
+      output-shape coverage: the columns the frozen contract pins, passthroughs included, are all
+      tested by some member of that suite.

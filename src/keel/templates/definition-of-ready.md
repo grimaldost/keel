@@ -18,9 +18,7 @@ only when the spec is well-formed AND a blind pre-mortem certification is record
 
 These assert *form*, not *correctness* — a well-formed spec can still be wrong (that
 is Part B's job). You do not check them by hand: `keel check-ready <spec>` is the script,
-and the block below is the contract it enforces, check by check. A prose restatement of
-that block used to sit here; it was a lossy paraphrase of the same facts, and a reader
-who trusted it over the block trusted the older of two copies.
+and the block below is the contract it enforces, check by check.
 
 ### Reference: what `check_spec_ready` asserts
 
@@ -32,16 +30,16 @@ A0 the header's `Kind:` declaration, when present, must read `series` or `single
 A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
 A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words), counted
    in the paragraph immediately after the marker
-A3 fail on a TBD/TODO/FIXME/??? token, or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view (inline-code spans space-filled, wrapped spans included), so backticked `<target>` syntax is exempt while a bare `<title>` is caught
-A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — also absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` (ADR-0014)
+A3 fail on a TBD/FIXME/??? token, `# TODO`, or a TODO that no word follows on its line (`TODO:`, `- **Owner:** TODO`, `TODO.`; "TODO o sistema" in prose passes), or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view, so backticked `<target>` is exempt while a bare `<title>` is caught
+A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage; with a `Repo` (or `Repository`) column the key is (section, repo), one row per repository — also absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` (ADR-0014)
 A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
-A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches
+A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches. An `Anchor waivers` table (`##` or `###` heading, `| Anchor | Reason |`) exempts each anchor it lists by exact `path:line` with a reason; its own cells are not scanned, and a row naming no reason fails
 A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
 A10 when an Enforcement-status table is present: fail if prose claims an invariant "enforced"/"guaranteed" whose row is not enforced
 A11 each `path:lo-hi` range anchor: the file and `hi` line must resolve; for a `.py`/`.pyi` anchor it must additionally close (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
-A12 when a `### Fold ledger` sub-table is present: fail unless each row's `artifact:line` — or `artifact:lo-hi` — confirmation resolves, read from whichever cell IS one; lands on a non-blank line; and, pointing into this spec, lands inside the `§N` the row names (heading included); A11's bracket rule holds for a range cell; a wider-than-header row is a column break
+A12 each `### Fold ledger` row: fail unless its `artifact:line` (or `artifact:lo-hi`) confirmation, in any cell, resolves; lands on a non-blank line; and, pointing into this spec, lands inside the `§N` the row names (heading included); A11's bracket rule holds for a range cell; a wider-than-header row is a column break; an empty `Sibling sweep` cell fails (`none` passes)
 A13 when the header declares `- **Requirements:** <path>`: that register must resolve, and every `RR-<n>` order it declares needs a `## Requirements ledger` row disposing it to a §N, `DEFERRED — <trigger>`, `OUT-OF-SCOPE`, or `DEVIATED — ratified by <operator>`; silent with no register declared, and a self-ratified DEVIATED fails
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
@@ -53,12 +51,18 @@ W4 (warn) B2's adoption nudge: the certification names no artifact at all
 W5 (warn) the named artifact's recorded `Spec-hash:` no longer matches ("certified against an earlier revision"), suffixed with the operator-close pointer when the recorded verdict is an operator-accepted CONDITIONAL-CERTIFY
 W6 (warn) a fold-ledger row whose backticked snippet is not on the line it cites but IS on exactly one other line: the fold is recorded against real content and only the coordinate is stale, so `keel re-anchor` rewrites it. A weak snippet, a range anchor, or a snippet on no line still fails (A12)
 W7 (warn) a certified spec whose hash moved, where removing every `## Amendment` section reproduces the hash the artifact recorded: the certified content is intact and what changed was ADDED after the pass, which the reviewer has not seen. An operator-accepted CONDITIONAL-CERTIFY is excluded — there the mismatch is W5's expected honest state
+W8 (warn) a §N acceptance criterion whose backticked `grep`, `rg` or `git grep` command takes a path argument that is, or is a directory or glob covering, a concept-map "to be created" path a different § claims (A5's rule): the scope grows when that section lands. A heuristic over existing structure; a command naming no path is no candidate
+W9 (warn) under a CONDITIONAL-CERTIFY verdict, each row of the certification's `### Conditions` table (`| Gates | Condition | Status | Evidence |`) whose Status does not lead with `met` or `waived` warns, quoting the row verbatim; silent on any other verdict and with no table. The pre-mortem directive's `conditions:` list is not read
+W10 (warn) the certification's `- **Base:**` commit (a hex SHA of 7 to 64 digits) that does not resolve in the spec's git repository, or is not an ancestor of HEAD, warns, naming it: the history the pass reviewed was rewritten or not fetched. A placeholder, a ref name, no repository, or a git that cannot answer is silent
 A14 the header's `Profile:` declaration, when present, must read `code`, `data-pipeline` or `measurement` — the SUBJECT axis, orthogonal to `Kind:`. An unknown profile is a violation naming the offending token, because a profile the gate cannot read selects no sheet and its lenses go silently absent
 ```
 *(Every finding names its check in a field, never as a `W1: ` message prefix — the id is what
 makes a check's fires countable, and `where` collides across checks by design.)*
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*
+
+A certified spec's anchors describe the tree at certification, and from PR01 the DoD
+gates take over the certified state.
 
 ## Part B — correctness, certified (a fresh, non-author reviewer certifies, with evidence)
 
@@ -87,6 +91,8 @@ are stateless.
       certified — the measurement profile feasibility-first, the data-pipeline profile
       population-first. The header's `Profile:` field selects which; a `code` spec reads neither
       and pays for neither.
+- [ ] Every repository named in the manifest's `Repo` column has its gate commands in the
+      spec's Gate commands section.
 
 ### The operator close (discharging a CONDITIONAL-CERTIFY)
 

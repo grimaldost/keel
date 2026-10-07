@@ -2,7 +2,7 @@
 
 - **Date:** YYYY-MM-DD
 - **Status:** draft | ready (DoR passed) | in progress | done
-- **Kit:** 0.20.0
+- **Kit:** 0.21.0
 - **Kind:** series
 - **Profile:** code
 - **Audience:** <who/what reads this>
@@ -18,6 +18,8 @@ kit this spec was scaffolded from; keep it, and W1 warns on skew and on its abse
 ## Context
 
 Why this work, and what it builds on (link the relevant ADRs).
+
+Each consumed library with a consumer-facing guide: link it here; source reading verifies the mechanism, not replaces it.
 
 ## Goal
 
@@ -89,6 +91,17 @@ literal complete or not at all.*
 `Verdict:` line, a to-do token, an example `### heading` — fence it. Fenced content is masked before
 every check; unfenced, it false-fails A3 or shadows the certification.*
 
+## Anchor waivers
+
+Only for an anchor that cannot resolve by design: its file is in a repository this gate cannot
+read, or a section of this spec moves the line it cites. A6 does not fail an anchor listed here
+by its exact `path:line` text, and a row that names no reason fails. On a certified spec, add the table
+as `### Anchor waivers` inside a `## Amendment` section instead, so the certified body does not
+change and W7 reports the addition.
+
+| Anchor | Reason |
+|---|---|
+
 ## Requirements ledger
 
 Only when the header names a register. One row per entry in it, so an order this spec neither
@@ -115,6 +128,10 @@ named ratification the gate fails (A13).
 *Every section must be covered by exactly one PR, and every PR must cite exactly
 one section. A many-to-one or uncovered section is a DoR failure.*
 
+Optional columns: `Repo` (the repository a PR lands in) and `Wave` (the batch it ships with; the
+gate does not read it). With a `Repo` column, a section that spans repositories takes one row per
+repository, and the same section twice in one repository still fails.
+
 ## Definition of Done (this spec)
 
 Concrete, checkable conditions for the whole spec (beyond per-section criteria).
@@ -135,6 +152,9 @@ certification; it does not prove the pass was blind.*
 
 - **Reviewer:**
 - **Verdict:** not yet certified
+- **Verdict source:** <blind-round | operator-close | operator-stop | oracle-accepted: <oracle> | waived: <argument> — how the verdict was reached; recorded and echoed in B1's messages, never judged>
+- **State reviewed:** <optional, one per round: as-design | as-built at <commit>>
+- **Base:** <the commit the pass reviewed, as a SHA; W10 warns when HEAD's history no longer contains it>
 - **Operator:** <required only when the Verdict is CONDITIONAL-CERTIFY — the named owner who accepts "ready modulo a named fix"; check-ready then passes with a WARN (B1). If the Operator applies the conditions, the verdict stays CONDITIONAL-CERTIFY with a discharge note — the operator close, definition-of-ready.md Part B>
 - **Certification artifact:** <the saved pass output's path. `check-ready` reads the LEADING path token and ignores what follows, so a prior round belongs right here: `<stem>.premortem.md` (r1 at `<stem>.premortem-r1.md`)>
 - **Date:**
@@ -150,7 +170,23 @@ a non-blank line and — pointing into this spec — inside the `§N` the row na
 A backticked snippet after it is verified against those lines; a `.py` range must close its
 brackets. The ledger is the FIRST table here.*
 
-| Finding | Target section | artifact:line | Confirmed |
+A row whose fold adds a new test instrument opens its Confirmed cell with `new-instrument:`, then
+the backticked command that read the finding's `consumed_input` chain, then what it printed. A12
+fails the row when a bare word follows the marker.
+
+The Sibling sweep cell holds the command run over the changed fact's other statements and the lines
+it changed, or `none`. A12 fails the row when the cell is empty.
+
+| Finding | Target section | artifact:line | Confirmed | Sibling sweep |
+|---|---|---|---|---|
+
+### Conditions
+
+Only under a CONDITIONAL-CERTIFY, one row per condition the verdict names. Gates is the §N or
+commit the condition must clear before; Status is `open`, `met` or `waived`; Evidence is what
+discharged it. W9 warns on each row not `met` or `waived`.
+
+| Gates | Condition | Status | Evidence |
 |---|---|---|---|
 
 ### Series review
@@ -158,6 +194,14 @@ brackets. The ledger is the FIRST table here.*
 - **Series reviewer:**
 - **Series verdict:** not yet reviewed
 - **Series artifact:**
+
+### Amendment review — <date>, round <N>
+
+- **Amendment reviewer:**
+- **Amendment verdict:** not yet reviewed
+- **State reviewed:** <optional: as-design | as-built at <commit>>
+- **Amendment artifact:** <the saved amendment pass output's path>
+- **Edits sections:** <section numbers edited after the pass, if any; the latest dated subsection supersedes earlier ones>
 
 ---
 *Most Definition-of-Ready checks pass by construction here — numbered sections, per-section

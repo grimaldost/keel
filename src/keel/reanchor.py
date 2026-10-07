@@ -38,13 +38,30 @@ from keel.check_ready import (
     _ANCHOR_RE,
     _LEDGER_ANCHOR_RE,
     _anchor_shaped,
+    _field,
+    _find_section,
     _read_spec_text,
     _resolve_base,
     _snippet_line,
+    _split_top_sections,
     _strong_snippet,
+    _verdict_head,
 )
+from keel.errors import format_error
 
 _LEDGER_HEADING_RE = re.compile(r'^#{2,6}[ \t]+')
+
+
+class CertifiedBodyError(Exception):
+    """`--body` was asked of a spec that carries a recorded certification."""
+
+
+def _is_certified(text: str) -> bool:
+    """A recorded certification, by the predicate W2 reads: a CERTIFIED verdict of either kind."""
+    cert = _find_section(_split_top_sections(text), 'pre-mortem', 'certification')
+    if cert is None:
+        return False
+    return _verdict_head(_field(cert, 'verdict')) in ('CERTIFIED', 'CONDITIONAL-CERTIFY')
 
 
 @dataclass
@@ -83,7 +100,7 @@ def _in_fold_ledger(lines: list[str]) -> list[bool]:
     return flags
 
 
-def _repair_line(line: str, base: Path, line_no: int) -> tuple[str, list[Repair]]:
+def _repair_line(line: str, base: Path, line_no: int, spec_path: Path) -> tuple[str, list[Repair]]:
     """Rewrite every repairable anchor on one line; return the line and what happened."""
     outcomes: list[Repair] = []
 
@@ -96,19 +113,30 @@ def _repair_line(line: str, base: Path, line_no: int) -> tuple[str, list[Repair]
         if not target.is_file():
             outcomes.append(Repair(line_no, anchor, refused='the file does not resolve'))
             return match.group(0)
+        lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
+        # A row that cites the spec it sits in is itself a line carrying its own snippet.
+        own_row = line_no if target.resolve() == spec_path.resolve() else None
+        # The claimed line first, by the window test A12 applies, and before the snippet's
+        # strength: an anchor that already holds is not repaired, even when the snippet is short
+        # or also sits elsewhere. The citing row never confirms itself: a claim pointing at the
+        # row's own line is not a confirmation.
+        wanted = ' '.join(snippet.split())
+        if (
+            claimed != own_row
+            and 1 <= claimed <= len(lines)
+            and wanted in ' '.join(lines[claimed - 1].split())
+        ):
+            return match.group(0)
         if not _strong_snippet(snippet):
             outcomes.append(
                 Repair(line_no, anchor, refused='the snippet is too short to repair from')
             )
             return match.group(0)
-        lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
-        found = _snippet_line(lines, snippet)
+        found = _snippet_line(lines, snippet, exclude=own_row)
         if found is None:
             outcomes.append(
                 Repair(line_no, anchor, refused='the snippet is on no line, or on several')
             )
-            return match.group(0)
-        if found == claimed:
             return match.group(0)
         outcomes.append(Repair(line_no, anchor, corrected=f'{path}:{found}'))
         return match.group(0).replace(f'{path}:{claimed}', f'{path}:{found}', 1)
@@ -255,7 +283,18 @@ def reanchor(
     spec_path: Path, *, body: bool = False, write: bool = True, by_content: str = ''
 ) -> RepairReport:
     """Repoint drifted anchors — from their snippets, or from the tree at `by_content`."""
-    text = _read_spec_text(spec_path, purpose='re-anchor')
+    text = _read_spec_text(spec_path, purpose='re-anchor', newline='')
+    if body and _is_certified(text):
+        raise CertifiedBodyError(
+            format_error(
+                what=f'--body would rewrite certified content in {spec_path}.',
+                why='the spec carries a recorded certification, and prose anchors are body text '
+                'the certification hash covers; drift after certification goes through an '
+                '`## Amendment`, not a silent rewrite.',
+                fix='Run without --body, which repairs the fold ledger only and leaves the hash '
+                'unmoved, or record the change as an `## Amendment`.',
+            )
+        )
     base = _resolve_base(spec_path)
     lines = text.splitlines(keepends=True)
     in_ledger = _in_fold_ledger(lines)
@@ -270,11 +309,11 @@ def reanchor(
         repaired, outcomes = (
             _remap_line(line, remap, index + 1)
             if remap is not None
-            else _repair_line(line, base, index + 1)
+            else _repair_line(line, base, index + 1, spec_path)
         )
         lines[index] = repaired
         for outcome in outcomes:
             (report.applied if outcome.corrected else report.refused).append(outcome)
     if write and report.applied:
-        spec_path.write_text(''.join(lines), encoding='utf-8')
+        spec_path.write_text(''.join(lines), encoding='utf-8', newline='')
     return report

@@ -210,3 +210,33 @@ def read_lines(path: Path) -> list[dict]:
         except json.JSONDecodeError:
             continue
     return out
+
+
+def version_key(value: object) -> tuple[int, ...] | None:
+    """Parse a closed-shape version into ints so 0.10.0 sorts above 0.9.0; None if malformed."""
+    if not isinstance(value, str) or _VERSION_RE.match(value) is None:
+        return None
+    return tuple(int(part) for part in value.split('.'))
+
+
+def newest_gate_version(path: Path | None) -> str | None:
+    """The highest keel version recorded in the ledger, or None when it is off, missing or empty.
+
+    Compared as int tuples, not strings, and a row whose `gate` is not a closed-shape version is
+    ignored. Read-only: the ledger is never written from here, and a read fault is fail-open like
+    `record_run`'s write: it yields None, never an exception.
+    """
+    if path is None:
+        return None
+    try:
+        rows = read_lines(path)
+    except OSError:  # an unreadable ledger is telemetry, not a gate fault: read it as absent
+        return None
+    best: tuple[int, ...] | None = None
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        key = version_key(row.get('gate'))
+        if key is not None and (best is None or key > best):
+            best = key
+    return None if best is None else '.'.join(str(part) for part in best)

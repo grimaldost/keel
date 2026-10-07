@@ -5,8 +5,13 @@ certification is recorded (Part B / B1), so the gate never green-lights a spec o
 structure alone. See docs/design/2026-06-05-dor-gate-design.md and ADR-0002.
 """
 
+import fnmatch
 import hashlib
 import re
+import shlex
+import subprocess
+from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,7 +23,12 @@ from keel.models import DOR_CHECK_IDS, GateResult, Probe, Violation, Warning, co
 # prose view (`_mask_inline_spans` space-fills inline-code spans, including a span hard-wrapped
 # across a line break), so documented CLI syntax like `keel init <target>` in backticks is fine —
 # even wrapped mid-span — while a leftover bare `<title>` heading placeholder fails (A3).
-_PLACEHOLDER_RE = re.compile(r'\b(?:TBD|TODO|FIXME)\b|\?\?\?')
+# TBD, FIXME and ??? fire wherever they appear. TODO fires unless a word follows it on its line, so
+# prose that uses the word (Portuguese "TODO o sistema") passes, while `TODO:`, `TODO(`, a field
+# value (`- **Owner:** TODO`), a task item, `TODO.` ending a sentence, a lone line, list item, table
+# cell or backticked `TODO` all fire. `# TODO` fires whatever follows it.
+_PLACEHOLDER_RE = re.compile(r'\b(?:TBD|FIXME)\b|\?\?\?|\bTODO\b(?![ \t]+\w)|#[ \t]*TODO\b')
+_PLACEHOLDER_TOKEN_RE = re.compile(r'TBD|TODO|FIXME|\?\?\?')
 _ANGLE_PLACEHOLDER_RE = re.compile(r'<[a-z][^>\n]{2,}>')
 _SECTION_ID_RE = re.compile(r'§\d+')
 _MIN_CRITERION_WORDS = 5
@@ -160,8 +170,12 @@ def _bad_anchor_platform(path: str) -> str | None:
     return None
 
 
-def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
-    """Read a spec as UTF-8 text, or raise the not-runnable FileNotFoundError contract."""
+def _read_spec_text(spec_path: Path, *, purpose: str, newline: str | None = None) -> str:
+    """Read a spec as UTF-8 text, or raise the not-runnable FileNotFoundError contract.
+
+    The default is the universal-newline read every gate has always used. A caller that writes the
+    spec back passes `newline=''` to receive the line endings as they are on disk.
+    """
     if not spec_path.is_file():
         raise FileNotFoundError(
             format_error(
@@ -172,7 +186,9 @@ def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
             )
         )
     try:
-        return spec_path.read_text(encoding='utf-8')
+        # open(), not Path.read_text(newline=): that keyword needs Python 3.13, we support 3.11.
+        with open(spec_path, encoding='utf-8', newline=newline) as handle:
+            return handle.read()
     except (UnicodeDecodeError, OSError) as exc:
         raise FileNotFoundError(
             format_error(
@@ -235,6 +251,44 @@ def spec_hash_without_amendments(spec_path: Path) -> str:
     and W7 could never fire.
     """
     return _hash_over(spec_path, drop_amendments=True)
+
+
+_EDITS_SECTIONS_REF_RE = re.compile(r'§\s*\d+(?:\.\d+)*')
+
+
+def declared_amendment_edits(spec_path: Path) -> list[str]:
+    """The sections an amendment declares it edits, from its `Edits sections:` line.
+
+    The line is `- **Edits sections:** §2, §4`, read from two homes (fenced text masked, as for the
+    hash) and from nowhere else: any `## Amendment` span, and the latest `### Amendment review`
+    subsection inside `## Pre-mortem certification` (the field the spec template carries; the
+    latest one in document order supersedes earlier ones). Only the `§N` references in it count; a
+    line naming none, such as the template's unfilled placeholder, declares nothing. This is a
+    DECLARATION: it is returned so a message can quote it, and nothing compares it with what
+    changed, so it never becomes a recomputed claim like W7's.
+    """
+    raw = _read_spec_text(spec_path, purpose='amendment declaration')
+    refs: list[str] = []
+    review_refs: list[str] = []
+    in_amendment = in_cert = in_review = False
+    for masked, line in zip(_mask_fenced(raw).splitlines(), raw.splitlines(), strict=True):
+        if re.match(r'^##[ \t]+\S', masked):
+            in_amendment = _AMENDMENT_HEADING_RE.match(masked) is not None
+            low = masked.lower()
+            in_cert = 'pre-mortem' in low and 'certification' in low
+            in_review = False
+        elif in_cert and re.match(r'^###[ \t]+\S', masked):
+            in_review = re.match(r'^###[ \t]+amendment[ \t]+review\b', masked, re.I) is not None
+            if in_review:
+                review_refs = []  # a later subsection supersedes the earlier ones
+        elif in_amendment or in_review:
+            declared = _field(line, 'edits sections')
+            for ref in _EDITS_SECTIONS_REF_RE.findall(declared):
+                ref = re.sub(r'\s+', '', ref)
+                target = refs if in_amendment else review_refs
+                if ref not in target:
+                    target.append(ref)
+    return refs + [ref for ref in review_refs if ref not in refs]
 
 
 def _hash_over(spec_path: Path, *, drop_amendments: bool) -> str:
@@ -325,6 +379,7 @@ def _candidate_counts(
     cert: str | None,
     structure_only: bool,
     requirement_ids: int,
+    base_candidates: int,
 ) -> dict[str, int]:
     """How many constructs of each check's own shape this spec presented (KEEL-B07).
 
@@ -333,8 +388,11 @@ def _candidate_counts(
     shared, not re-derived — and the suite pins the invariant that a check never fires without a
     counted candidate, which is what catches drift if a check's shape changes and this does not.
     """
-    anchors = sum(1 for m in _ANCHOR_RE.finditer(text) if _anchor_shaped(m.group(1)))
-    ranges = sum(1 for m in _ANCHOR_RANGE_RE.finditer(text) if _anchor_shaped(m.group(1)))
+    # A waiver row is A6's construct and its cells are masked from the scans, so it counts once,
+    # as a row, never again as the anchor it lists. With no block the view is `text` unchanged.
+    anchor_view = _mask_anchor_waivers(text)
+    anchors = sum(1 for m in _ANCHOR_RE.finditer(anchor_view) if _anchor_shaped(m.group(1)))
+    ranges = sum(1 for m in _ANCHOR_RANGE_RE.finditer(anchor_view) if _anchor_shaped(m.group(1)))
     ledger_rows = len(_ledger_rows(cert))
     # W6's opportunity is a ledger row carrying a snippet: a row without one has nothing to
     # resolve from, so its silence says nothing. Shares `_ledger_anchor` with the check.
@@ -354,7 +412,7 @@ def _candidate_counts(
         'A4': max(len(_table_rows(manifest_body or '')) - 1, 0) or int(manifest_body is None),
         'A5': max(len([c for c in _table_rows(concept_body or '') if len(c) >= 2]) - 1, 0)
         or int(concept_body is None),
-        'A6': anchors,
+        'A6': anchors + len(_waiver_rows(text)),
         'A7': len(_ADR_REF_RE.findall(text)),
         'A8': len(_SECTION_REF_RE.findall(prose)),
         'A9': len(_MODEL_ON_RE.findall(text)) + len(_REUSE_RE.findall(text)),
@@ -375,6 +433,17 @@ def _candidate_counts(
         # W7 has an opportunity only where there is both a certification to compare against
         # and an amendment section to attribute the difference to.
         'W7': certified and int(bool(_AMENDMENT_HEADING_RE.search(text))),
+        # W8's opportunity is a criterion's grep command that names a path: one with no path, or
+        # a criterion with no command, has no scope to compare. Shares `_grep_criteria` with W8.
+        'W8': len(_grep_criteria(subsections)),
+        # W9's opportunity is a `### Conditions` row under a CONDITIONAL-CERTIFY: on any other
+        # verdict the table is not read. Shares `_conditional_rows` with W9.
+        'W9': 0 if structure_only else len(_conditional_rows(cert)),
+        # W10's opportunity is a recorded Base commit in a spec a repository holds: outside one, or
+        # with a placeholder, there is nothing to ask git. Computed once by the caller from
+        # `_recorded_base` and `_git_root`, the two reads W10 itself makes. A git that then cannot
+        # answer still counts: telling it apart would take a subprocess, and counting runs none.
+        'W10': base_candidates,
     }
 
 
@@ -431,18 +500,25 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     concept_body = _find_section(sections, 'concept', 'module')
     if concept_body is not None or not single_change:
         violations += _check_paths(concept_body, subsections, spec_path)
+    warnings += _check_grep_scopes(concept_body, subsections)
     # A13 is silent on a spec that declares no register, so its candidate count is the number of
     # orders the register holds — the denominator that tells `n/a` (no register anywhere in this
     # project) apart from `clean` (a register, and every order accounted for).
     requirement_ids = _declared_requirement_ids(header, spec_path)
     violations += _check_requirements_ledger(header, sections, section_ids, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
+    # W10 (Part B) asks git only where a commit is recorded and a repository holds the spec.
+    base_commit = '' if structure_only else _recorded_base(cert)
+    base_repository = _git_root(spec_path) if base_commit else None
     # A12 owns the fold ledger's anchors; A6/A11 must not re-report them under prose semantics.
-    outside_ledger = _mask_fold_ledger(text)
-    anchor_violations, anchor_warnings = _check_anchors(outside_ledger, spec_path)
-    violations += anchor_violations
+    # An `Anchor waivers` block is a record about anchors, not prose, and is masked the same way.
+    outside_records = _mask_anchor_waivers(_mask_fold_ledger(text))
+    waived, waiver_violations = _anchor_waivers(text)
+    violations += waiver_violations
+    anchor_violations, anchor_warnings = _check_anchors(outside_records, spec_path)
+    violations += [v for v in anchor_violations if not (v.check == 'A6' and v.where in waived)]
     warnings += anchor_warnings
-    range_violations, range_warnings = _check_anchor_ranges(outside_ledger, spec_path)
+    range_violations, range_warnings = _check_anchor_ranges(outside_records, spec_path)
     violations += range_violations
     warnings += range_warnings
     violations += _check_adr_numbers(text, spec_path)
@@ -456,14 +532,17 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
         premortem_violations, premortem_warnings = _check_premortem(cert)
         violations += premortem_violations
         warnings += premortem_warnings
+        warnings += _check_conditions(cert)
         if cert is not None:
             artifact_violations, artifact_warnings = _check_certification_artifact(cert, spec_path)
             violations += artifact_violations
             warnings += artifact_warnings
         warnings += _status_currency_warning(header, cert)
+        warnings += _check_base(base_commit, base_repository)
 
     candidates = _candidate_counts(
         requirement_ids=requirement_ids,
+        base_candidates=int(base_repository is not None),
         text=text,
         prose=prose,
         header=header,
@@ -544,27 +623,31 @@ def _table_rows(body: str) -> list[list[str]]:
     return rows
 
 
-def _first_table_rows(body: str) -> list[list[str]]:
-    """Rows of only the FIRST contiguous markdown table in body (header kept, separator dropped).
+def _first_table_lines(body: str) -> list[str]:
+    """Lines of only the FIRST contiguous markdown table in body, stripped (separator dropped).
 
     Unlike `_table_rows`, this stops at the first blank/non-table line after the table starts, so a
     sibling table sharing the same `### Fold ledger` subsection span is not merged in. By template
     convention the ledger is the first table under that heading; a table placed before it is
-    out-of-contract.
+    out-of-contract. The lines are kept as written so a check can quote a row verbatim (W9).
     """
-    rows: list[list[str]] = []
+    lines: list[str] = []
     started = False
     for raw in body.splitlines():
         line = raw.strip()
         if line.startswith('|'):
             started = True
-            cells = _split_cells(line)
-            if all(set(cell) <= set('-: ') for cell in cells):
+            if all(set(cell) <= set('-: ') for cell in _split_cells(line)):
                 continue
-            rows.append(cells)
+            lines.append(line)
         elif started:
             break
-    return rows
+    return lines
+
+
+def _first_table_rows(body: str) -> list[list[str]]:
+    """Rows of only the FIRST contiguous markdown table in body (header kept, separator dropped)."""
+    return [_split_cells(line) for line in _first_table_lines(body)]
 
 
 def _words(text: str) -> list[str]:
@@ -635,13 +718,15 @@ def _section_line_spans(text: str) -> dict[str, list[tuple[int, int]]]:
     return spans
 
 
+def _git_root(spec_path: Path) -> Path | None:
+    """The nearest directory at or above the spec that holds a `.git`, or None outside any."""
+    start = spec_path.resolve().parent
+    return next((c for c in (start, *start.parents) if (c / '.git').exists()), None)
+
+
 def _resolve_base(spec_path: Path) -> Path:
     """The directory paths are resolved against: the spec's git root, else its parent."""
-    start = spec_path.resolve().parent
-    for candidate in (start, *start.parents):
-        if (candidate / '.git').exists():
-            return candidate
-    return start
+    return _git_root(spec_path) or spec_path.resolve().parent
 
 
 def _field(body: str, name: str) -> str:
@@ -767,10 +852,16 @@ def _basename_matches(base: Path, path: str) -> tuple[list[Path], list[Path]]:
 _STRONG_SNIPPET_CHARS = 12
 
 
-def _snippet_line(lines: list[str], snippet: str) -> int | None:
-    """The one line carrying this snippet, or None when it is on none or on several."""
+def _snippet_line(lines: list[str], snippet: str, *, exclude: int | None = None) -> int | None:
+    """The one line carrying this snippet, or None when it is on none or on several.
+
+    `exclude` is a 1-based line that does not count: a ledger row that quotes its own target is
+    itself a line carrying the snippet, and it is the citation, not the thing cited.
+    """
     wanted = ' '.join(snippet.split())
-    found = [n for n, line in enumerate(lines, 1) if wanted in ' '.join(line.split())]
+    found = [
+        n for n, line in enumerate(lines, 1) if n != exclude and wanted in ' '.join(line.split())
+    ]
     return found[0] if len(found) == 1 else None
 
 
@@ -975,13 +1066,25 @@ def _check_numbered(subsections: list[tuple[str, str]]) -> list[Violation]:
     return violations
 
 
+def _criterion_paragraph(sub_body: str) -> str | None:
+    """The paragraph after a section's `acceptance criterion` marker; None when there is no marker.
+
+    Only the criterion's own paragraph, up to the first blank line, so an EMPTY criterion followed
+    by unrelated prose cannot launder A2's >=5-word floor. W8 reads its commands from the same span.
+    """
+    marker = re.search(r'acceptance\s+criterion', sub_body, re.IGNORECASE)
+    if marker is None:
+        return None
+    return re.split(r'\n[ \t]*\n', sub_body[marker.end() :], maxsplit=1)[0]
+
+
 def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
     """A2: every numbered section has a present, non-trivial acceptance criterion."""
     violations: list[Violation] = []
     for title, sub_body in subsections:
         where = _id_or_title(title)
-        marker = re.search(r'acceptance\s+criterion', sub_body, re.IGNORECASE)
-        if marker is None:
+        para = _criterion_paragraph(sub_body)
+        if para is None:
             violations.append(
                 Violation(
                     where,
@@ -992,9 +1095,6 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
                 )
             )
             continue
-        # Count only the criterion's own paragraph (up to the first blank line), so an EMPTY
-        # criterion followed by unrelated prose cannot launder the >=5-word floor (A2).
-        para = re.split(r'\n[ \t]*\n', sub_body[marker.end() :], maxsplit=1)[0]
         words = _words(para)
         if len(words) < _MIN_CRITERION_WORDS:
             violations.append(
@@ -1032,6 +1132,12 @@ def _check_document_acceptance(text: str) -> list[Violation]:
     ]
 
 
+def _placeholder_token(match: re.Match[str]) -> str:
+    """The bare token a `_PLACEHOLDER_RE` match stands for, without its marker punctuation."""
+    token = _PLACEHOLDER_TOKEN_RE.search(match.group(0))
+    return token.group(0) if token else match.group(0)
+
+
 def _check_placeholders(text: str, prose: str) -> list[Violation]:
     """A3: no TBD/TODO/FIXME/??? token, and no leftover `<...>` template placeholder, in the spec.
 
@@ -1040,6 +1146,8 @@ def _check_placeholders(text: str, prose: str) -> list[Violation]:
     stamped `### §1 <title>` heading or an unfilled `<the observable condition ...>` acceptance
     criterion is caught. The legacy tokens keep scanning the fence-masked line: a backticked `TODO`
     still fires, matching the spec-template's fence-only quoting doctrine.
+    TODO with a word after it on the same line is prose, not a placeholder; every other TODO,
+    and `# TODO` whatever follows it, fires (`_PLACEHOLDER_RE`).
     """
     violations: list[Violation] = []
     for lineno, (line, masked) in enumerate(
@@ -1049,7 +1157,7 @@ def _check_placeholders(text: str, prose: str) -> list[Violation]:
             violations.append(
                 Violation(
                     f'line {lineno}',
-                    f'placeholder token {match.group(0)!r} not allowed.',
+                    f'placeholder token {_placeholder_token(match)!r} not allowed.',
                     'A3',
                 )
             )
@@ -1067,6 +1175,11 @@ def _check_placeholders(text: str, prose: str) -> list[Violation]:
     return violations
 
 
+def _plain_cell(cell: str) -> str:
+    """A table cell without its markdown emphasis and backticks: `**Repo**` reads as `Repo`."""
+    return re.sub(r'[`*]', '', cell).strip()
+
+
 def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[Violation]:
     """A4: the PR↔section manifest is a true bijection — one section per PR, one PR per section.
 
@@ -1074,6 +1187,12 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
     header naming it, else the second column), so a §N mentioned in a "One concern?" / "Depends on"
     comment cell neither breaks the count nor lets a PR smuggle a second section past the gate; and
     a single PR row citing two sections now fails (the scope-bundling A4 exists to forbid).
+
+    An optional `Repo` (or `Repository`) column re-keys the PR side on (section, repo cell): a
+    section that spans repositories takes one row per repository, the same pair twice still fails,
+    and every section still needs a row. The header and the repo cells are read without markdown
+    emphasis or backticks. A blank repo cell is its own key, distinct from every named repository,
+    so a manifest without the column, or with it left empty, checks exactly as before (E3c).
     """
     if manifest_body is None:
         return [
@@ -1090,12 +1209,23 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
         (i for i, h in enumerate(header) if 'section' in h.lower() or 'implements' in h.lower()),
         1 if len(header) > 1 else 0,
     )
+    repo_col = next(
+        (
+            i
+            for i, h in enumerate(header)
+            if i != section_col and _plain_cell(h).lower() in ('repo', 'repository')
+        ),
+        None,
+    )
     violations: list[Violation] = []
     cited: list[str] = []
+    keys: list[tuple[str, str]] = []
     for row in rows[1:]:
         cell = row[section_col] if section_col < len(row) else ''
         ids = _SECTION_ID_RE.findall(cell)
         cited.extend(ids)
+        repo = _plain_cell(row[repo_col]) if repo_col is not None and repo_col < len(row) else ''
+        keys.extend((sid, repo) for sid in ids)
         if len(ids) != 1:
             pr = row[0].strip() if row else '(row)'
             violations.append(
@@ -1110,17 +1240,23 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
         violations.append(
             Violation('PR ↔ section manifest', 'manifest has no PR → section rows.', 'A4')
         )
+    per_key = Counter(keys)
     for sid in section_ids:
-        count = cited.count(sid)
-        if count == 0:
+        if sid not in cited:
             violations.append(
                 Violation('PR ↔ section manifest', f'section {sid} is not covered by any PR.', 'A4')
             )
-        elif count > 1:
+        for (key_sid, repo), count in per_key.items():
+            if key_sid != sid or count < 2:
+                continue
+            if repo_col is None:
+                in_repo = ''
+            else:
+                in_repo = f' in repo {repo!r}' if repo else ' with no repo named'
             violations.append(
                 Violation(
                     'PR ↔ section manifest',
-                    f'section {sid} is covered by {count} PRs (not a bijection).',
+                    f'section {sid} is covered by {count} PRs{in_repo} (not a bijection).',
                     'A4',
                 )
             )
@@ -1134,6 +1270,33 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
                 )
             )
     return violations
+
+
+def _basename(path: str) -> str:
+    return path.replace('\\', '/').rsplit('/', 1)[-1]
+
+
+def _to_be_created(concept_body: str) -> list[str]:
+    """The concept→module map's "to be created" paths, in row order (A5 and W8)."""
+    return [
+        path
+        for cells in _table_rows(concept_body)
+        if len(cells) >= 2
+        and 'to be created' in cells[1].lower()
+        and (path := _extract_path(cells[1]))
+    ]
+
+
+def _claims(body: str, path: str, tbc_basenames: list[str]) -> bool:
+    """Whether `body` claims the "to be created" `path`: names it, or its basename when unique.
+
+    A5's claim rule, and W8's: A5 asks it of every section at once, W8 of each section alone.
+    """
+    name = _basename(path)
+    return path in body or (
+        tbc_basenames.count(name) == 1
+        and re.search(rf'(?<![\w./-]){re.escape(name)}', body) is not None
+    )
 
 
 def _check_paths(
@@ -1157,11 +1320,7 @@ def _check_paths(
     base = _resolve_base(spec_path)
     section_text = '\n'.join(sub_body for _, sub_body in subsections)
     rows = [cells for cells in _table_rows(concept_body) if len(cells) >= 2]
-    tbc_basenames: list[str] = [
-        (_extract_path(cells[1]) or '').replace('\\', '/').rsplit('/', 1)[-1]
-        for cells in rows
-        if 'to be created' in cells[1].lower() and _extract_path(cells[1])
-    ]
+    tbc_basenames = [_basename(path) for path in _to_be_created(concept_body)]
     violations: list[Violation] = []
     for index, cells in enumerate(rows):
         module_cell = cells[1]
@@ -1180,12 +1339,7 @@ def _check_paths(
         if not path:
             continue
         if 'to be created' in module_cell.lower():
-            name = path.replace('\\', '/').rsplit('/', 1)[-1]
-            claimed = path in section_text or (
-                tbc_basenames.count(name) == 1
-                and re.search(rf'(?<![\w./-]){re.escape(name)}', section_text) is not None
-            )
-            if not claimed:
+            if not _claims(section_text, path, tbc_basenames):
                 violations.append(
                     Violation(
                         'Concept → module map',
@@ -1207,6 +1361,216 @@ def _check_paths(
     return violations
 
 
+# A grep command opens the span (`! grep …` included) or a `$(` substitution inside it — the
+# "prints nothing" idiom `test -z "$(grep …)"`.
+_GREP_COMMAND_RE = re.compile(r'(?:^!?|\$\()[ \t]*(git[ \t]+grep|grep|rg)(?=\s|$)')
+# Per tool, the short options whose value is the next token. A cluster ends at the first such
+# letter (`-rne PAT`), and `e`/`f` supply the pattern, so every positional is then a path.
+_GREP_VALUE_SHORT = {'grep': 'efmABCdD', 'git grep': 'efmABC', 'rg': 'efgtTmABCMrEj'}
+_GREP_VALUE_LONG = frozenset(
+    {
+        '--regexp',
+        '--file',
+        '--max-count',
+        '--after-context',
+        '--before-context',
+        '--context',
+        '--include',
+        '--exclude',
+        '--exclude-dir',
+        '--glob',
+        '--iglob',
+        '--type',
+        '--type-not',
+        '--replace',
+        '--max-depth',
+        '--threads',
+    }
+)
+_SHELL_OPERATOR_CHARS = frozenset('|&;<>()')
+
+
+def _substitution_body(rest: str) -> str:
+    """`rest` up to the `)` that closes the `$(` it follows; a quoted `)` does not close it."""
+    depth, quote = 0, ''
+    for index, char in enumerate(rest):
+        if quote:
+            quote = '' if char == quote else quote
+        elif char in '\'"':
+            quote = char
+        elif char == '(':
+            depth += 1
+        elif char == ')':
+            if depth == 0:
+                return rest[:index]
+            depth -= 1
+    return rest
+
+
+def _grep_scopes(command: str) -> list[str]:
+    """The path arguments of each `grep`, `rg` or `git grep` command in a code span, or [] (W8).
+
+    A command opens the span or a `$(` substitution inside it, read up to its closing `)`.
+    """
+    scopes: list[str] = []
+    for match in _GREP_COMMAND_RE.finditer(command):
+        rest = command[match.end() :]
+        if match.group(0).startswith('$('):
+            rest = _substitution_body(rest)
+        scopes += _grep_arguments(' '.join(match.group(1).split()), rest)
+    return scopes
+
+
+def _grep_arguments(tool: str, rest: str) -> list[str]:
+    """The path arguments that follow one `tool` command word.
+
+    The first positional is the pattern unless `-e`/`-f` supplied it, and every later positional
+    is a path. A pipe, redirect or list operator ends the command. A command naming no path
+    searches wherever it runs, so it is not path-scoped and yields nothing.
+    """
+    try:
+        lexer = shlex.shlex(rest, posix=False, punctuation_chars=True)
+        lexer.whitespace_split = True
+        words = list(lexer)
+    except ValueError:  # an unbalanced quote: read the words rather than nothing
+        words = rest.split()
+    positional: list[str] = []
+    pattern_in_option = False
+    options_done = False
+    stream = iter(words)
+    for word in stream:
+        if set(word) <= _SHELL_OPERATOR_CHARS:
+            if word[0] in '<>' and positional and positional[-1].isdigit():
+                positional.pop()  # `2>/dev/null` lexes as `2`, `>`: a descriptor, not a path
+            break
+        if options_done or word == '-' or not word.startswith('-'):
+            quoted = len(word) >= 2 and word[0] == word[-1] and word[0] in '\'"'
+            positional.append(word[1:-1] if quoted else word)
+        elif word == '--':
+            options_done = True
+        elif word.startswith('--'):
+            name, has_value, _ = word.partition('=')
+            if not has_value and name in _GREP_VALUE_LONG:
+                next(stream, None)
+            pattern_in_option |= name in ('--regexp', '--file')
+        else:
+            for index, letter in enumerate(word[1:], 2):
+                if letter in _GREP_VALUE_SHORT[tool]:
+                    if index == len(word):
+                        next(stream, None)
+                    pattern_in_option |= letter in 'ef'
+                    break
+    return positional if pattern_in_option else positional[1:]
+
+
+def _grep_criteria(subsections: list[tuple[str, str]]) -> list[tuple[str, list[str]]]:
+    """(section id, path scopes) per path-scoped grep command in a §N criterion paragraph (W8)."""
+    found: list[tuple[str, list[str]]] = []
+    for title, sub_body in subsections:
+        para = _criterion_paragraph(sub_body) or ''
+        for span in _INLINE_SPAN_RE.finditer(para):
+            if scopes := _grep_scopes(' '.join(span.group(2).split())):
+                found.append((_id_or_title(title), scopes))
+    return found
+
+
+def _repo_relative(path: str) -> str:
+    """A path argument as the concept map writes one: `/`-separated, no `./`, no trailing `/`."""
+    path = path.replace('\\', '/')
+    while path.startswith('./'):
+        path = path[2:]
+    path = path.rstrip('/')
+    return '' if path == '.' else path
+
+
+def _scope_covers(scope: str, path: str) -> bool:
+    """Whether a grep path argument reaches `path` (W8).
+
+    It does when it is the path itself, a directory above it, or a glob the shell would expand to
+    it once the file exists; `.` is the whole tree.
+    """
+    scope, path = _repo_relative(scope), _repo_relative(path)
+    if not scope:
+        return True
+    if any(char in scope for char in '*?['):
+        return fnmatch.fnmatchcase(path, scope) or fnmatch.fnmatchcase(path, f'{scope}/*')
+    return path == scope or path.startswith(f'{scope}/')
+
+
+def _check_grep_scopes(
+    concept_body: str | None, subsections: list[tuple[str, str]]
+) -> list[Warning]:
+    """W8: a criterion's grep scope covers a path that a DIFFERENT section declares it creates.
+
+    Both halves are already in the spec — the concept map's "to be created" row, claimed by a
+    section under A5's rule, and a §N criterion that greps a directory — and nothing joined them.
+    When the creating section lands, the scope grows: the criterion now reads a file it was not
+    written against, and satisfying it can mean editing or deleting that file's working content.
+    A warning, not a violation: a scope over existing structure is often deliberate.
+    """
+    rows = _to_be_created(concept_body or '')
+    basenames = [_basename(path) for path in rows]  # A5's count, duplicate rows included
+    created = list(dict.fromkeys(rows))
+    claimers = {
+        path: list(
+            dict.fromkeys(
+                _id_or_title(title)
+                for title, sub_body in subsections
+                if _claims(sub_body, path, basenames)
+            )
+        )
+        for path in created
+    }
+    warnings: list[Warning] = []
+    for section, scopes in _grep_criteria(subsections):
+        for scope in scopes:
+            for path in created:
+                others = [claimer for claimer in claimers[path] if claimer != section]
+                if not others or not _scope_covers(scope, path):
+                    continue
+                warnings.append(
+                    Warning(
+                        'W8',
+                        f"WARN: {section}'s acceptance criterion greps `{scope}`, which covers "
+                        f'`{path}` — a path {", ".join(others)} creates (concept map, "to be '
+                        'created"). The scope grows when that section lands, so the criterion '
+                        'reads a file it was not written against; narrow the scope, or say in the '
+                        'criterion whether that file is meant to match.',
+                        cause=f'{section} {scope}',
+                    )
+                )
+    return warnings
+
+
+_BLOCK_HEADING_RE = re.compile(r'^#{2,6}[ \t]+')
+# E5b: the anchor-waiver block's heading, at level 2 (a section of its own) or level 3 (inside an
+# `## Amendment`, where a certified spec adds it without touching the certified body).
+_WAIVER_HEADING_RE = re.compile(r'^#{2,3}[ \t]+anchor waivers\s*$', re.IGNORECASE)
+
+
+def _heading_blocks(lines: list[str], opens: Callable[[str], object]) -> list[range]:
+    """Line ranges of each block whose heading `opens` accepts, up to the next level-2-6 heading."""
+    spans: list[range] = []
+    start: int | None = None
+    for index, line in enumerate(lines):
+        if _BLOCK_HEADING_RE.match(line):
+            if start is not None:
+                spans.append(range(start, index))
+            start = index + 1 if opens(line) else None
+    if start is not None:
+        spans.append(range(start, len(lines)))
+    return spans
+
+
+def _mask_blocks(text: str, opens: Callable[[str], object]) -> str:
+    """Space-fill each block whose heading `opens` accepts, offsets preserved."""
+    lines = text.splitlines(keepends=True)
+    for span in _heading_blocks(lines, opens):
+        for index in span:
+            lines[index] = re.sub(r'[^\n]', ' ', lines[index])
+    return ''.join(lines)
+
+
 def _mask_fold_ledger(text: str) -> str:
     """Space-fill the `### Fold ledger` sub-table, offsets preserved.
 
@@ -1215,15 +1579,54 @@ def _mask_fold_ledger(text: str) -> str:
     re-check the same rows under prose semantics and report the SAME defect twice, under a check
     that cannot repair it and with a second fire in the hit-rate ledger. One row, one owner.
     """
+    return _mask_blocks(text, lambda heading: 'fold ledger' in heading.lower())
+
+
+def _mask_anchor_waivers(text: str) -> str:
+    """Space-fill every `Anchor waivers` block, offsets preserved, as the ledger is masked.
+
+    A waiver row is a record about an anchor, not prose: its cells (a reason may cite where the
+    referent went) are not anchors for A6 or A11 to scan.
+    """
+    return _mask_blocks(text, _WAIVER_HEADING_RE.match)
+
+
+def _waiver_rows(text: str) -> list[list[str]]:
+    """The data rows of every `Anchor waivers` table (`| Anchor | Reason |`), headers dropped."""
     lines = text.splitlines(keepends=True)
-    inside = False
-    for index, line in enumerate(lines):
-        if re.match(r'^#{2,6}[ \t]+', line):
-            inside = 'fold ledger' in line.lower()
+    rows: list[list[str]] = []
+    for span in _heading_blocks(lines, _WAIVER_HEADING_RE.match):
+        rows += _table_rows(''.join(lines[index] for index in span))[1:]
+    return rows
+
+
+def _anchor_waivers(text: str) -> tuple[frozenset[str], list[Violation]]:
+    """E5b (verify-when-present): the anchors the waiver tables exempt from A6, and the bad rows.
+
+    An anchor cannot always resolve by design: its file is in a repository this gate cannot read,
+    or a section of the spec itself moves it. A row lists the anchor by its exact `path:line` text
+    (the first backticked token of its first cell, else the bare cell) and says why in its second.
+    A row with no reason is not a waiver: it fails as A6 and exempts nothing. A spec with no block
+    has nothing waived and is checked exactly as before.
+    """
+    waived: set[str] = set()
+    violations: list[Violation] = []
+    for cells in _waiver_rows(text):
+        span = re.search(r'`([^`]*)`', cells[0])
+        anchor = (span.group(1) if span else cells[0]).strip()
+        reason = cells[1] if len(cells) > 1 else ''
+        if re.search(r'\w', reason):
+            waived.add(anchor)
             continue
-        if inside:
-            lines[index] = re.sub(r'[^\n]', ' ', line)
-    return ''.join(lines)
+        violations.append(
+            Violation(
+                'Anchor waivers',
+                f'waiver names no reason for {anchor!r} — a listed anchor is exempt from A6 only '
+                'with the reason it cannot resolve here; fill its Reason cell or drop the row.',
+                'A6',
+            )
+        )
+    return frozenset(waived), violations
 
 
 def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[Warning]]:
@@ -1335,6 +1738,54 @@ def _ledger_anchor(cells: list[str]) -> re.Match[str] | None:
         if match is not None:
             return match
     return None
+
+
+# E6a: a fold that introduces a new test instrument marks its row, at the head of the Confirmed
+# cell, and owes the command that read the finding's `consumed_input` chain plus what it printed.
+_NEW_INSTRUMENT_FORM = 'new-instrument: `<command>` <its output>'
+_NEW_INSTRUMENT_RE = re.compile(r'^\**new-instrument\**\s*:(.*)$', re.IGNORECASE | re.DOTALL)
+_CODE_SPAN_RE = re.compile(r'`([^`]+)`')
+
+
+def _new_instrument_claim(cells: list[str]) -> str | None:
+    """The rest of the cell a row marks `new-instrument:`, or None for an unmarked row.
+
+    Read from whichever cell BEGINS with the marker — the read-what-it-is rule `_ledger_anchor`
+    applies — so a ledger with extra columns is read correctly; a finding id, a `§N` or an anchor
+    cannot begin with it.
+    """
+    for cell in cells:
+        match = _NEW_INSTRUMENT_RE.match(cell.strip())
+        if match is not None:
+            return match.group(1).strip()
+    return None
+
+
+def _records_command_and_output(claim: str) -> bool:
+    """True if the claim carries a backticked command (two or more tokens) with output after it."""
+    for span in _CODE_SPAN_RE.finditer(claim):
+        if len(span.group(1).split()) >= 2:
+            return re.search(r'\w', claim[span.end() :]) is not None
+    return False
+
+
+# SW13: a ledger whose header names a `Sibling sweep` column owes, per row, the command run over
+# the changed fact's other statements and the lines it changed, or `none`. A dash is how a markdown
+# table writes an empty cell, so it is read as one; `none` is the declaration.
+_SIBLING_SWEEP_RE = re.compile(r'sibling[\s-]+sweep\b', re.IGNORECASE)
+_EMPTY_CELL_RE = re.compile(r'[-\u2013\u2014]?')  # nothing, or a hyphen, en dash or em dash
+
+
+def _sibling_sweep_column(header: list[str]) -> int | None:
+    """The index of the header cell named `Sibling sweep`, or None when the ledger has none.
+
+    Read by HEADER NAME, as `_ledger_target_section` reads the target, so the column may sit
+    anywhere; a ledger without it is the legacy shape and owes nothing (verify-when-present).
+    """
+    return next(
+        (index for index, cell in enumerate(header) if _SIBLING_SWEEP_RE.match(_plain_cell(cell))),
+        None,
+    )
 
 
 def _fold_claimed(cert_body: str) -> bool:
@@ -1683,7 +2134,10 @@ def _check_fold_ledger(
     confirmation must resolve, land on content, and — when it points into this spec and the row
     names a `§N` — land inside that section (`_ledger_landing`); it does not judge the fold's
     correctness, which stays Part B (ADR-0002). The blank/prose-cell case is exactly what A6 does
-    not catch.
+    not catch. A row marked `new-instrument:` also owes a backticked command and its output in that
+    cell (E6a); the marker is new, so the arm is verify-when-present and no older ledger fails it.
+    A ledger whose header names a `Sibling sweep` column owes a filled cell there on every row, and
+    `none` fills it (SW13); the column is new, so a ledger without it is checked as before.
     """
     if cert_body is None:
         return [], []
@@ -1706,6 +2160,7 @@ def _check_fold_ledger(
     base = _resolve_base(spec_path)
     spec_spans = _section_line_spans(text)
     spec_target = spec_path.resolve()
+    sweep_column = _sibling_sweep_column(header)
     violations: list[Violation] = []
     warnings: list[Warning] = []
     for cells in rows:
@@ -1734,6 +2189,37 @@ def _check_fold_ledger(
                 )
             )
             continue
+        # E6a, verify-when-present: only a row marked `new-instrument:` owes its grounding command,
+        # and the anchor below is still checked — a row can be wrong in both ways at once.
+        claim = _new_instrument_claim(cells)
+        if claim is not None and not _records_command_and_output(claim):
+            violations.append(
+                Violation(
+                    where,
+                    f'the row is marked `new-instrument:` but its confirmation reads {claim!r} — a '
+                    'fold that introduces a new test instrument records the command that read the '
+                    "finding's consumed_input chain and what it printed, not a word. The form is "
+                    f'{_NEW_INSTRUMENT_FORM}, the command a backticked span of two or more tokens, '
+                    'e.g. new-instrument: `git grep -n load_run_id src/` -> 1 hit, src/run.py:41.',
+                    'A12',
+                )
+            )
+        # SW13, verify-when-present: only a ledger whose header names the column owes the cell. A
+        # row that stops short of the column renders that cell empty, and is read the same way.
+        if sweep_column is not None:
+            sweep = cells[sweep_column] if sweep_column < len(cells) else ''
+            if _EMPTY_CELL_RE.fullmatch(re.sub(r'[`*\s]', '', sweep)):
+                violations.append(
+                    Violation(
+                        where,
+                        'the ledger carries a `Sibling sweep` column and this row leaves it empty '
+                        "— a fold that changes one statement of a fact leaves the fact's other "
+                        'statements as they were. Record the command run over them and the lines '
+                        'it changed, e.g. `git grep -n retry_limit docs/ src/` -> changed '
+                        'docs/ops.md:12, or `none`.',
+                        'A12',
+                    )
+                )
         match = _ledger_anchor(cells)
         if match is None:
             read = re.sub(r'\*', '', cells[2]).strip()
@@ -1948,7 +2434,9 @@ def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[V
                         f'reference {sid} resolves to no numbered section — `§` is '
                         "reserved for this spec's own sections. To cite another document's "
                         'section, put a cue before the glyph (`docs/doctrine.md '
-                        f'§6`, `ADR-0002 §3`) or backtick the mention.',
+                        f'§6`, `ADR-0002 §3`) or backtick the mention; a verbatim quote that '
+                        "carries another document's §N goes in a fenced block, which is masked "
+                        'before every check.',
                         'A8',
                     )
                 )
@@ -2197,11 +2685,24 @@ def _check_certification_artifact(
                         'pass. The reviewer has not seen it (B2).',
                     ),
                 ]
-            warning = (
-                'WARN: the artifact was certified against an earlier revision of this spec '
-                '(Spec-hash mismatch) — re-run the pass on the current spec, or accept knowingly '
-                '(B2).'
-            )
+            declared_edits = declared_amendment_edits(spec_path)
+            if declared_edits:
+                # E7b: the author declared that an amendment edits certified sections. Name it —
+                # but as a declaration. W7's "certified content intact" is the only claim this
+                # gate recomputes; nothing here checks that the declared sections are the ones
+                # that changed. The letter stays W5 so ledger counts keep their meaning.
+                warning = (
+                    'WARN: the spec hash changed by a declared amendment editing '
+                    f'{", ".join(declared_edits)} — the reviewer has not seen those sections as '
+                    'edited. The declaration is recorded, not verified: re-run the pass on the '
+                    'current spec, or accept knowingly (B2).'
+                )
+            else:
+                warning = (
+                    'WARN: the artifact was certified against an earlier revision of this spec '
+                    '(Spec-hash mismatch) — re-run the pass on the current spec, or accept '
+                    'knowingly (B2).'
+                )
             # On an operator close (an operator-accepted CONDITIONAL-CERTIFY), a condition
             # discharged after the pass moves the hash by design, so this mismatch is expected —
             # name it, but only there (a blanket clause would bless arbitrary post-cert edits).
@@ -2251,6 +2752,10 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
         )
     raw = _field(cert_body, 'verdict')
     head = _verdict_head(raw)  # the bare verdict token, hyphens kept whole
+    # E7a/SW23: how the verdict was reached is RECORDED, never judged — an unknown value is echoed,
+    # not rejected, and no value changes pass or fail. It is only named in the messages below.
+    source = _field(cert_body, 'verdict source')
+    source_note = f' (verdict source: {source})' if source else ''
     if head == 'CERTIFIED':
         pass
     elif head == 'CONDITIONAL-CERTIFY':
@@ -2260,7 +2765,8 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
                 Warning(
                     'B1',
                     f'WARN: pre-mortem verdict is CONDITIONAL-CERTIFY, operator-accepted by '
-                    f'{operator!r} (ready modulo a named fix) — not a clean CERTIFIED.',
+                    f'{operator!r} (ready modulo a named fix) — not a clean CERTIFIED.'
+                    f'{source_note}',
                 )
             )
         else:
@@ -2282,7 +2788,7 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
                 'Pre-mortem certification',
                 f'pre-mortem verdict is {verdict!r}, not "CERTIFIED" — the line this gate parses '
                 'is `- **Verdict:** CERTIFIED` (trailing prose after the token is allowed), or '
-                '`- **Verdict:** CONDITIONAL-CERTIFY` with a named Operator.',
+                f'`- **Verdict:** CONDITIONAL-CERTIFY` with a named Operator.{source_note}',
                 'B1',
             )
         )
@@ -2297,3 +2803,146 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
             )
         )
     return violations, warnings
+
+
+_CONDITIONS_HEADING_RE = re.compile(r'conditions\b', re.IGNORECASE)
+_DISCHARGED = frozenset({'met', 'waived'})
+
+
+def _conditional_rows(cert_body: str | None) -> list[tuple[str, str]]:
+    """(row as written, its Status cell) per `### Conditions` row, under a CONDITIONAL-CERTIFY only.
+
+    The table is `| Gates | Condition | Status | Evidence |`, the first table of the subsection; the
+    Status column is found by its header name, as the ledger's Sibling sweep is, and a row that
+    stops before it, or a table without it, has an empty Status. On any other verdict, or with no
+    such subsection, there is nothing to read: the table is new, so a spec without it owes nothing.
+    """
+    if cert_body is None or _verdict_head(_field(cert_body, 'verdict')) != 'CONDITIONAL-CERTIFY':
+        return []
+    block = next(
+        (sub for title, sub in _subsections(cert_body) if _CONDITIONS_HEADING_RE.match(title)), None
+    )
+    lines = _first_table_lines(block or '')
+    if not lines:
+        return []
+    header = [_plain_cell(cell).lower() for cell in _split_cells(lines[0])]
+    column = header.index('status') if 'status' in header else None
+    rows: list[tuple[str, str]] = []
+    for line in lines[1:]:
+        cells = _split_cells(line)
+        status = cells[column] if column is not None and column < len(cells) else ''
+        rows.append((line, status))
+    return rows
+
+
+def _check_conditions(cert_body: str | None) -> list[Warning]:
+    """W9 (Q5a, KEEL-B15): each CONDITIONAL-CERTIFY condition not met or waived, quoted verbatim.
+
+    B1 accepts an operator-accepted CONDITIONAL-CERTIFY with one generic WARN, which says nothing
+    about which condition is still open or what work it holds back. In the field an open condition
+    gating a later section went unnoticed when that section's work began. A warning, not a
+    violation: the verdict is already operator-accepted, and the table is verify-when-present.
+    Status is read by its leading word, so `**met**`, `Met — <date>` and `waived: <reason>` are
+    discharged and anything else, an empty cell included, is not.
+    """
+    warnings: list[Warning] = []
+    for row, status in _conditional_rows(cert_body):
+        normalized = re.sub(r'[`*]', '', status).strip().lower()
+        if re.split(r'[^a-z]', normalized, maxsplit=1)[0] in _DISCHARGED:
+            continue
+        shown = f'Status {status!r}' if status else 'no Status'
+        warnings.append(
+            Warning(
+                'W9',
+                f'WARN: a condition of this CONDITIONAL-CERTIFY is not met or waived ({shown}), '
+                'so the work it gates is not cleared — discharge it and record `met` with its '
+                f'evidence, or `waived`: {row}',
+            )
+        )
+    return warnings
+
+
+# W10 reads a hex object name only, from git's default abbreviation (7) up to a full SHA-256. A ref
+# name moves on its own, so it would test nothing; and a value that cannot begin with `-` cannot
+# reach git as an option.
+_COMMIT_SHA_RE = re.compile(r'[0-9a-f]{7,64}', re.IGNORECASE)
+_GIT_TIMEOUT_SECONDS = 5
+
+
+def _recorded_base(cert_body: str | None) -> str:
+    """The commit the certification's `- **Base:**` field records, or '' (W10).
+
+    Read as a path-valued field is (`_first_path_token`: the first backticked token, else the first
+    word), and kept only when it is a hex object name, so the template's `<...>` placeholder, prose
+    and ref names are no candidate.
+    """
+    token = _first_path_token(_field(cert_body or '', 'base'))
+    return token if _COMMIT_SHA_RE.fullmatch(token) else ''
+
+
+def _base_outside_head(repository: Path, commit: str) -> str:
+    """'absent' or 'diverged' when `commit` is not in HEAD's history, else '' (W10).
+
+    The gate's only subprocess calls are in this helper. check-ready is otherwise a pure function
+    of the files it reads (cli.py keeps ledger recording in the shell for that reason), and commit
+    ancestry cannot be read from files without reimplementing git, so this one question goes to
+    git. It fails open: git missing, an OSError, a timeout, or any exit other than the two read
+    below (128 from a repository git refuses to read, for one) is silence, never a finding. It
+    makes two calls so that a commit that is not there is told apart from a repository git cannot
+    read: `rev-parse --verify --quiet` exits 1 only for the first, where `merge-base` exits 128 for
+    both.
+    """
+
+    def git(*args: str) -> int | None:
+        try:
+            return subprocess.run(
+                ['git', '-C', str(repository), *args],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=_GIT_TIMEOUT_SECONDS,
+                check=False,
+            ).returncode
+        except (OSError, subprocess.SubprocessError):
+            return None
+
+    resolved = git('rev-parse', '--verify', '--quiet', f'{commit}^{{commit}}')
+    if resolved == 1:
+        return 'absent'
+    if resolved == 0 and git('merge-base', '--is-ancestor', commit, 'HEAD') == 1:
+        return 'diverged'
+    return ''
+
+
+def _check_base(commit: str, repository: Path | None) -> list[Warning]:
+    """W10 (Q5b, KEEL-B15): the commit the certification records as `Base:` left HEAD's history.
+
+    A rebase, a reset or a force-push can move a branch away from the state a pass reviewed while
+    the spec still reads certified, and B2's spec hash cannot see it: the spec did not change, the
+    code under it did. A warning, not a violation: rewriting history is sometimes the plan, and
+    the field is new, so a spec without it, or with the template's placeholder, owes nothing.
+    Silent outside a repository and whenever git cannot answer (`_base_outside_head`).
+    """
+    if not commit or repository is None:
+        return []
+    finding = _base_outside_head(repository, commit)
+    if finding == 'absent':
+        return [
+            Warning(
+                'W10',
+                f"WARN: the certification's Base commit {commit} does not resolve to a commit in "
+                'this repository — history was rewritten and the commit is gone, or it was never '
+                'fetched (a shallow clone). Fetch it and diff it against HEAD, or re-run the pass '
+                'and record the new Base.',
+            )
+        ]
+    if finding == 'diverged':
+        return [
+            Warning(
+                'W10',
+                f"WARN: the certification's Base commit {commit} is not an ancestor of HEAD — the "
+                'history the pass reviewed was rewritten (a rebase, a reset, a force-push) or this '
+                'branch never contained it, so the certified state may not be the one under gate. '
+                'Diff it against HEAD, or re-run the pass and record the new Base.',
+            )
+        ]
+    return []

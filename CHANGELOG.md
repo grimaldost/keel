@@ -5,6 +5,375 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
+## [0.21.0] - 2026-10-07
+
+New gate checks and fold-ledger structure, a handful of check relaxations, template and agent
+wording from the 2026-10-06 triage, and two `keel re-anchor` fixes. Three new warnings (W8, W9,
+W10) join the Definition-of-Ready reference block; the new blocking arms (the `Sibling sweep`
+column, the `new-instrument:` marker, the `Anchor waivers` table) fire only when their structure
+is present, and A3 and A4 are relaxed, so no spec in flight can newly fail. The one new signal on
+upgrade is W1's kit-skew WARN on specs stamped 0.20.0, which is warn-only. Body budgets after
+this release: directive 1,668/2,050 (unchanged); contract notes 499/500 (unchanged); agent
+wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum 61/61 (W2, unchanged).
+
+### Added
+
+- **`keel check-ready` warns when a newer keel has run on this machine** (SW17, 2026-10-06 triage;
+  `(consumer-affecting)`: one new stdout line). A user with two copies installed (a tool install and
+  the plugin's) could gate a spec with the older one and read its verdict as current. The command now
+  reads the local gate ledger through the new `newest_gate_version` (int-tuple max, so 0.10.0 beats
+  0.9.0; malformed rows ignored; `None` when the ledger is off, missing or unreadable: the read
+  is fail-open like the write, so a permission fault never reaches the exit code) and, when the newest
+  recorded version exceeds the running one, prints `WARN: keel <newest> has run on this machine;
+  this is keel <running> — upgrade (uv tool upgrade keel) or run the plugin's copy` before the
+  verdict. The line is about the machine, not the spec: it is not a `GateResult` warning, has no
+  check letter and no ledger field, and exit codes are unchanged. The test suite gains a
+  `tests/conftest.py` autouse fixture that points `KEEL_GATE_LEDGER` at a per-test file, so the
+  suite no longer appends to the developer's real ledger. Class: a standing signal on one command's
+  output; no check changes, so no spec in flight can newly fail.
+- **`keel check-ready` warns when a criterion's grep reaches a file another section creates** (W8,
+  E4a, 2026-10-06 triage). In a field report, a late section's acceptance criterion was a
+  path-scoped grep that had to print nothing, over a directory in which an earlier section of the
+  same wave created a render fixture. The scope grew when that section landed, and satisfying the
+  criterion destroyed working data after seven pre-mortem rounds. The spec stated both halves and
+  nothing joined them. W8 reads each §N criterion paragraph (A2's span) for backticked `grep`, `rg`
+  or `git grep` commands, one that opens the code span or one inside a `$(…)` substitution (the
+  "prints nothing" form `test -z "$(grep …)"`, read up to its closing parenthesis), and takes their
+  path arguments as the scope: the first positional is the pattern unless `-e`/`-f` supplies it, a
+  pipe or redirect ends the command, and a command that names no path is not a candidate. It warns when a scope is, or is a directory or glob over, a
+  concept-map "to be created" path that a different section claims under A5's rule (now one
+  helper, `_claims`, shared by both checks), and names the criterion's section, the scope, the path
+  and the creating section. `DOR_CHECK_IDS` gains W8, so the gate ledger's probes carry it; its
+  candidates are the path-scoped grep criteria. The Definition-of-Ready reference block gains a W8
+  line, identical in the full and core templates (59 words, cap 61); it is a lookup line, so no
+  contract-note or DoR prose is added and nothing is displaced. The adversarial corpus gains a W8
+  mutant. Class: verify-when-present and warn-only, a heuristic over existing structure; exit codes
+  are unchanged, so no spec in flight can newly fail.
+- **An `Anchor waivers` table exempts the anchors it lists from A6** (E5b, KEEL-B20, 2026-10-06
+  triage). Some anchors cannot resolve by design: the file is in a repository the gate cannot read,
+  or a section of the spec itself moves the line it cites. Such evidence had to move into prose, or
+  the gate failed by construction on every run. A spec may now carry a `| Anchor | Reason |` table
+  under an `Anchor waivers` heading at level 2 or 3. A6 drops its violations for each anchor a row
+  lists by its exact `path:line` text (the first backticked token of the Anchor cell). A row with no
+  reason fails as A6 ("waiver names no reason") and exempts nothing. The block is masked before the
+  A6 and A11 scans, as the fold ledger is, so a reason that cites where the referent went is not
+  scanned as an anchor; each row counts as one A6 candidate. A certified spec adds the table as
+  `### Anchor waivers` inside its `## Amendment`, so the certified body does not change and B2
+  reports the addition as W7 (owner decision 2026-09-19). `_mask_fold_ledger` now shares one block
+  walker with the new mask; its behaviour is unchanged. The full spec template gains an
+  `## Anchor waivers` section with a plain paragraph and an empty table, so no italic contract-note
+  words are added (499/500, unchanged) and nothing is displaced; the core template does not carry
+  it. The A6 line of the Definition-of-Ready reference block is extended identically in the full
+  and core templates (60 words, cap 61); it is a lookup line, so no DoR prose is added. The
+  adversarial corpus gains a positive control (a reasonless row fires exactly A6) and a negative
+  control (a waived sibling anchor fires nothing). Class: verify-when-present; a spec with no block
+  is checked exactly as before, so no spec in flight can newly fail.
+- **A fold-ledger row marked `new-instrument:` must record its grounding command** (E6a,
+  2026-10-06 triage). In one field report, for four rounds running, the main defect of each round
+  was one the previous fold had introduced, mostly new test mechanism written by analogy (a
+  fixture root enumerated instead of derived, a helper reimplemented instead of reused), while
+  the ledger confirmed every fold with a word. A row whose fold adds a new test instrument now
+  opens its Confirmed cell with `new-instrument:`, and A12 requires the rest of that cell to carry
+  a backticked command (a code span of two or more tokens) followed by its output. A bare word
+  (`yes`, `done`), a one-token span or a command with nothing after it fails A12, and the message
+  names the form `` new-instrument: `<command>` <its output> `` with an example. The marker is read
+  from whichever cell begins with it, as the anchor is, and the row's anchor is still checked. The
+  full spec template states the rule in a plain line under the fold-ledger note, so no italic
+  contract-note words are added (499/500, unchanged) and nothing is displaced; the core template
+  is untouched. The A12 line of the Definition-of-Ready reference block is unchanged (60 words,
+  cap 61), so the arm is documented in the template and the gate's message only. The adversarial
+  corpus gains a positive control (FM-1 confirmed by `new-instrument: yes` fires exactly A12) and
+  a negative control (the same row with its command and output fires nothing). Class:
+  verify-when-present; the marker is new, so a ledger without it is checked exactly as before and
+  no spec in flight can newly fail.
+- **The fold ledger gains a `Sibling sweep` column, checked by A12** (SW13, 2026-09-26 and
+  2026-10-06 triages; `(consumer-affecting)`: a spec scaffolded from the template now carries the
+  column, and A12 holds every row to it). A fold changes one statement of a fact and leaves the
+  fact's other statements as they were. In one field report a spec stated one fact in five places,
+  each fold updated one of them, and every blocking finding of rounds 2 to 4 was created by the
+  previous fold. The directive's prose rule to sweep the artifact for siblings was already shipped
+  and the class recurred in three reports, so the rule moves to the ledger row, which every fold
+  writes. The ledger header in the full and core spec templates becomes
+  `| Finding | Target section | artifact:line | Confirmed | Sibling sweep |`. The cell holds the
+  command run over the fact's other statements and the lines it changed, or `none`. When a
+  ledger's header names a `Sibling sweep` column (in any position, any case), A12 fails a row whose
+  cell there is empty, a bare dash, or missing because the row stops short of the column; `none`
+  or any other content passes. The column is found by its header name, as the target section is,
+  so the target-section read and the column-break rule are unchanged, and a test holds each with
+  the column present. The full template states the cell's content in a plain line under the E6a
+  line, so no italic contract-note words are added (499/500, unchanged); the core template takes
+  the header only. The A12 line of the Definition-of-Ready reference block states the rule
+  ("an empty `Sibling sweep` cell fails (`none` passes)"), identically in the full and core sheets,
+  and measures 59 words (was 60, cap 61) because it displaces words in the same line: "when a
+  `### Fold ledger` sub-table is present:" becomes "each `### Fold ledger` row:", "— or
+  `artifact:lo-hi` —" becomes "(or `artifact:lo-hi`)", and "read from whichever cell IS one"
+  becomes "in any cell". The adversarial corpus gains a positive control (the clean ledger
+  rewritten with the column and one empty cell fires exactly A12) and a negative control (every
+  cell filled fires nothing); the E6a template test's row gains the fifth cell. Class:
+  verify-when-present; a ledger without the column, the three- and four-column legacy shapes
+  included, is checked exactly as before, so no spec in flight can newly fail.
+- **The spec-template gains an `### Amendment review` subsection** (SW10, 2026-10-06 triage).
+  After a spec is certified, post-certification changes land in an `## Amendment` section
+  following the release discipline. An `### Amendment review — <date>, round <N>` subsection
+  inside `## Pre-mortem certification` records when a reviewer certifies an amendment round.
+  The subsection follows the Series review pattern: `- **Amendment reviewer:**`,
+  `- **Amendment verdict:**`, `- **Amendment artifact:**`, and `- **Edits sections:**` (the
+  sections edited after the pass, if any). Guidance is in field placeholders; the latest dated
+  subsection supersedes earlier ones. The addition is part of the Pre-mortem certification section,
+  which `spec_hash` excludes, so `spec_hash` is unchanged and amendments remain tamper-evident.
+  Tests verify adding the filled subsection leaves the canonical hash and the B1 Verdict scan
+  unchanged, and B2/decompose-check fields are not picked up from the new subsection. No contract-note
+  prose is added (499/500, unchanged); the core template is untouched. Class: a template-only
+  subsection; no check changes, no parser changes, so no spec in flight can newly fail.
+- **The spec-template records how a verdict was reached; B1 echoes it** (E7a, SW23, E7c, 2026-10-06
+  triage). A CONDITIONAL-CERTIFY or a not-CERTIFIED verdict said nothing about whether a blind round
+  produced it, the operator closed it, an external oracle accepted it or the review was waived, so a
+  reader of the spec could not tell. The full template gains `- **Verdict source:**` after the
+  Verdict line, with the placeholder values `blind-round | operator-close | operator-stop |
+  oracle-accepted: <oracle> | waived: <argument>`, and an optional `- **State reviewed:**` line
+  (`as-design | as-built at <commit>`), one per round, in the certification block and in each
+  Amendment review. `check-ready` reads the source with the same field parser as the other
+  certification lines and appends `(verdict source: <value>)` to the CONDITIONAL-CERTIFY WARN and to
+  the not-CERTIFIED B1 violation. The value is echoed, not validated: an unknown value is repeated,
+  never rejected, and verdict tokens, pass and fail and the one-Verdict-line rule are unchanged (the
+  label does not match the verdict-line scan). `oracle-accepted` and `waived` are record-only: a
+  NEEDS-REVISION spec carrying either still fails B1, and the message now names the recorded reason.
+  Whether either should ever pass is left as no. Guidance is in placeholder text on list lines, not
+  italic notes, so the contract notes stay at 499/500 and nothing is displaced; the core template is
+  untouched. Class: verify-when-present, an optional field that only adds text to messages that
+  already fire, so no spec in flight can newly fail.
+- **`keel check-ready` quotes each open condition of a CONDITIONAL-CERTIFY** (W9, Q5a, KEEL-B15,
+  2026-10-06 triage). In a field report, an operator-accepted CONDITIONAL-CERTIFY named a condition
+  that gated a later section, the condition was still open when that section's work began, and
+  the gate printed only B1's conditional WARN, which names the Operator but no condition. The full
+  spec template gains a `### Conditions` subsection after `### Fold ledger`, which stays the first
+  table of the certification, with the table `| Gates | Condition | Status | Evidence |`: Gates is
+  the §N or commit the condition must clear before, Status is `open`, `met` or `waived`, and
+  Evidence is what discharged it. When the verdict head is CONDITIONAL-CERTIFY, W9 warns once per
+  row whose Status does not lead with `met` or `waived`, and quotes the row verbatim; an empty
+  Status, or a row that stops before the column, counts as open. The Status column is found by its
+  header name. With every row met or waived only B1's WARN prints, and a spec without the table,
+  any other verdict and `--structure-only` leave W9 silent. The table sits inside the
+  certification section, which `spec_hash` excludes, so recording a discharge does not move the
+  hash. The pre-mortem directive's `conditions:` list is untouched. `DOR_CHECK_IDS` gains W9, so
+  the gate ledger's probes carry it; its candidates are the rows under a CONDITIONAL-CERTIFY.
+  `_first_table_rows` now reads through a new `_first_table_lines`, which keeps rows as written;
+  the ledger parse is unchanged. The template states the columns in a plain paragraph, so no
+  italic contract-note words are added (499/500, unchanged) and nothing is displaced; the core
+  template is untouched. The Definition-of-Ready reference block gains a W9 line, identical in the
+  full and core templates (54 words, cap 61); it is a lookup line, so no DoR prose is added
+  (942/950, unchanged). The adversarial corpus gains a mutant that makes the clean spec
+  CONDITIONAL-CERTIFY with an Operator and one open condition row; it fires exactly B1 and W9,
+  because B1's conditional WARN is inherent to the verdict. Class: verify-when-present and
+  warn-only; the table is new, so a spec without it is checked exactly as before, exit codes are
+  unchanged, and no spec in flight can newly fail.
+- **`keel check-ready` warns when the certification's Base commit has left HEAD's history** (W10,
+  Q5b, KEEL-B15, 2026-10-06 triage; `(consumer-affecting)`: when a Base is recorded, check-ready now
+  runs `git` in the spec's repository). A rebase, a reset or a force-push can move a branch away
+  from the state a pre-mortem pass reviewed while the spec still reads certified, and B2's spec
+  hash cannot see it, because the spec did not change. The full spec template gains
+  `- **Base:** <the commit the pass reviewed, as a SHA; ...>` in the certification block, after
+  State reviewed. When the field's leading token is a hex SHA of 7 to 64 digits and the spec sits
+  in a git repository, W10 warns, naming the commit, when that commit is not an ancestor of HEAD
+  (`git merge-base --is-ancestor` exits 1) or does not resolve there (`git rev-parse --verify
+  --quiet` exits 1: history was rewritten and the commit is gone, or it was never fetched). A
+  placeholder, a ref name, no field, a spec outside any repository and `--structure-only` leave
+  W10 silent and uncounted. git missing, an OSError, a timeout (5 seconds per call) or any other
+  exit, such as 128 from a `.git` that git cannot read, is silent too: the check fails open. These
+  are the gate's first subprocess calls, kept in one helper, `_base_outside_head`, whose docstring
+  says so; the gate was otherwise a pure function of the files it reads (the "pure core" comment
+  in `cli.py`), and commit ancestry cannot be read from files. The plan named a single
+  `merge-base` call that read exit 128 as "does not resolve"; git also exits 128 for a `.git` it
+  cannot read, which the suite's own fixtures create, so a `rev-parse` call first tells the two
+  apart. The kit-version half of the row is not built: the header `Kit:` stamp that W1 compares
+  with the running gate is already the recorded-versus-serving kit comparison, and W1 deliberately
+  ignores a patch difference. `DOR_CHECK_IDS` gains W10; its candidates are a recorded SHA in a
+  spec a repository holds. The Definition-of-Ready reference block gains a W10 line, identical in
+  the full and core templates (59 words, cap 61); it is a lookup line, so no DoR prose is added
+  (942/950, unchanged). The template line is a field placeholder, not an italic note, so the
+  contract notes stay at 499/500 and nothing is displaced; the core template is untouched. The
+  adversarial corpus stages plain directories, not repositories, so W10 joins A3 as a named
+  exception in the coverage assertion, and its positive control lives in
+  `tests/test_check_ready.py` with a temporary repository: an ancestor is silent, a commit left
+  behind by `git reset --hard` and a new commit warns, and an unknown SHA warns, while no
+  repository, no field, a placeholder, an empty `.git` and a git that cannot run are silent.
+  Class: verify-when-present and warn-only; the field is new, so a spec without it is checked
+  exactly as before, exit codes are unchanged, and no spec in flight can newly fail.
+- **The spec-template's Context section asks for consumed library guides** (D1e, KEEL-B56).
+  A spec that consumes a library which publishes a consumer-facing guide (a walkthrough, user
+  manual, or operator reference) should cite it in the Context. The full spec template gains a
+  plain instruction line after the existing "Why this work, and what it builds on" placeholder:
+  "Each consumed library with a consumer-facing guide: link it here; source reading verifies the
+  mechanism, not replaces it." Cites the guide before diving into source. The line is plain text,
+  not an italic note, so contract notes stay at 499/500 and nothing is displaced; the core template
+  is untouched. Template tests green. Class: a template-only addition; no check or parser changes,
+  so no spec in flight can newly fail.
+- **The Definition-of-Done's red-companion item documents dictated disclosure commands** (E4b,
+  2026-10-06 triage). The DoD item that enforces red companions has been extended to state that
+  when a spec dictates a disclosure, the disclosure must carry the command that established it,
+  and the PR should paste that command's output. This ensures that readers can verify how the
+  disclosed facts were derived. Template-only change; no logic, no check changes, so no spec in
+  flight can newly fail.
+- **The data-pipeline design sheet names producers, consumers, and output shape** (SW11, Q7e,
+  2026-10-06 triage). The design sheet for `Profile: data-pipeline` specs gains three author-filled
+  fields: 'Producers and pinned literals (measured)' (each producer writing what the spec governs,
+  each gate pinning a count or literal over it, with command and output), 'Heaviest downstream
+  consumer's suite' (the consumer whose tests gate the change, not only the library's own), and
+  'Output shape a consumer reads' (columns the frozen contract pins, passthroughs included). A
+  matching reviewer item, 'Heaviest downstream consumer's tests gate the change' (the reviewer names
+  the consumer's test suite gating the load, and reviews output-shape coverage), is added to the
+  reviewer's items (Definition of Ready, Part B) in `pre-mortem-profiles.md`. Template-only
+  addition; no check or parser changes, so no spec in flight can newly fail.
+- **The measurement profile adds a bounded pilot and a no-verdict decision rule** (Q7c, KEEL-B12,
+  2026-10-06 triage). The measurement design sheet gains two author-filled fields: 'Bounded real
+  pilot' (a minimal real deployment before the full paid run; every arm produces well-formed,
+  non-degenerate output; the smallest footprint that tests all arms) and 'Decision rule — no
+  verdict' (when no arm discriminates on any criterion, specify the decision boundary that makes it
+  a no-verdict rather than a null). Two matching reviewer items are added to the reviewer's items
+  (Definition of Ready, Part B) in `pre-mortem-profiles.md`: one certifies a bounded pilot ran all
+  arms before the paid run with well-formed output; another certifies the decision rule
+  distinguishes no-verdict from each null and states the exact boundary. The power precheck (Reps /
+  power & MEWD) remains unchanged. Template-only addition; no check or parser changes, so no spec in
+  flight can newly fail.
+- **Reviewer's returned message opens with the save instruction** (SW12, 2026-10-06 triage). The
+  pre-mortem agent wrapper rewrites the output invariant for B2 (the returned artifact that the
+  caller saves verbatim). The message's first line is now the save path
+  (`<spec-stem>.premortem.md`, or `-r<N>` for a later round), and its second line tells the
+  receiver to stamp `keel spec-hash <spec>` into the saved file's header after the last fold the
+  pass read and before editing the spec: a spec edited first would leave B2 comparing against a
+  revision the reviewer never read. A missing directive-file report, which the agent names when the
+  template is unreachable, moves from the first line to the third, after the two fixed lines. The
+  agent wrapper's word budget measures 540 (cap 550; was 499). The output-contract bullet grows
+  from 13 to 54 words and displaces only the parenthetical "(`<spec-stem>.premortem.md`, B2)",
+  which becomes "(B2)" with the path moved into the new sentences, and the word "first" in the
+  missing-directive line, which becomes "third". Tests add `.premortem.md` and `keel spec-hash` to
+  the output-contract tokens and pin the three line positions and the words "before editing the
+  spec". The template file `pre-mortem-prompt.md` is unchanged. Class: output contract only; no
+  prompt, template, or check changes, so no spec in flight can newly fail.
+
+### Changed
+
+- **Review checklist sharpens re-review and test adequacy** (SW9, Q7d, 2026-10-06 triage). The
+  Correctness item now distinguishes initial review (does what the acceptance criterion says) from
+  re-review after REQUEST_CHANGES (every instance of the flagged defect class is gone, not only the
+  cited line). The Tests item keeps its first line and the clause "tests assert behavior, not
+  implementation", and adds the question whether the test would fail if the load-bearing predicate
+  were subtly wrong and, for a registry or allow-list, the instruction to derive the set from spec
+  and assert equality, not membership. Both are rewrites of existing items with no new item added;
+  the count remains 10. The template has external consumers (sibling projects resolve pointers to
+  these lines): the Correctness item is not among the lines `tests/test_consumed_lines.py` pins, and
+  the Tests item's pinned first line is byte-identical, so no consumer pointer moves. The test suite gains
+  a needle assertion for each rewrite and a pin on the item count (exactly 10 `- [ ]` items).
+  Class: documentation and process clarification; no new checks, so no spec in flight can newly fail.
+- **W5 names a declared body amendment** (E7b, 2026-10-06 triage). The method has no form for
+  editing a certified body, so a post-certification edit surfaced as the generic "certified against
+  an earlier revision" W5, the same text an accidental drift gets. When the hash mismatch is not
+  W7's (removing the amendments does not reproduce the recorded hash) and an `## Amendment` span, or
+  the latest `### Amendment review` subsection of the certification (the field the spec template
+  carries, see SW10), carries a `- **Edits sections:** §N, …` line, W5 now says the hash changed by
+  a declared amendment editing those sections, that the reviewer has not seen them as edited, and
+  that the declaration is recorded, not verified. With no such line the W5 text is unchanged, an
+  operator-accepted CONDITIONAL-CERTIFY keeps its suffix, and the letter stays W5 so ledger counts
+  keep their meaning. W7's "certified content intact" stays the only claim the gate recomputes.
+  Class: a message branch inside an existing warning; no check changes and exit codes are unchanged,
+  so no spec in flight can newly fail. No template or contract-note prose is added.
+- **A8's rejection names the fence form** (E2b, 2026-10-06 triage; absorbs D1d). The message for a
+  dangling `§N` offered a cue before the glyph or backticks, both of which alter a verbatim quote
+  that carries another document's section number. It now also says such a quote goes in a fenced
+  block, which the gate masks before every check. Class: a message-string extension on one
+  existing check; detection is unchanged, so no spec in flight can newly fail.
+- **`keel re-anchor --body` refuses a certified spec** (SW5, same triage; `(consumer-affecting)`:
+  the verb gains exit 2). `--body` rewrites prose anchors, which are content the certification hash
+  covers, and drift after certification goes through an `## Amendment` (owner decision
+  2026-09-19). A spec whose `## Pre-mortem certification` records a CERTIFIED or
+  CONDITIONAL-CERTIFY verdict — the predicate W2 already reads — now gets a what/why/fix error and
+  exit 2, the "not runnable as asked" code, before anything is read for writing, in `--check` and
+  `--by-content` modes too. The fix it names is the ledger-only run (no `--body`), which leaves the
+  hash unmoved. On an uncertified spec `--body` repoints and prints its NOTE as before. Class: a
+  refusal added to one verb's opt-in flag; no check changes, so no spec in flight can newly fail.
+- **A3 no longer fires on a TODO followed by a word** (E2e, 2026-10-06 triage). The scan matched
+  the word `TODO` anywhere, so a Portuguese sentence such as "TODO o sistema usa o widget" failed a
+  spec as an unfinished placeholder. The relaxation is exactly this: `TODO` passes when a word
+  follows it on the same line (the pattern is `\bTODO\b(?![ \t]+\w)`), except after `#`, where
+  `# TODO` fires whatever follows. Everything else still fires: `TODO:`, `TODO(`, a field value
+  such as `- **Owner:** TODO`, a task item `- [ ] TODO`, `TODO.` ending a sentence, and the token
+  alone as a line, list item, table cell or code span (so a backticked legacy `TODO` still fires,
+  as in 0.13.0). `TBD`, `FIXME` and `???` are unchanged, the scan still reads the fence-masked
+  line, and a fenced `# TODO` stays masked. The A3 line of the Definition-of-Ready reference block
+  is rewritten identically in the full and core templates (56 words, cap 61); it is a lookup line,
+  so no contract-note or DoR prose is added and nothing is displaced. Class: a relaxation; the new
+  match set is a subset of the old one, so nothing that passed before can fail now and no spec in
+  flight can newly fail.
+- **A4 keys on (section, repository) when the manifest has a `Repo` column** (E3c, 2026-10-06
+  triage). In a programme spread over several repositories, a section whose change lands in two of
+  them needs one PR in each, and A4 failed the second row as "not a bijection", so the manifest
+  could not record the split. A manifest may now carry an optional `Repo` (or `Repository`, any
+  case) column; the header and its cells are read without markdown emphasis or backticks, so
+  `**Repo**` is the column and `` `a` `` is repository `a`. When it does, A4 counts coverage per
+  section and repo cell: a section may take one row per repository, the same section twice in one
+  repository still fails as "not a bijection" (the message now names the repository), and every
+  section still needs at least one row. A blank repo cell counts as one more repository, distinct
+  from every named one, because it may mean the spec's own repository and the gate cannot tell:
+  §2 in repo `a` plus §2 with a blank cell passes, and two blank cells for §2 fail. A manifest
+  without the column, a `Wave` column alone included, is checked exactly as before. The full spec
+  template names the optional `Repo` and `Wave` columns in
+  a plain paragraph under the manifest (the gate does not read `Wave`), so no italic contract-note
+  words are added (499/500, unchanged) and nothing is displaced; the core template is untouched.
+  The A4 line of the Definition-of-Ready reference block is extended identically in the full and
+  core templates (39 words, cap 61); it is a lookup line, so no DoR prose is added. Not built: the
+  triage acceptance "a section spanning two repositories with one row fails" needs a per-section
+  repository declaration that the template does not carry, so the gate has no source for which
+  repositories a section spans; that hole stays with the Definition-of-Ready's Part B review (row
+  E3d). Class: a relaxation; with a `Repo` column the failure set is a subset of the old one, so
+  nothing that passed before can fail now and no spec in flight can newly fail.
+- **Definition-of-Ready clarifies the certified spec's lifetime and adds Part B item for gate
+  command coverage** (Q4b, E3d, 2026-10-06 triage). A prose restatement of the Part A reference
+  block is deleted from both the full and core templates (34 words: "A prose restatement of that
+  block used to sit here; it was a lossy paraphrase of the same facts, and a reader who trusted it
+  over the block trusted the older of two copies."). On new lines in the full sheet only, the
+  Definition-of-Ready now states the certified spec's lifetime: certified spec anchors describe the
+  tree at certification, and from PR01 the DoD gates take over the certified state. A Part B
+  checklist item is added: every repository named in the manifest's `Repo` column has its gate
+  commands in the spec's Gate commands section. The DoR prose measures 942 words (cap 950); across
+  this release it nets +7 from 935, all in `definition-of-ready.md`: the 34 deleted words are offset
+  by the lifetime sentence and the Part B item. (The reviewer items SW11 and Q7c add live in
+  `pre-mortem-profiles.md`, which the DoR prose count does not include.) The Definition-of-Ready
+  reference block is unchanged, so it remains identical in the full and core templates. Class:
+  documentation and process clarification; no new checks, so no spec in flight can newly fail.
+- **Reflection-triage procedure gains in-repo mode and family-aware promotions** (E11c, Q8a,
+  2026-10-06 triage). The Inputs section now documents the method's own feedback intake
+  (`docs/feedback/` in the method repo) for in-repo mode, where the method maintains its own
+  feedback. Step 4 is rewritten to state that a promotion declares its family (the class of fixes
+  it belongs to) and names and audits or schedules existing members of that family. Step 5's
+  landing prose becomes three states: targets editable in-context (the method repo or project-bound
+  copies), targets out of reach (handoff to the method's feedback intake), and a pass over the
+  method's own inbox (in-repo mode, where the pass ends at the triage document and the release
+  process lands its rows in the method's backlog or CHANGELOG). The handoff H1 rule that prohibits an H1 beginning
+  `# Triage —` is preserved intact. Template-only changes; no check or parser changes, so no spec
+  in flight can newly fail.
+
+### Fixed
+
+- **`keel re-anchor` leaves a correct anchor alone** (SW2, 2026-10-06 triage). A ledger row that
+  quotes the line it cites carries its own snippet, so the snippet sat on two lines of the spec and
+  the pass refused the row as "on no line, or on several" — `--check` printed the refusal for an
+  anchor that was right. The claimed line is now tested first, by the window test A12 applies and
+  before the snippet's strength, and an anchor whose snippet is still there is kept even when the
+  snippet also appears elsewhere or is too short to repair from. When the anchor cites the spec
+  itself, the citing row is excluded from the search, so a moved target is repointed to the target
+  and never to the row. Class: a repair that refuses and rewrites less; no check changes, so no spec
+  in flight can newly fail.
+- **`keel re-anchor` preserves the spec's line endings** (SW3, same triage). The spec was read with
+  universal newlines and written back with the platform's, so an LF spec re-anchored on Windows
+  came back with every line CRLF. The pass now reads and writes with `newline=''`, so only the
+  repointed lines differ. The shared reader `_read_spec_text` gains an optional `newline` keyword;
+  its default is the old read, so check-ready results, the anchor regexes and `spec-hash` are
+  untouched.
+- **`keel check-ready` docs clarify when a bare command is equivalent** (SW16, same triage).
+  The command docs said a persistent `keel` on PATH is equivalent to the `uvx` form, but this
+  holds only when the tool's version matches the plugin's. The docs now state the equivalence
+  condition and name the upgrade path. Class: a documentation correction; no code or check changes.
+
 ## [0.20.0] - 2026-09-13
 
 The method gated the spec and had no gate on the artifact that actually runs. It has one now — and
