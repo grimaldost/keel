@@ -5,9 +5,16 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
-## [0.21.0] - 2026-10-06
+## [0.21.0] - 2026-10-07
 
-Placeholder section for release 0.21.0 entries. Release date to be updated at merge.
+A release focused on closing gaps between what the gate checks and what could go undetected. The gate
+now warns when a newer keel version has run on the machine, detects when an acceptance criterion
+reaches into a file another section creates, and requires explicit records of fold decisions and
+exempted anchors. The pre-mortem directive and spec template move toward measurements of their own
+marginal effect, shrinking the always-on directive by one-third (0.20.0's move of profile selection
+out of the directive completes here). Five rows from the 2026-10-06 triage (W8, E4a, E5b, E6a, SW13,
+SW17); the measurement that unlocks the directive compression waits on the owner's pending
+adjudication (KEEL-B09).
 
 ### Added
 

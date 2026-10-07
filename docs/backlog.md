@@ -595,9 +595,11 @@ recorded here explicitly. `[triage]`
   kept (same arms, specs, model id and configuration), and the 225-word core held only **2 of 6**
   on both citation-grounding checks, where the first run had 6 of 6 — the property the compression
   was to be licensed on (the eval harness's 2026-09-19 replication report, maintainer-local).
-  The lists now exist; the blinded reading is **deferred to a later review round**. Nothing above
-  changes in consequence: the body is unchanged, this row still gates net-new directive prose, and
-  no directive is retired on the structural axis.
+- **2026-09-27 — the blind reading completed.** Both confirmatory verdicts were inconclusive;
+  the quality of findings does not separate the arms. Nothing above changes in consequence: the
+  body is unchanged, this row still gates net-new directive prose, and no directive is retired on
+  the structural axis. The directive decision waits on the three-repeat structural run (owner
+  decision D4).
 - **Effort:** L · **Source:** `[review]` `[research]` `[cross-review]`
 
 ### KEEL-B10 — Move the domain lenses out of the always-on bodies into a selected profile file
@@ -645,6 +647,9 @@ recorded here explicitly. `[triage]`
   axis; a pilot sample constructed to contain one instance per named axis; an exact reconciliation
   ledger for the write side and a cutover-discriminating check for the read side; state that a
   unit-green suite is explicitly not a data-level gate.
+- **Status:** **shipped** 2026-09-13 (0.20.0), with residue (Q7e). The data-pipeline profile
+  shipped in 0.18.0 as the characterization sheet and gate; the residue (heaviest downstream
+  consumer suite and output-shape pins) shipped in 0.21.0 by Q7e.
 - **Effort:** M · **Source:** `[triage Q7b]` `[research]`
 
 ### KEEL-B12 — A measurement profile that can return "no verdict"
