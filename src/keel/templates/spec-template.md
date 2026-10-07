@@ -165,6 +165,10 @@ a non-blank line and — pointing into this spec — inside the `§N` the row na
 A backticked snippet after it is verified against those lines; a `.py` range must close its
 brackets. The ledger is the FIRST table here.*
 
+A row whose fold adds a new test instrument opens its Confirmed cell with `new-instrument:`, then
+the backticked command that read the finding's `consumed_input` chain, then what it printed. A12
+fails the row when a bare word follows the marker.
+
 | Finding | Target section | artifact:line | Confirmed |
 |---|---|---|---|
 

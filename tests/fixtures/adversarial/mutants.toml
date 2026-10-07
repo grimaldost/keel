@@ -358,3 +358,17 @@ replace = """row, asserted by a docs-sync check, as `../docs-site/status.md:4` r
 | `../docs-site/status.md:4` | the status page lives in a sibling repository this gate cannot read |
 
 ## Requirements ledger"""
+
+[[mutant]]
+id = "A12-new-instrument-bare-word"
+fires = ["A12"]
+why = "E6a: a row whose fold adds a new test instrument owes, in its Confirmed cell, the command that read the finding's input chain and what that command printed. In the field the defect each fold introduced survived four rounds while every row confirmed with a word; a marked row with a word after the marker is that record, and it now fails"
+find = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |"
+replace = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | new-instrument: yes |"
+
+[[mutant]]
+id = "A12-new-instrument-with-its-command"
+fires = []
+why = "E6a's negative control: the same marked row carrying a backticked command and its output is the record the marker asks for, and fires nothing"
+find = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |"
+replace = "| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | new-instrument: `git grep -n ORDER_COLUMNS src/tinyetl/` -> 2 hits, orders.py |"

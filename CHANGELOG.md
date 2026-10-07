@@ -59,6 +59,24 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   adversarial corpus gains a positive control (a reasonless row fires exactly A6) and a negative
   control (a waived sibling anchor fires nothing). Class: verify-when-present; a spec with no block
   is checked exactly as before, so no spec in flight can newly fail.
+- **A fold-ledger row marked `new-instrument:` must record its grounding command** (E6a,
+  2026-10-06 triage). In one field report, for four rounds running, the main defect of each round
+  was one the previous fold had introduced, mostly new test mechanism written by analogy (a
+  fixture root enumerated instead of derived, a helper reimplemented instead of reused), while
+  the ledger confirmed every fold with a word. A row whose fold adds a new test instrument now
+  opens its Confirmed cell with `new-instrument:`, and A12 requires the rest of that cell to carry
+  a backticked command (a code span of two or more tokens) followed by its output. A bare word
+  (`yes`, `done`), a one-token span or a command with nothing after it fails A12, and the message
+  names the form `` new-instrument: `<command>` <its output> `` with an example. The marker is read
+  from whichever cell begins with it, as the anchor is, and the row's anchor is still checked. The
+  full spec template states the rule in a plain line under the fold-ledger note, so no italic
+  contract-note words are added (499/500, unchanged) and nothing is displaced; the core template
+  is untouched. The A12 line of the Definition-of-Ready reference block is unchanged (60 words,
+  cap 61), so the arm is documented in the template and the gate's message only. The adversarial
+  corpus gains a positive control (FM-1 confirmed by `new-instrument: yes` fires exactly A12) and
+  a negative control (the same row with its command and output fires nothing). Class:
+  verify-when-present; the marker is new, so a ledger without it is checked exactly as before and
+  no spec in flight can newly fail.
 
 ### Changed
 

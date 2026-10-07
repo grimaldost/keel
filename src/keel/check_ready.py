@@ -1652,6 +1652,35 @@ def _ledger_anchor(cells: list[str]) -> re.Match[str] | None:
     return None
 
 
+# E6a: a fold that introduces a new test instrument marks its row, at the head of the Confirmed
+# cell, and owes the command that read the finding's `consumed_input` chain plus what it printed.
+_NEW_INSTRUMENT_FORM = 'new-instrument: `<command>` <its output>'
+_NEW_INSTRUMENT_RE = re.compile(r'^\**new-instrument\**\s*:(.*)$', re.IGNORECASE | re.DOTALL)
+_CODE_SPAN_RE = re.compile(r'`([^`]+)`')
+
+
+def _new_instrument_claim(cells: list[str]) -> str | None:
+    """The rest of the cell a row marks `new-instrument:`, or None for an unmarked row.
+
+    Read from whichever cell BEGINS with the marker — the read-what-it-is rule `_ledger_anchor`
+    applies — so a ledger with extra columns is read correctly; a finding id, a `§N` or an anchor
+    cannot begin with it.
+    """
+    for cell in cells:
+        match = _NEW_INSTRUMENT_RE.match(cell.strip())
+        if match is not None:
+            return match.group(1).strip()
+    return None
+
+
+def _records_command_and_output(claim: str) -> bool:
+    """True if the claim carries a backticked command (two or more tokens) with output after it."""
+    for span in _CODE_SPAN_RE.finditer(claim):
+        if len(span.group(1).split()) >= 2:
+            return re.search(r'\w', claim[span.end() :]) is not None
+    return False
+
+
 def _fold_claimed(cert_body: str) -> bool:
     """R1 trigger: True if the certification's 'folded in' field names a non-trivial fold.
 
@@ -1998,7 +2027,8 @@ def _check_fold_ledger(
     confirmation must resolve, land on content, and — when it points into this spec and the row
     names a `§N` — land inside that section (`_ledger_landing`); it does not judge the fold's
     correctness, which stays Part B (ADR-0002). The blank/prose-cell case is exactly what A6 does
-    not catch.
+    not catch. A row marked `new-instrument:` also owes a backticked command and its output in that
+    cell (E6a); the marker is new, so the arm is verify-when-present and no older ledger fails it.
     """
     if cert_body is None:
         return [], []
@@ -2049,6 +2079,21 @@ def _check_fold_ledger(
                 )
             )
             continue
+        # E6a, verify-when-present: only a row marked `new-instrument:` owes its grounding command,
+        # and the anchor below is still checked — a row can be wrong in both ways at once.
+        claim = _new_instrument_claim(cells)
+        if claim is not None and not _records_command_and_output(claim):
+            violations.append(
+                Violation(
+                    where,
+                    f'the row is marked `new-instrument:` but its confirmation reads {claim!r} — a '
+                    'fold that introduces a new test instrument records the command that read the '
+                    "finding's consumed_input chain and what it printed, not a word. The form is "
+                    f'{_NEW_INSTRUMENT_FORM}, the command a backticked span of two or more tokens, '
+                    'e.g. new-instrument: `git grep -n load_run_id src/` -> 1 hit, src/run.py:41.',
+                    'A12',
+                )
+            )
         match = _ledger_anchor(cells)
         if match is None:
             read = re.sub(r'\*', '', cells[2]).strip()

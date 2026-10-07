@@ -776,6 +776,83 @@ def test_fold_ledger_row_anchored_on_a_blank_line_of_another_file_fails_a12(tmp_
     assert any(v.check == 'A12' and 'blank' in v.message.lower() for v in result.violations)
 
 
+# --- E6a: a new-instrument row records its grounding command -----------------
+#
+# Folds that wrote a new test instrument by analogy carried the defect class into the next round,
+# four rounds running in one field report, while each row's Confirmed cell said "yes". A row that
+# introduces a new instrument now says so with a `new-instrument:` marker, and A12 holds the rest of
+# that cell to a backticked command and the output it printed. Unmarked rows are untouched.
+
+_INSTRUMENT_FORM = 'new-instrument: `<command>` <its output>'
+
+
+def _instrument_ledger(tmp_path, confirmed: str):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    spec = READY_SPEC + _ledger(f'| FM-1 | §1 | `mod.py:2` | {confirmed} |\n')
+    return check_spec_ready(_write(tmp_path, spec))
+
+
+@pytest.mark.parametrize(
+    'rest',
+    [
+        'yes',
+        'done',
+        '`pytest`',  # one token is a name, not a command
+        '`git grep -n load_run_id src/`',  # a command with nothing after it records no output
+    ],
+)
+def test_fold_ledger_new_instrument_row_without_command_and_output_fails_a12(tmp_path, rest):
+    result = _instrument_ledger(tmp_path, f'new-instrument: {rest}')
+    assert not result.passed, f'a new-instrument row confirmed by {rest!r} passed the gate'
+    hits = [v for v in result.violations if v.check == 'A12' and 'new-instrument' in v.message]
+    assert hits, [(v.check, v.message) for v in result.violations]
+    assert _INSTRUMENT_FORM in hits[0].message, hits[0].message
+    assert rest in hits[0].message
+
+
+@pytest.mark.parametrize(
+    'confirmed',
+    [
+        'new-instrument: `git grep -n load_run_id src/` → 1 hit, src/run.py:41',
+        '**new-instrument:** `uv run pytest tests/test_run.py -q` → 3 passed',
+        'new-instrument: ran `rg -n "a | b" src/` and it printed 0 matches',
+    ],
+)
+def test_fold_ledger_new_instrument_row_with_command_and_output_passes_a12(tmp_path, confirmed):
+    result = _instrument_ledger(tmp_path, confirmed)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_fold_ledger_unmarked_row_keeps_its_one_word_confirmation_a12(tmp_path):
+    # Verify-when-present: every ledger written before the marker existed confirms with a word.
+    result = _instrument_ledger(tmp_path, 'yes')
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+def test_the_templates_fold_ledger_documents_the_new_instrument_marker_a12(tmp_path):
+    # CONTRIBUTING 2a: the rule is read through the shipped template's own ledger block, so the
+    # documented marker is the one the gate reads, and the line that documents it neither breaks
+    # the table parse beneath it nor fires a check of its own in a filled-in spec. The form is
+    # stated in prose there (a nested backtick span would leave `<…>` exposed to A3).
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    found = re.search(r'^### Fold ledger\n.*?(?=^### )', template, re.MULTILINE | re.DOTALL)
+    assert found is not None, 'spec-template.md carries no `### Fold ledger` block'
+    block = found.group(0)
+    prose = ' '.join(block.split())
+    assert '`new-instrument:`' in prose and 'backticked command' in prose, prose
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text('line one\nline two\n', encoding='utf-8')
+    for confirmed, ok in (
+        ('new-instrument: `git grep -n two mod.py` → mod.py:2', True),
+        ('new-instrument: yes', False),
+    ):
+        row = f'| FM-1 | §1 | `mod.py:2` | {confirmed} |\n'
+        spec = READY_SPEC + '\n' + block.rstrip('\n') + '\n' + row
+        result = check_spec_ready(_write(tmp_path, spec))
+        assert result.passed is ok, (confirmed, [(v.check, v.message) for v in result.violations])
+
+
 # --- T1.4: a confirmation cell may name a RANGE ------------------------------
 #
 # The standing field ask: a reviewer confirming a fold that spans several lines had to either
