@@ -15,6 +15,14 @@ that passed on 0.21.0 can newly fail. Body budgets are unchanged: directive 1,66
 notes 499/500; agent wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum
 61/61.
 
+### Changed
+
+- **A consumer project's name is gone from the published tree.** Two `docs/backlog.md` citations,
+  a report stem and a cross-repository anchor, now use the `…` redaction the backlog's own
+  citation convention prescribes, and the adversarial corpus's `A6-absent-sibling` mutant cites
+  `../sibling/src/tinyetl/regions.py:3`. The mutant only needs a path that leaves the repository,
+  and it still fires exactly A6.
+
 ### Fixed
 
 - **A13 reads a leading `none` as "no register declared", whatever follows it.** The spec

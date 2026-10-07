@@ -504,7 +504,7 @@ recorded here explicitly. `[triage]`
 
 - **Cause / evidence:** "for every gate the spec introduces, enumerate the writes the spec and its
   named siblings introduce and state whether the gate admits each; a gate that would fail on the
-  spec's own mechanism is a BLOCKER." Proposed from a miss (`2026-08-16-fin-model-review`), then
+  spec's own mechanism is a BLOCKER." Proposed from a miss (`2026-08-16-…-review`), then
   injected by hand into every subsequent round and hit **four times in four rounds with no false
   fire** — including a reviewer building the enumeration table and showing 8 of a spec's 9 gates
   failing on its own planned writes (`2026-08-23-stg1-shell-phase2`, `2026-08-24-swap-report-pipe`,
@@ -873,7 +873,7 @@ recorded here explicitly. `[triage]`
 
 ### KEEL-B55 — Cross-repo anchors are neither resolved nor verified, and multi-repo is the normal case
 
-- **Cause / evidence:** two reports plus a third of the same family. A `../fin-vault/…:97` anchor is
+- **Cause / evidence:** two reports plus a third of the same family. A `../…/…:97` anchor is
   not verified at all, and both pre-mortems in that wave found line drift in the author's own
   cross-repo citations (`2026-08-25-wave-ab-specs` [MED], `2026-08-25-rrw3-range-spec §Misses`
   [LOW]); the vendored-twin mis-resolution 0.16.0 just closed is the same ambiguity read from the
