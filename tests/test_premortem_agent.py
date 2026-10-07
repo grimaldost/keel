@@ -61,6 +61,8 @@ OUTPUT_CONTRACT = (
     'target_section',
     'disconfirming_test',
     'CONDITIONAL-CERTIFY',
+    '.premortem.md',
+    'keel spec-hash',
 )
 
 

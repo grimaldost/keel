@@ -224,6 +224,16 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   certifies the decision rule distinguishes no-verdict from each null and states the exact boundary.
   The power precheck (Reps / power & MEWD) remains unchanged. Template-only addition; no check or
   parser changes, so no spec in flight can newly fail.
+- **Reviewer's returned message opens with the save instruction** (SW12, 2026-10-06 triage). The
+  pre-mortem agent wrapper rewrites the output invariant for B2 (the returned artifact that the
+  caller saves verbatim). The message now opens with the save path (`<spec-stem>.premortem.md`, or
+  `-r<N>` for a later round), followed by the directive to stamp `keel spec-hash` after the last
+  fold and before editing. A missing directive-file report, which the agent names when the template
+  is unreachable, is now reported on the second line (after the save path), not the first. The agent
+  wrapper's word budget stays within 550 (now 531, was 499 before this and adjacent rewrites). Tests
+  add `.premortem.md` and `keel spec-hash` to the output-contract tokens. The template file
+  `pre-mortem-prompt.md` is unchanged. Class: output contract only; no prompt, template, or check
+  changes, so no spec in flight can newly fail.
 
 ### Changed
 

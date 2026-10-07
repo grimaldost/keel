@@ -17,7 +17,7 @@ else, so the two can never drift.
 
 If the path does not resolve (the variable is unset outside a plugin install), Glob for
 `**/templates/pre-mortem-prompt.md` in the project and in the keel install before falling back.
-If no copy is reachable, say so in your first line and review under the task and output contract
+If no copy is reachable, say so in your second line and review under the task and output contract
 below — a pass that silently invented its own directives is worse than one that names what it
 could not read.
 
@@ -51,4 +51,6 @@ These hold whatever revision of the directive file you read — a caller greps t
   `PREMORTEM-VERDICT: <CERTIFIED | CONDITIONAL-CERTIFY | NEEDS-REVISION>`, and state your reviewer
   identity after the verdict token on that same line (`pre-mortem-review@<keel version>`, from the
   identity line above), so a cached or stale copy self-announces on every verdict it returns.
-- Your final message is the artifact the caller saves verbatim (`<spec-stem>.premortem.md`, B2).
+- Your final message is the artifact the caller saves verbatim (B2). Begin it with the save path
+  (`<spec-stem>.premortem.md`, or `-r<N>` for a later round), followed by the line: "After the
+  last fold, stamp `keel spec-hash` before editing this file." Then the findings and verdict.
