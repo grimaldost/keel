@@ -347,8 +347,8 @@ wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum 61/6
   it belongs to) and names and audits or schedules existing members of that family. Step 5's
   landing prose becomes three states: targets editable in-context (the method repo or project-bound
   copies), targets out of reach (handoff to the method's feedback intake), and a pass over the
-  method's own inbox (in-repo mode, where rows land in the document and the release process lands
-  them in the method's backlog or CHANGELOG). The handoff H1 rule that prohibits an H1 beginning
+  method's own inbox (in-repo mode, where the pass ends at the triage document and the release
+  process lands its rows in the method's backlog or CHANGELOG). The handoff H1 rule that prohibits an H1 beginning
   `# Triage —` is preserved intact. Template-only changes; no check or parser changes, so no spec
   in flight can newly fail.
 

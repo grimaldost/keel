@@ -47,8 +47,8 @@ compounds. A series is not "done reflecting" until recurring traps are promoted.
      feedback report travels — and record project-side only the pointer to it. Recording the
      promotions project-side and stopping is the write-only half-state.
    - **Pass over the method's own inbox** — for in-repo mode where the method maintains its
-     own docs/feedback intake: review and land rows there, which ends at the triage document;
-     the release process lands rows in the method's own backlog or CHANGELOG.
+     own docs/feedback intake: the pass ends at the triage document; the release process lands
+     its rows in the method's backlog or CHANGELOG.
 
    A CHANGELOG entry is not this step's job: it is written in the method repo at build time,
    when a promotion ships — never in the consuming project. A promotion row **closes** only
