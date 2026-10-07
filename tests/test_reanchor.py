@@ -325,3 +325,88 @@ def test_cli_by_content_on_an_unknown_ref_says_so(tmp_path):
     result = runner.invoke(app, ['re-anchor', str(spec), '--by-content', 'no-such-ref'])
     assert result.exit_code == 0
     assert 'no-such-ref' in result.output
+
+
+# --- SW2/SW3: a correct anchor stays, a self-quoting row is not its own target, bytes survive --
+
+
+SELF_QUOTING = '| FM-1 | §1 | `spec.md:7` `### §1 Add the widget` | yes |\n'
+
+
+def test_a_correct_self_quoting_row_is_left_alone(tmp_path):
+    # The row quotes the line it cites, so the snippet is on two lines of the spec (the target and
+    # the row itself). The claimed line already carries it: nothing to repoint, nothing refused.
+    spec = _spec(tmp_path, SELF_QUOTING)
+    before = spec.read_bytes()
+    report = reanchor(spec)
+    assert report.applied == []
+    assert report.refused == []
+    assert spec.read_bytes() == before
+
+
+def test_cli_check_says_nothing_to_repoint_for_a_correct_self_quoting_row(tmp_path):
+    spec = _spec(tmp_path, SELF_QUOTING)
+    result = runner.invoke(app, ['re-anchor', str(spec), '--check'])
+    assert result.exit_code == 0
+    assert 'nothing to repoint' in result.output
+    assert 'left' not in result.output
+
+
+def test_a_self_quoting_row_whose_target_moved_is_repointed_to_the_target(tmp_path):
+    # Never to the row itself: the row is the citation, not the thing cited.
+    rows = SELF_QUOTING.replace('spec.md:7', 'spec.md:5')
+    spec = _spec(tmp_path, rows)
+    report = reanchor(spec)
+    assert [(r.anchor, r.corrected) for r in report.applied] == [('spec.md:5', 'spec.md:7')]
+    assert report.refused == []
+    assert '`spec.md:7` `### §1 Add the widget`' in spec.read_text(encoding='utf-8')
+
+
+def test_an_anchor_whose_snippet_is_on_the_claimed_line_and_elsewhere_is_left_alone(tmp_path):
+    spec = _spec(tmp_path, '| FM-1 | §1 | `mod.py:6` `def load_orders(rows):` | yes |\n')
+    (tmp_path / 'mod.py').write_text(
+        MODULE + '\ndef load_orders(rows):  # a second definition\n    return rows\n',
+        encoding='utf-8',
+    )
+    before = spec.read_bytes()
+    report = reanchor(spec)
+    assert report.applied == []
+    assert report.refused == []
+    assert spec.read_bytes() == before
+
+
+def _spec_bytes(tmp_path, newline):
+    """The drifted fixture written byte-for-byte with `newline`, whatever the host OS."""
+    (tmp_path / '.git').mkdir(exist_ok=True)
+    (tmp_path / 'mod.py').write_bytes(MODULE.replace('\n', newline).encode('utf-8'))
+    spec = tmp_path / 'spec.md'
+    spec.write_bytes((SPEC_HEAD + DRIFTED).replace('\n', newline).encode('utf-8'))
+    return spec
+
+
+def test_an_lf_spec_gains_no_carriage_returns_and_changes_only_the_repointed_line(tmp_path):
+    spec = _spec_bytes(tmp_path, '\n')
+    before = spec.read_bytes()
+    assert reanchor(spec).applied
+    after = spec.read_bytes()
+    assert b'\r\n' not in after
+    changed = [
+        (old, new)
+        for old, new in zip(before.split(b'\n'), after.split(b'\n'), strict=True)
+        if old != new
+    ]
+    assert changed == [
+        (
+            DRIFTED.rstrip('\n').encode('utf-8'),
+            DRIFTED.rstrip('\n').replace('mod.py:3', 'mod.py:6').encode('utf-8'),
+        )
+    ]
+
+
+def test_a_crlf_spec_keeps_a_carriage_return_on_every_line(tmp_path):
+    spec = _spec_bytes(tmp_path, '\r\n')
+    before = spec.read_bytes()
+    assert reanchor(spec).applied
+    after = spec.read_bytes()
+    assert after.count(b'\n') == after.count(b'\r\n') == before.count(b'\r\n')
+    assert b'`mod.py:6`' in after

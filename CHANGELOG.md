@@ -9,6 +9,23 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 
 Placeholder section for release 0.21.0 entries. Release date to be updated at merge.
 
+### Fixed
+
+- **`keel re-anchor` leaves a correct anchor alone** (SW2, 2026-10-06 triage). A ledger row that
+  quotes the line it cites carries its own snippet, so the snippet sat on two lines of the spec and
+  the pass refused the row as "on no line, or on several" — `--check` printed the refusal for an
+  anchor that was right. The claimed line is now tested first, by the window test A12 applies, and
+  an anchor whose snippet is still there is kept even when the snippet also appears elsewhere. When
+  the anchor cites the spec itself, the citing row is excluded from the search, so a moved target
+  is repointed to the target and never to the row. Class: a repair that refuses and rewrites less;
+  no check changes, so no spec in flight can newly fail.
+- **`keel re-anchor` preserves the spec's line endings** (SW3, same triage). The spec was read with
+  universal newlines and written back with the platform's, so an LF spec re-anchored on Windows
+  came back with every line CRLF. The pass now reads and writes with `newline=''`, so only the
+  repointed lines differ. The shared reader `_read_spec_text` gains an optional `newline` keyword;
+  its default is the old read, so check-ready results, the anchor regexes and `spec-hash` are
+  untouched.
+
 ## [0.20.0] - 2026-09-13
 
 The method gated the spec and had no gate on the artifact that actually runs. It has one now — and

@@ -160,8 +160,12 @@ def _bad_anchor_platform(path: str) -> str | None:
     return None
 
 
-def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
-    """Read a spec as UTF-8 text, or raise the not-runnable FileNotFoundError contract."""
+def _read_spec_text(spec_path: Path, *, purpose: str, newline: str | None = None) -> str:
+    """Read a spec as UTF-8 text, or raise the not-runnable FileNotFoundError contract.
+
+    The default is the universal-newline read every gate has always used. A caller that writes the
+    spec back passes `newline=''` to receive the line endings as they are on disk.
+    """
     if not spec_path.is_file():
         raise FileNotFoundError(
             format_error(
@@ -172,7 +176,9 @@ def _read_spec_text(spec_path: Path, *, purpose: str) -> str:
             )
         )
     try:
-        return spec_path.read_text(encoding='utf-8')
+        # open(), not Path.read_text(newline=): that keyword needs Python 3.13, we support 3.11.
+        with open(spec_path, encoding='utf-8', newline=newline) as handle:
+            return handle.read()
     except (UnicodeDecodeError, OSError) as exc:
         raise FileNotFoundError(
             format_error(
@@ -767,10 +773,16 @@ def _basename_matches(base: Path, path: str) -> tuple[list[Path], list[Path]]:
 _STRONG_SNIPPET_CHARS = 12
 
 
-def _snippet_line(lines: list[str], snippet: str) -> int | None:
-    """The one line carrying this snippet, or None when it is on none or on several."""
+def _snippet_line(lines: list[str], snippet: str, *, exclude: int | None = None) -> int | None:
+    """The one line carrying this snippet, or None when it is on none or on several.
+
+    `exclude` is a 1-based line that does not count: a ledger row that quotes its own target is
+    itself a line carrying the snippet, and it is the citation, not the thing cited.
+    """
     wanted = ' '.join(snippet.split())
-    found = [n for n, line in enumerate(lines, 1) if wanted in ' '.join(line.split())]
+    found = [
+        n for n, line in enumerate(lines, 1) if n != exclude and wanted in ' '.join(line.split())
+    ]
     return found[0] if len(found) == 1 else None
 
 
