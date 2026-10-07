@@ -15,6 +15,21 @@ that passed on 0.21.0 can newly fail. Body budgets are unchanged: directive 1,66
 notes 499/500; agent wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum
 61/61.
 
+### Fixed
+
+- **A13 reads a leading `none` as "no register declared", whatever follows it.** The spec
+  template's header line is the menu `- **Requirements:** none | <path to the register, …>`, and
+  `_register_path` compared the WHOLE value with `none`, so a fresh `keel new-spec` stamp fell
+  through to the path branch and failed A13 with "a requirements register at 'none'" on top of
+  its expected placeholder findings. The check now reads the leading token, as it already did for
+  a path, and treats `none`, `n/a`, `-` or `—` there (trailing `.`, `,`, `;` or `:` ignored) as no
+  register, so `none (the owner gave no standing orders)` declares none too. The template is
+  unchanged: moving the alternatives into its italic note would cost contract-note words at
+  499/500. Tests: four header values with trailing text, and the reproduction end to end
+  (`keel new-spec`, then `keel check-ready` on the stamp, with no A13 finding). Class: a
+  relaxation; the values read as "no register" are a strict superset of 0.21.0's and every other
+  value resolves to the same path, so no spec that passed on 0.21.0 can newly fail.
+
 ## [0.21.0] - 2026-10-07
 
 New gate checks and fold-ledger structure, a handful of check relaxations, template and agent

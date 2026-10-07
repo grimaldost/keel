@@ -9,6 +9,8 @@ is right — that stays Part B. It makes the omission impossible and refuses the
 session must not write for itself.
 """
 
+import pytest
+
 from keel import __version__
 from keel.check_ready import check_spec_ready, register_ids
 
@@ -105,6 +107,41 @@ def test_requirements_none_is_a_declaration_of_no_register(tmp_path):
     )
     result = check_spec_ready(_write(tmp_path, spec, register_text=None))
     assert result.passed, [(v.check, v.message) for v in result.violations]
+
+
+@pytest.mark.parametrize(
+    'value',
+    [
+        'none | <path to the register, e.g. docs/requirements/orders.md>',
+        'none (the owner gave no standing orders)',
+        'None. Nothing outside this spec was ordered.',
+        'n/a — a one-off change',
+    ],
+)
+def test_a_leading_none_declares_no_register_whatever_follows(tmp_path, value):
+    # The template's own header line offers `none | <path …>` as a menu, so a fresh stamp read
+    # its first word as a path and failed A13 with "a requirements register at 'none'".
+    spec = SPEC.replace(
+        '- **Requirements:** docs/requirements/orders.md', f'- **Requirements:** {value}'
+    )
+    result = check_spec_ready(_write(tmp_path, spec, register_text=None))
+    assert _a13(result) == [], [v.message for v in _a13(result)]
+    assert all(probe.candidates == 0 for probe in result.probes if probe.check == 'A13')
+
+
+def test_a_fresh_new_spec_stamp_declares_no_register(tmp_path):
+    # End to end, as the field met it: `keel new-spec`, then `keel check-ready` on the stamp.
+    # The stamp still fails on its unfilled placeholders; A13 must not be one of the reasons.
+    from typer.testing import CliRunner
+
+    from keel.cli import app
+
+    spec = tmp_path / 'spec.md'
+    runner = CliRunner()
+    assert runner.invoke(app, ['new-spec', str(spec)]).exit_code == 0
+    assert _a13(check_spec_ready(spec)) == []
+    gated = runner.invoke(app, ['check-ready', str(spec)])
+    assert 'requirements register at' not in gated.output, gated.output
 
 
 def test_a_declared_register_that_does_not_resolve_fails(tmp_path):
