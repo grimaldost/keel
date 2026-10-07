@@ -10,7 +10,10 @@ block stays tamper-evident — and the list of spans the hash removes stays at t
 pressure this exists to relieve.
 """
 
+import re
+
 from keel.check_ready import check_spec_ready, spec_hash, spec_hash_without_amendments
+from keel.templates import templates_root
 
 NL = chr(10)
 
@@ -289,3 +292,55 @@ def test_amendment_review_subsection_does_not_affect_certification(tmp_path):
     # No W7 because the certified content is intact (the Amendment review is part of the
     # Pre-mortem certification section which is excluded from the hash)
     assert 'W7' not in warns and 'W5' not in warns
+
+
+# --- the template's own Edits sections field is read by W5 -----------------------------------
+# `### Amendment review` inside the certification carries an `Edits sections:` field. W5 reads that
+# field (the latest subsection) as well as an `## Amendment` span, so an author who fills the
+# template's own field gets the declared-amendment message and not the generic one.
+
+_EDITS_FIELD_RE = re.compile(r'(?m)^- \*\*Edits sections:\*\*.*$')
+
+
+def _template_amendment_review(edits=None):
+    """The template's own `### Amendment review` subsection, its Edits field filled when given."""
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    start = template.index('### Amendment review')
+    block = template[start : template.index(NL + '---', start)]
+    if edits is None:
+        return block
+    block, count = _EDITS_FIELD_RE.subn(f'- **Edits sections:** {edits}', block)
+    assert count == 1
+    return block
+
+
+def _edit_section_two_in_cert(spec, review):
+    """Certify, edit section 2 afterwards, then record `review` at the end of the certification."""
+    certified_hash = spec_hash(spec)
+    edited = spec.read_text(encoding='utf-8').replace('Build the gadget.', 'Build the new gadget.')
+    spec.write_text(edited.rstrip(NL) + NL + NL + review, encoding='utf-8')
+    _certify(spec, certified_hash)
+
+
+def test_the_templates_own_edits_field_is_named_in_w5(tmp_path):
+    spec = _two_sections(tmp_path)
+    _edit_section_two_in_cert(spec, _template_amendment_review('§2'))
+    message = _w5_message(spec)
+    assert 'declared amendment' in message and '§2' in message
+    assert 'earlier revision' not in message
+
+
+def test_the_templates_unfilled_edits_field_declares_nothing(tmp_path):
+    spec = _two_sections(tmp_path)
+    _edit_section_two_in_cert(spec, _template_amendment_review())
+    message = _w5_message(spec)
+    assert 'earlier revision' in message and 'declared amendment' not in message
+
+
+def test_only_the_latest_amendment_review_declares_edits(tmp_path):
+    spec = _two_sections(tmp_path)
+    first = _template_amendment_review('§1')
+    second = _template_amendment_review('§2').replace('round <N>', 'round 2')
+    _edit_section_two_in_cert(spec, first + NL + NL + second)
+    message = _w5_message(spec)
+    assert '§2' in message and '§1' not in message

@@ -263,26 +263,38 @@ _EDITS_SECTIONS_REF_RE = re.compile(r'§\s*\d+(?:\.\d+)*')
 
 
 def declared_amendment_edits(spec_path: Path) -> list[str]:
-    """The sections an `## Amendment` declares it edits, from its `Edits sections:` line.
+    """The sections an amendment declares it edits, from its `Edits sections:` line.
 
-    The line is `- **Edits sections:** §2, §4`, read from any amendment span (fenced text masked, as
-    for the hash) and from nowhere else. Only the `§N` references in it count; a line naming none
-    declares nothing. This is a DECLARATION: it is returned so a message can quote it, and nothing
-    compares it with what changed, so it never becomes a recomputed claim like W7's.
+    The line is `- **Edits sections:** §2, §4`, read from two homes (fenced text masked, as for the
+    hash) and from nowhere else: any `## Amendment` span, and the latest `### Amendment review`
+    subsection inside `## Pre-mortem certification` (the field the spec template carries; the
+    latest one in document order supersedes earlier ones). Only the `§N` references in it count; a
+    line naming none, such as the template's unfilled placeholder, declares nothing. This is a
+    DECLARATION: it is returned so a message can quote it, and nothing compares it with what
+    changed, so it never becomes a recomputed claim like W7's.
     """
     raw = _read_spec_text(spec_path, purpose='amendment declaration')
     refs: list[str] = []
-    in_amendment = False
+    review_refs: list[str] = []
+    in_amendment = in_cert = in_review = False
     for masked, line in zip(_mask_fenced(raw).splitlines(), raw.splitlines(), strict=True):
-        if re.match(r'^##[ 	]+\S', masked):
+        if re.match(r'^##[ \t]+\S', masked):
             in_amendment = _AMENDMENT_HEADING_RE.match(masked) is not None
-        elif in_amendment:
+            low = masked.lower()
+            in_cert = 'pre-mortem' in low and 'certification' in low
+            in_review = False
+        elif in_cert and re.match(r'^###[ \t]+\S', masked):
+            in_review = re.match(r'^###[ \t]+amendment[ \t]+review\b', masked, re.I) is not None
+            if in_review:
+                review_refs = []  # a later subsection supersedes the earlier ones
+        elif in_amendment or in_review:
             declared = _field(line, 'edits sections')
             for ref in _EDITS_SECTIONS_REF_RE.findall(declared):
                 ref = re.sub(r'\s+', '', ref)
-                if ref not in refs:
-                    refs.append(ref)
-    return refs
+                target = refs if in_amendment else review_refs
+                if ref not in target:
+                    target.append(ref)
+    return refs + [ref for ref in review_refs if ref not in refs]
 
 
 def _hash_over(spec_path: Path, *, drop_amendments: bool) -> str:
