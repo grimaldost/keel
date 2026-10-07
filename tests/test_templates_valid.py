@@ -49,6 +49,10 @@ REQUIRED_SECTIONS = {
         'Feasibility-grounding ran FIRST',
         'Instrument defeatability',
         'pre-registered',
+        'Producers and pinned literals (measured)',
+        "Heaviest downstream consumer's suite",
+        'Output shape a consumer reads',
+        "Heaviest downstream consumer's tests gate the change",
     ],
     'review-checklist.md': [
         'Scope',

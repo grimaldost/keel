@@ -205,6 +205,15 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   and the PR should paste that command's output. This ensures that readers can verify how the
   disclosed facts were derived. Template-only change; no logic, no check changes, so no spec in
   flight can newly fail.
+- **The data-pipeline design sheet names producers, consumers, and output shape** (SW11, Q7e,
+  2026-10-06 triage). The design sheet for `Profile: data-pipeline` specs gains three author-filled
+  fields: 'Producers and pinned literals (measured)' (each producer writing what the spec governs,
+  each gate pinning a count or literal over it, with command and output), 'Heaviest downstream
+  consumer's suite' (the consumer whose tests gate the change, not only the library's own), and
+  'Output shape a consumer reads' (columns the frozen contract pins, passthroughs included). The
+  Definition-of-Ready gains a matching reviewer item: 'Heaviest downstream consumer's tests gate
+  the change' (the reviewer names the consumer's test suite gating the load, and reviews output-shape
+  coverage). Template-only addition; no check or parser changes, so no spec in flight can newly fail.
 
 ### Changed
 

@@ -98,6 +98,9 @@ Part A and multiple blind rounds.
 - **Read-side cutover check:** <what DISCRIMINATES the new read path from the old one; a check both paths pass proves nothing>
 - **Pinned clocks:** <every clock pin the spec fixes, and what each read predicate admits AT those values>
 - **Closed vocabularies consumed:** <each staged column read by an enum or accepted-values list, and the owner of that list>
+- **Producers and pinned literals (measured):** <each producer writing what the spec governs, and each gate pinning a count or literal over it, with the command and its output>
+- **Heaviest downstream consumer's suite:** <the consumer whose tests gate the change, not only the library's own>
+- **Output shape a consumer reads:** <the columns the frozen contract pins, passthroughs included>
 ```
 
 ### The reviewer's items (Definition of Ready, Part B)
@@ -118,3 +121,7 @@ Part A and multiple blind rounds.
 - [ ] **Every staged literal is checked against the closed vocabulary that OWNS it** — the enum's
       member list or the accepted-values set, read from the owner rather than from the spec. A
       value minted upstream against a closed vocabulary ships until first consumption raises.
+- [ ] **Heaviest downstream consumer's tests gate the change** — the reviewer named the consumer
+      whose test suite gates the load (not only the library's own gating tests), and reviewed its
+      output-shape coverage: the columns the frozen contract pins, passthroughs included, are all
+      tested by some member of that suite.
