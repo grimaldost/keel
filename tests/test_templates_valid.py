@@ -324,3 +324,31 @@ def test_review_checklist_has_exactly_ten_items():
         f'review-checklist.md has {items} checkable items; expected 10. '
         'If the count changed intentionally, update this test and record the change in CHANGELOG.md'
     )
+
+
+def test_definition_of_done_has_exactly_seventeen_items():
+    """The Definition of Done carries exactly 17 checkable items (E4b).
+
+    When the measured count changes, this test must be updated and the change
+    recorded in CHANGELOG.md under an appropriate entry (Added/Changed/Fixed).
+    The count of 17 is measured from the template's `- [ ]` markers.
+    """
+    text = (templates_root() / 'definition-of-done.md').read_text(encoding='utf-8')
+    items = len(re.findall(r'^\s*-\s*\[\s*\]\s', text, re.MULTILINE))
+    assert items == 17, (
+        f'definition-of-done.md has {items} checkable items; expected 17. '
+        'If the count changed intentionally, update this test and record the change in CHANGELOG.md'
+    )
+
+
+def test_definition_of_done_documents_dictated_disclosure():
+    """The DoD's red-companion item documents that dictated disclosures carry their command (E4b).
+
+    A disclosure the spec dictates must carry the command that establishes it,
+    and the PR should paste that command's output.
+    """
+    text = (templates_root() / 'definition-of-done.md').read_text(encoding='utf-8')
+    needle = 'disclosure the spec dictates carries the command'
+    assert _contains(text, needle), (
+        f'definition-of-done.md red-companion item missing disclosure clause: {needle!r}'
+    )

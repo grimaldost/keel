@@ -199,6 +199,12 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   not an italic note, so contract notes stay at 499/500 and nothing is displaced; the core template
   is untouched. Template tests green. Class: a template-only addition; no check or parser changes,
   so no spec in flight can newly fail.
+- **The Definition-of-Done's red-companion item documents dictated disclosure commands** (E4b,
+  2026-10-06 triage). The DoD item that enforces red companions has been extended to state that
+  when a spec dictates a disclosure, the disclosure must carry the command that established it,
+  and the PR should paste that command's output. This ensures that readers can verify how the
+  disclosed facts were derived. Template-only change; no logic, no check changes, so no spec in
+  flight can newly fail.
 
 ### Changed
 

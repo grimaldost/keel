@@ -24,7 +24,8 @@ observes, and nothing constrained what a gate must observe.
       file, not a mutation described in a commit message, not a reverted local plant. Four series
       in the audit accepted prose as proof, and one of them cited a mutation that had come back
       **green**. If the red cannot be re-run by the gate, nothing has been proven to anyone who
-      was not watching.
+      was not watching. A disclosure the spec dictates carries the command that establishes it,
+      and the PR pastes that command's output.
 - [ ] **A change that adds to a counted set pins that set's inventory** — tests, bindings,
       relations, gate lines. Gates observe absence-of-failure, so a deliverable that never arrives
       is indistinguishable from one that works: a pinned deliverable vanished entirely from one PR
