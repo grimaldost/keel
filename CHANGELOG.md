@@ -133,6 +133,31 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   italic notes, so the contract notes stay at 499/500 and nothing is displaced; the core template is
   untouched. Class: verify-when-present, an optional field that only adds text to messages that
   already fire, so no spec in flight can newly fail.
+- **`keel check-ready` quotes each open condition of a CONDITIONAL-CERTIFY** (W9, Q5a, KEEL-B15,
+  2026-10-06 triage). In a field report, an operator-accepted CONDITIONAL-CERTIFY named a condition
+  that gated a later section, the condition was still open when that section's work began, and
+  the gate printed only B1's conditional WARN, which names the Operator but no condition. The full
+  spec template gains a `### Conditions` subsection after `### Fold ledger`, which stays the first
+  table of the certification, with the table `| Gates | Condition | Status | Evidence |`: Gates is
+  the §N or commit the condition must clear before, Status is `open`, `met` or `waived`, and
+  Evidence is what discharged it. When the verdict head is CONDITIONAL-CERTIFY, W9 warns once per
+  row whose Status does not lead with `met` or `waived`, and quotes the row verbatim; an empty
+  Status, or a row that stops before the column, counts as open. The Status column is found by its
+  header name. With every row met or waived only B1's WARN prints, and a spec without the table,
+  any other verdict and `--structure-only` leave W9 silent. The table sits inside the
+  certification section, which `spec_hash` excludes, so recording a discharge does not move the
+  hash. The pre-mortem directive's `conditions:` list is untouched. `DOR_CHECK_IDS` gains W9, so
+  the gate ledger's probes carry it; its candidates are the rows under a CONDITIONAL-CERTIFY.
+  `_first_table_rows` now reads through a new `_first_table_lines`, which keeps rows as written;
+  the ledger parse is unchanged. The template states the columns in a plain paragraph, so no
+  italic contract-note words are added (499/500, unchanged) and nothing is displaced; the core
+  template is untouched. The Definition-of-Ready reference block gains a W9 line, identical in the
+  full and core templates (54 words, cap 61); it is a lookup line, so no DoR prose is added
+  (942/950, unchanged). The adversarial corpus gains a mutant that makes the clean spec
+  CONDITIONAL-CERTIFY with an Operator and one open condition row; it fires exactly B1 and W9,
+  because B1's conditional WARN is inherent to the verdict. Class: verify-when-present and
+  warn-only; the table is new, so a spec without it is checked exactly as before, exit codes are
+  unchanged, and no spec in flight can newly fail.
 
 ### Changed
 

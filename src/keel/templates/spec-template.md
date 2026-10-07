@@ -177,6 +177,15 @@ it changed, or `none`. A12 fails the row when the cell is empty.
 | Finding | Target section | artifact:line | Confirmed | Sibling sweep |
 |---|---|---|---|---|
 
+### Conditions
+
+Only under a CONDITIONAL-CERTIFY, one row per condition the verdict names. Gates is the §N or
+commit the condition must clear before; Status is `open`, `met` or `waived`; Evidence is what
+discharged it. W9 warns on each row not `met` or `waived`.
+
+| Gates | Condition | Status | Evidence |
+|---|---|---|---|
+
 ### Series review
 
 - **Series reviewer:**

@@ -2586,3 +2586,149 @@ def test_the_templates_waiver_block_is_the_one_the_gate_reads_a6(tmp_path):
     block = found.group(0).rstrip('\n') + f'\n| {_WAIVED} | {_WAIVER_REASON} |\n\n'
     result = check_spec_ready(_waiver_spec(tmp_path, _WAIVED, block))
     assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+
+
+# --- Q5a (KEEL-B15): condition rows under a CONDITIONAL-CERTIFY (W9) -----------------------------
+#
+# The field miss: an operator-accepted CONDITIONAL-CERTIFY named a condition that gated §15, the
+# condition was still open when work reached §15, and the gate printed only B1's generic
+# conditional WARN, so nothing said which work the open condition held back. A `### Conditions`
+# table under the certification records each condition with the section or commit it gates and
+# its status; W9 quotes every row that is not met or waived. A warning: the verdict is already
+# operator-accepted, and the table is new structure, so a spec without it is checked as before.
+
+_W9_HEADER = '| Gates | Condition | Status | Evidence |\n|---|---|---|---|\n'
+_W9_OPEN = '| §15 | the fixture is regenerated from the frozen sample | open |  |'
+_W9_MET = '| §1 | the widget id is stable across runs | met | `make()` test pinned in PR01 |'
+
+
+def _w9_text(rows: list[str] | None, *, verdict: str = 'CONDITIONAL-CERTIFY') -> str:
+    """READY_SPEC with §2 renumbered §15, `verdict` (an Operator when conditional), a named
+    artifact and, when `rows` is not None, a `### Conditions` table holding them."""
+    cert = f'- **Verdict:** {verdict}\n'
+    if verdict == 'CONDITIONAL-CERTIFY':
+        cert += '- **Operator:** the release owner\n'
+    cert += '- **Certification artifact:** `spec.premortem.md`'
+    text = (
+        READY_SPEC.replace('### §2 Wire', '### §15 Wire')
+        .replace('| PR02 | §2 | yes |', '| PR02 | §15 | yes |')
+        .replace('- **Verdict:** CERTIFIED', cert)
+    )
+    if rows is not None:
+        text += '\n### Conditions\n\n' + _W9_HEADER + ''.join(f'{row}\n' for row in rows)
+    return text
+
+
+def _w9_write(tmp_path, text: str, *, verdict: str = 'CONDITIONAL-CERTIFY'):
+    """Write the spec and its saved pass (verdict agreeing, hash current), so B2 stays silent."""
+    (tmp_path / '.git').mkdir(exist_ok=True)
+    spec = _write(tmp_path, text)
+    (tmp_path / 'spec.premortem.md').write_text(
+        f'PREMORTEM-VERDICT: {verdict}\nSpec-hash: {spec_hash(spec)}\n', encoding='utf-8'
+    )
+    return spec
+
+
+def _w9_result(tmp_path, rows: list[str] | None, *, verdict: str = 'CONDITIONAL-CERTIFY'):
+    result = check_spec_ready(_w9_write(tmp_path, _w9_text(rows, verdict=verdict), verdict=verdict))
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+    return result
+
+
+def _w9_probe(result) -> tuple[int, int]:
+    return next((p.candidates, p.fired) for p in result.probes if p.check == 'W9')
+
+
+def test_an_open_condition_gating_a_later_section_is_quoted_w9_and_exits_zero(tmp_path):
+    from typer.testing import CliRunner
+
+    from keel.cli import app
+
+    spec = _w9_write(tmp_path, _w9_text([_W9_MET, _W9_OPEN]))
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    w9 = [w.message for w in result.warnings if w.check == 'W9']
+    assert len(w9) == 1, result.warnings
+    assert w9[0].startswith('WARN: ') and w9[0].endswith(_W9_OPEN), w9[0]
+    assert _w9_probe(result) == (2, 1)
+    run = CliRunner().invoke(app, ['check-ready', str(spec)])
+    assert run.exit_code == 0, run.output
+    assert _W9_OPEN in run.output
+
+
+def test_every_condition_met_or_waived_leaves_only_the_b1_warn(tmp_path):
+    waived = '| abc1234 | the sample data is refreshed | waived | the operator accepts the gap |'
+    result = _w9_result(tmp_path, [_W9_MET, waived])
+    assert [w.check for w in result.warnings] == ['B1'], result.warnings
+    assert _w9_probe(result) == (2, 0)
+
+
+def test_each_open_condition_gives_its_own_warn_w9(tmp_path):
+    second = '| §1 | the CLI help names the widget command | open | |'
+    result = _w9_result(tmp_path, [_W9_OPEN, _W9_MET, second])
+    w9 = [w.message for w in result.warnings if w.check == 'W9']
+    assert len(w9) == 2 and w9[0].endswith(_W9_OPEN) and w9[1].endswith(second), w9
+
+
+@pytest.mark.parametrize(
+    'status',
+    ['met', '**met**', '`met`', 'Met — 2026-10-01', 'waived', 'Waived: the operator accepts it'],
+)
+def test_a_met_or_waived_status_is_discharged_w9(tmp_path, status):
+    row = f'| §15 | the fixture is regenerated from the frozen sample | {status} | PR02 |'
+    result = _w9_result(tmp_path, [row])
+    assert not [w for w in result.warnings if w.check == 'W9'], result.warnings
+
+
+@pytest.mark.parametrize('status', ['open', '', 'done', 'not met', 'metadata pending', 'pending'])
+def test_any_other_status_warns_w9(tmp_path, status):
+    row = f'| §15 | the fixture is regenerated from the frozen sample | {status} |  |'
+    result = _w9_result(tmp_path, [row])
+    w9 = [w.message for w in result.warnings if w.check == 'W9']
+    assert len(w9) == 1 and w9[0].endswith(row), w9
+
+
+def test_a_row_that_stops_before_the_status_column_warns_w9(tmp_path):
+    row = '| §15 | the fixture is regenerated from the frozen sample |'
+    result = _w9_result(tmp_path, [row])
+    w9 = [w.message for w in result.warnings if w.check == 'W9']
+    assert len(w9) == 1 and w9[0].endswith(row), w9
+
+
+def test_a_certified_spec_with_a_conditions_table_is_silent_w9(tmp_path):
+    result = _w9_result(tmp_path, [_W9_OPEN], verdict='CERTIFIED')
+    assert result.warnings == (), result.warnings
+    assert _w9_probe(result) == (0, 0)
+
+
+def test_a_conditional_certify_without_the_table_is_unchanged_w9(tmp_path):
+    result = _w9_result(tmp_path, None)
+    assert [w.check for w in result.warnings] == ['B1'], result.warnings
+    assert _w9_probe(result) == (0, 0)
+
+
+def test_structure_only_does_not_read_the_conditions_w9(tmp_path):
+    spec = _w9_write(tmp_path, _w9_text([_W9_OPEN]))
+    result = check_spec_ready(spec, structure_only=True)
+    assert not [w for w in result.warnings if w.check == 'W9'], result.warnings
+    assert _w9_probe(result) == (0, 0)
+
+
+def test_the_templates_conditions_block_is_the_one_the_gate_reads_w9(tmp_path):
+    # CONTRIBUTING 2a: the scaffold's own block, given one open row, must fire W9 and nothing new.
+    # The fold ledger stays the first table of the certification, so the block follows it.
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    cert = template.split('## Pre-mortem certification', 1)[1]
+    assert cert.index('### Fold ledger') < cert.index('### Conditions'), 'Conditions precede ledger'
+    first_table = next(line for line in cert.splitlines() if line.startswith('|'))
+    assert first_table.startswith('| Finding |'), first_table
+    found = re.search(r'^### Conditions\n.*?(?=^### )', cert, re.MULTILINE | re.DOTALL)
+    assert found is not None, 'spec-template.md documents no `### Conditions` block'
+    block = found.group(0).rstrip('\n') + f'\n{_W9_OPEN}\n'
+    assert _W9_HEADER in block, (
+        'the template table is not `| Gates | Condition | Status | Evidence |`'
+    )
+    result = check_spec_ready(_w9_write(tmp_path, _w9_text(None) + '\n' + block))
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+    assert [w.check for w in result.warnings] == ['B1', 'W9'], result.warnings
+    assert result.warnings[1].message.endswith(_W9_OPEN)

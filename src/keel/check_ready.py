@@ -428,6 +428,9 @@ def _candidate_counts(
         # W8's opportunity is a criterion's grep command that names a path: one with no path, or
         # a criterion with no command, has no scope to compare. Shares `_grep_criteria` with W8.
         'W8': len(_grep_criteria(subsections)),
+        # W9's opportunity is a `### Conditions` row under a CONDITIONAL-CERTIFY: on any other
+        # verdict the table is not read. Shares `_conditional_rows` with W9.
+        'W9': 0 if structure_only else len(_conditional_rows(cert)),
     }
 
 
@@ -513,6 +516,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
         premortem_violations, premortem_warnings = _check_premortem(cert)
         violations += premortem_violations
         warnings += premortem_warnings
+        warnings += _check_conditions(cert)
         if cert is not None:
             artifact_violations, artifact_warnings = _check_certification_artifact(cert, spec_path)
             violations += artifact_violations
@@ -601,27 +605,31 @@ def _table_rows(body: str) -> list[list[str]]:
     return rows
 
 
-def _first_table_rows(body: str) -> list[list[str]]:
-    """Rows of only the FIRST contiguous markdown table in body (header kept, separator dropped).
+def _first_table_lines(body: str) -> list[str]:
+    """Lines of only the FIRST contiguous markdown table in body, stripped (separator dropped).
 
     Unlike `_table_rows`, this stops at the first blank/non-table line after the table starts, so a
     sibling table sharing the same `### Fold ledger` subsection span is not merged in. By template
     convention the ledger is the first table under that heading; a table placed before it is
-    out-of-contract.
+    out-of-contract. The lines are kept as written so a check can quote a row verbatim (W9).
     """
-    rows: list[list[str]] = []
+    lines: list[str] = []
     started = False
     for raw in body.splitlines():
         line = raw.strip()
         if line.startswith('|'):
             started = True
-            cells = _split_cells(line)
-            if all(set(cell) <= set('-: ') for cell in cells):
+            if all(set(cell) <= set('-: ') for cell in _split_cells(line)):
                 continue
-            rows.append(cells)
+            lines.append(line)
         elif started:
             break
-    return rows
+    return lines
+
+
+def _first_table_rows(body: str) -> list[list[str]]:
+    """Rows of only the FIRST contiguous markdown table in body (header kept, separator dropped)."""
+    return [_split_cells(line) for line in _first_table_lines(body)]
 
 
 def _words(text: str) -> list[str]:
@@ -2745,3 +2753,60 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
             )
         )
     return violations, warnings
+
+
+_CONDITIONS_HEADING_RE = re.compile(r'conditions\b', re.IGNORECASE)
+_DISCHARGED = frozenset({'met', 'waived'})
+
+
+def _conditional_rows(cert_body: str | None) -> list[tuple[str, str]]:
+    """(row as written, its Status cell) per `### Conditions` row, under a CONDITIONAL-CERTIFY only.
+
+    The table is `| Gates | Condition | Status | Evidence |`, the first table of the subsection; the
+    Status column is found by its header name, as the ledger's Sibling sweep is, and a row that
+    stops before it, or a table without it, has an empty Status. On any other verdict, or with no
+    such subsection, there is nothing to read: the table is new, so a spec without it owes nothing.
+    """
+    if cert_body is None or _verdict_head(_field(cert_body, 'verdict')) != 'CONDITIONAL-CERTIFY':
+        return []
+    block = next(
+        (sub for title, sub in _subsections(cert_body) if _CONDITIONS_HEADING_RE.match(title)), None
+    )
+    lines = _first_table_lines(block or '')
+    if not lines:
+        return []
+    header = [re.sub(r'[`*]', '', cell).strip().lower() for cell in _split_cells(lines[0])]
+    column = header.index('status') if 'status' in header else None
+    rows: list[tuple[str, str]] = []
+    for line in lines[1:]:
+        cells = _split_cells(line)
+        status = cells[column] if column is not None and column < len(cells) else ''
+        rows.append((line, status))
+    return rows
+
+
+def _check_conditions(cert_body: str | None) -> list[Warning]:
+    """W9 (Q5a, KEEL-B15): each CONDITIONAL-CERTIFY condition not met or waived, quoted verbatim.
+
+    B1 accepts an operator-accepted CONDITIONAL-CERTIFY with one generic WARN, which says nothing
+    about which condition is still open or what work it holds back. In the field an open condition
+    gating a later section went unnoticed when that section's work began. A warning, not a
+    violation: the verdict is already operator-accepted, and the table is verify-when-present.
+    Status is read by its leading word, so `**met**`, `Met — <date>` and `waived: <reason>` are
+    discharged and anything else, an empty cell included, is not.
+    """
+    warnings: list[Warning] = []
+    for row, status in _conditional_rows(cert_body):
+        normalized = re.sub(r'[`*]', '', status).strip().lower()
+        if re.split(r'[^a-z]', normalized, maxsplit=1)[0] in _DISCHARGED:
+            continue
+        shown = f'Status {status!r}' if status else 'no Status'
+        warnings.append(
+            Warning(
+                'W9',
+                f'WARN: a condition of this CONDITIONAL-CERTIFY is not met or waived ({shown}), '
+                'so the work it gates is not cleared — discharge it and record `met` with its '
+                f'evidence, or `waived`: {row}',
+            )
+        )
+    return warnings

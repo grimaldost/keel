@@ -398,3 +398,40 @@ replace = """| Finding | Target section | artifact:line | Confirmed | Sibling sw
 |---|---|---|---|---|
 | FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes | `git grep -n ORDER_COLUMNS src/` -> orders.py only, no line changed |
 | FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes | none |"""
+
+[[mutant]]
+id = "W9-open-condition-under-a-conditional-certify"
+fires = ["B1", "W9"]
+why = "the field miss: an operator-accepted CONDITIONAL-CERTIFY named a condition that gated a later section, the condition was still open when the work reached it, and the gate printed only the generic conditional warning. A conditions table records each condition with what it gates and its status, and an open row is quoted. B1 fires with it because its conditional warning is inherent to the verdict"
+artifact_verdict = "CONDITIONAL-CERTIFY"
+find = """- **Verdict:** CERTIFIED
+- **Certification artifact:** `clean-series.premortem.md`
+- **Date:** 2026-08-11
+- **Post-fold coherence:** re-read after the fold; §2 and §5 still agree on the unit.
+- **Failure modes considered & folded in:** two, both re-anchored below.
+
+### Fold ledger
+
+| Finding | Target section | artifact:line | Confirmed |
+|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |"""
+replace = """- **Verdict:** CONDITIONAL-CERTIFY
+- **Operator:** the data owner
+- **Certification artifact:** `clean-series.premortem.md`
+- **Date:** 2026-08-11
+- **Post-fold coherence:** re-read after the fold; §2 and §5 still agree on the unit.
+- **Failure modes considered & folded in:** two, both re-anchored below.
+
+### Fold ledger
+
+| Finding | Target section | artifact:line | Confirmed |
+|---|---|---|---|
+| FM-1 the filter dropped valid rows | §1 | `src/tinyetl/orders.py:15` | yes |
+| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py:12` | yes |
+
+### Conditions
+
+| Gates | Condition | Status | Evidence |
+|---|---|---|---|
+| §5 | the region display names are confirmed with the data owner before the report renders them | open |  |"""
