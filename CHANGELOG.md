@@ -302,6 +302,17 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   freed by the deletion. The Definition-of-Ready reference block is unchanged, so it remains
   identical in the full and core templates. Class: documentation and process clarification; no
   new checks, so no spec in flight can newly fail.
+- **Reflection-triage procedure gains in-repo mode and family-aware promotions** (E11c, Q8a,
+  2026-10-06 triage). The Inputs section now documents the method's own feedback intake
+  (`docs/feedback/` in the method repo) for in-repo mode, where the method maintains its own
+  feedback. Step 4 is rewritten to state that a promotion declares its family (the class of fixes
+  it belongs to) and names and audits or schedules existing members of that family. Step 5's
+  landing prose becomes three states: targets editable in-context (the method repo or project-bound
+  copies), targets out of reach (handoff to the method's feedback intake), and a pass over the
+  method's own inbox (in-repo mode, where rows land in the document and the release process lands
+  them in the method's backlog or CHANGELOG). The handoff H1 rule that prohibits an H1 beginning
+  `# Triage —` is preserved intact. Template-only changes; no check or parser changes, so no spec
+  in flight can newly fail.
 
 ### Fixed
 

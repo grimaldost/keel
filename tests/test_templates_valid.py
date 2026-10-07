@@ -68,6 +68,9 @@ REQUIRED_SECTIONS = {
         'method-promotions',
         'sweep the sink',
         'lists its doc as input',
+        'H1 must NOT begin `# Triage —`',
+        'docs/feedback',
+        'states its family',
     ],
     'spec-template.md': [
         'Non-goals',

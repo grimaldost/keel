@@ -8,6 +8,8 @@ compounds. A series is not "done reflecting" until recurring traps are promoted.
 
 - `reflections.jsonl` (or wherever the project's reflection sink writes), plus the
   review/fix logs from the series.
+- For in-repo mode: the method's own feedback intake (`docs/feedback/` in the method repo),
+  if the method runs as an installed plugin and rows are shared through it.
 
 ## Procedure
 
@@ -24,7 +26,8 @@ compounds. A series is not "done reflecting" until recurring traps are promoted.
    keeps a no-op out of the backlog (a CHANGELOG window cannot see work shipped releases ago —
    only the source can).
 4. For each grounded cluster that is **recurring or high-cost**, **promote** it to exactly
-   one external destination:
+   one external destination. A promotion states its family (the class of fixes it belongs to) and
+   names and audits or schedules the existing members of that family:
    - a new **review-checklist item** (`review-checklist.md`) — for "a reviewer
      should have caught this";
    - a new **guardrail script / gate** — for "a machine should catch this
@@ -34,7 +37,7 @@ compounds. A series is not "done reflecting" until recurring traps are promoted.
 5. **Land** each promotion where the method can consume it, then record it in the triage
    document (one line per promotion, citing the motivating round/PR) — emitted with an H1
    beginning `# Triage —`: the feedback-loop tooling that indexes such directories detects
-   a triage doc by that heading (the filename is not a signal there). Landing has two branches:
+   a triage doc by that heading (the filename is not a signal there). Landing has three states:
    - **Targets editable in-context** — the method repo itself, or this project's own bound
      copies of the kit for a project-scoped lesson: apply the edit directly.
    - **Targets out of reach** — the method runs from an installed plugin and its files are
@@ -44,6 +47,9 @@ compounds. A series is not "done reflecting" until recurring traps are promoted.
      triage`) into the method's registered feedback intake — the same channel this session's
      feedback report travels — and record project-side only the pointer to it. Recording the
      promotions project-side and stopping is the write-only half-state.
+   - **Pass over the method's own inbox** — for in-repo mode where the method maintains its
+     own docs/feedback intake: review and land rows there, which ends at the triage document;
+     the release process lands rows in the method's own backlog or CHANGELOG.
 
    A CHANGELOG entry is not this step's job: it is written in the method repo at build time,
    when a promotion ships — never in the consuming project. A promotion row **closes** only
