@@ -38,13 +38,30 @@ from keel.check_ready import (
     _ANCHOR_RE,
     _LEDGER_ANCHOR_RE,
     _anchor_shaped,
+    _field,
+    _find_section,
     _read_spec_text,
     _resolve_base,
     _snippet_line,
+    _split_top_sections,
     _strong_snippet,
+    _verdict_head,
 )
+from keel.errors import format_error
 
 _LEDGER_HEADING_RE = re.compile(r'^#{2,6}[ \t]+')
+
+
+class CertifiedBodyError(Exception):
+    """`--body` was asked of a spec that carries a recorded certification."""
+
+
+def _is_certified(text: str) -> bool:
+    """A recorded certification, by the predicate W2 reads: a CERTIFIED verdict of either kind."""
+    cert = _find_section(_split_top_sections(text), 'pre-mortem', 'certification')
+    if cert is None:
+        return False
+    return _verdict_head(_field(cert, 'verdict')) in ('CERTIFIED', 'CONDITIONAL-CERTIFY')
 
 
 @dataclass
@@ -261,6 +278,17 @@ def reanchor(
 ) -> RepairReport:
     """Repoint drifted anchors — from their snippets, or from the tree at `by_content`."""
     text = _read_spec_text(spec_path, purpose='re-anchor', newline='')
+    if body and _is_certified(text):
+        raise CertifiedBodyError(
+            format_error(
+                what=f'--body would rewrite certified content in {spec_path}.',
+                why='the spec carries a recorded certification, and prose anchors are body text '
+                'the certification hash covers; drift after certification goes through an '
+                '`## Amendment`, not a silent rewrite.',
+                fix='Run without --body, which repairs the fold ledger only and leaves the hash '
+                'unmoved, or record the change as an `## Amendment`.',
+            )
+        )
     base = _resolve_base(spec_path)
     lines = text.splitlines(keepends=True)
     in_ledger = _in_fold_ledger(lines)

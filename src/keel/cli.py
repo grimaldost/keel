@@ -13,7 +13,7 @@ from keel.check_ready import check_spec_ready, spec_hash
 from keel.decompose_check import check_decomposition
 from keel.gate_ledger import ledger_path, read_lines, record_run
 from keel.models import DOR_CHECK_IDS, GateResult
-from keel.reanchor import reanchor
+from keel.reanchor import CertifiedBodyError, reanchor
 from keel.show import available, body
 from keel.survey import survey
 from keel.templates import copy_templates, stamp_spec
@@ -253,7 +253,7 @@ def reanchor_cmd(
     """Repoint a spec's drifted anchors — from their snippets, or by content against a git ref."""
     try:
         report = reanchor(spec, body=body, write=not check, by_content=by_content)
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, CertifiedBodyError) as exc:
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
     for repair in report.applied:

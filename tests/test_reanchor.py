@@ -8,11 +8,12 @@ guess, and each is reported by name rather than silently skipped.
 
 import subprocess
 
+import pytest
 from typer.testing import CliRunner
 
 from keel.check_ready import check_spec_ready, spec_hash
 from keel.cli import app
-from keel.reanchor import reanchor
+from keel.reanchor import CertifiedBodyError, reanchor
 
 runner = CliRunner()
 
@@ -59,11 +60,12 @@ asserts it returns a Widget instance.
 """
 
 
-def _spec(tmp_path, rows, body_extra=''):
+def _spec(tmp_path, rows, body_extra='', verdict='CERTIFIED'):
     (tmp_path / '.git').mkdir(exist_ok=True)
     (tmp_path / 'mod.py').write_text(MODULE, encoding='utf-8')
     spec = tmp_path / 'spec.md'
     head = SPEC_HEAD.replace('Introduce the widget.', f'Introduce the widget.{body_extra}')
+    head = head.replace('- **Verdict:** CERTIFIED', f'- **Verdict:** {verdict}')
     spec.write_text(head + rows, encoding='utf-8')
     return spec
 
@@ -138,13 +140,60 @@ def test_body_anchors_are_left_alone_by_default(tmp_path):
     assert spec_hash(spec) == before_hash
 
 
+UNCERTIFIED = 'not yet certified'
+
+
 def test_body_flag_repoints_the_body_and_moves_the_hash(tmp_path):
     extra = ' See `mod.py:3` `def load_orders(rows):`.'
-    spec = _spec(tmp_path, DRIFTED, body_extra=extra)
+    spec = _spec(tmp_path, DRIFTED, body_extra=extra, verdict=UNCERTIFIED)
     before_hash = spec_hash(spec)
     reanchor(spec, body=True)
     assert 'See `mod.py:6`' in spec.read_text(encoding='utf-8')
     assert spec_hash(spec) != before_hash
+
+
+# --- SW5: --body refuses a certified spec ------------------------------------
+#
+# `--body` rewrites content the certification hash covers. Drift after certification goes through
+# an `## Amendment`, so the verb refuses (exit 2, the not-runnable code) before reading anything
+# it could write, in --check mode too, so a refused run is a run that did nothing.
+
+BODY_EXTRA = ' See `mod.py:3` `def load_orders(rows):`.'
+
+
+@pytest.mark.parametrize('verdict', ['CERTIFIED', 'CONDITIONAL-CERTIFY (one open item)'])
+@pytest.mark.parametrize('flags', [[], ['--check']])
+def test_cli_body_flag_refuses_a_certified_spec(tmp_path, verdict, flags):
+    spec = _spec(tmp_path, DRIFTED, body_extra=BODY_EXTRA, verdict=verdict)
+    before = spec.read_bytes()
+    result = runner.invoke(app, ['re-anchor', str(spec), '--body', *flags])
+    assert result.exit_code == 2
+    assert spec.read_bytes() == before
+    assert '## Amendment' in result.output
+    assert 'without --body' in result.output
+
+
+def test_cli_body_flag_refuses_a_certified_spec_in_by_content_mode(tmp_path):
+    spec = _spec(tmp_path, DRIFTED, body_extra=BODY_EXTRA)
+    before = spec.read_bytes()
+    result = runner.invoke(app, ['re-anchor', str(spec), '--body', '--by-content', 'HEAD'])
+    assert result.exit_code == 2
+    assert spec.read_bytes() == before
+
+
+def test_reanchor_raises_a_dedicated_error_before_writing(tmp_path):
+    spec = _spec(tmp_path, DRIFTED, body_extra=BODY_EXTRA)
+    before = spec.read_bytes()
+    with pytest.raises(CertifiedBodyError):
+        reanchor(spec, body=True)
+    assert spec.read_bytes() == before
+
+
+def test_a_ledger_only_repair_of_a_certified_spec_is_unchanged(tmp_path):
+    spec = _spec(tmp_path, DRIFTED, body_extra=BODY_EXTRA)
+    result = runner.invoke(app, ['re-anchor', str(spec)])
+    assert result.exit_code == 0
+    assert 'repointed mod.py:3 -> mod.py:6' in result.output
 
 
 def test_check_mode_writes_nothing(tmp_path):
@@ -173,7 +222,7 @@ def test_cli_says_so_when_there_is_nothing_to_do(tmp_path):
 
 def test_cli_body_flag_warns_that_the_hash_moved(tmp_path):
     extra = ' See `mod.py:3` `def load_orders(rows):`.'
-    spec = _spec(tmp_path, DRIFTED, body_extra=extra)
+    spec = _spec(tmp_path, DRIFTED, body_extra=extra, verdict=UNCERTIFIED)
     result = runner.invoke(app, ['re-anchor', str(spec), '--body'])
     assert 'spec-hash` has moved' in result.output
 

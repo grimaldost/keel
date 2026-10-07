@@ -9,6 +9,18 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 
 Placeholder section for release 0.21.0 entries. Release date to be updated at merge.
 
+### Changed
+
+- **`keel re-anchor --body` refuses a certified spec** (SW5, same triage; `(consumer-affecting)`:
+  the verb gains exit 2). `--body` rewrites prose anchors, which are content the certification hash
+  covers, and drift after certification goes through an `## Amendment` (owner decision
+  2026-09-19). A spec whose `## Pre-mortem certification` records a CERTIFIED or
+  CONDITIONAL-CERTIFY verdict — the predicate W2 already reads — now gets a what/why/fix error and
+  exit 2, the "not runnable as asked" code, before anything is read for writing, in `--check` and
+  `--by-content` modes too. The fix it names is the ledger-only run (no `--body`), which leaves the
+  hash unmoved. On an uncertified spec `--body` repoints and prints its NOTE as before. Class: a
+  refusal added to one verb's opt-in flag; no check changes, so no spec in flight can newly fail.
+
 ### Fixed
 
 - **`keel re-anchor` leaves a correct anchor alone** (SW2, 2026-10-06 triage). A ledger row that
