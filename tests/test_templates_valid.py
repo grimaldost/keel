@@ -12,6 +12,23 @@ from keel.check_ready import (
 from keel.models import DOR_CHECK_IDS
 from keel.templates import list_templates, templates_root
 
+
+def _contains(text: str, needle: str) -> bool:
+    """Compare text and needle with whitespace normalised.
+
+    Strips and normalises all whitespace runs (newlines, tabs, multiple spaces)
+    to single spaces for both text and needle before comparison. This allows
+    needle assertions to match against text with different line wrapping without
+    depending on exact whitespace.
+
+    Reproduces and resolves KEEL-B23: template needles that span wrapped lines
+    can now be asserted without matching the exact whitespace in the template.
+    """
+    normalised_text = re.sub(r'\s+', ' ', text).strip()
+    normalised_needle = re.sub(r'\s+', ' ', needle).strip()
+    return normalised_needle in normalised_text
+
+
 REQUIRED_SECTIONS = {
     'definition-of-ready.md': ['Part A', 'Part B'],
     'definition-of-done.md': [
@@ -66,7 +83,7 @@ def test_required_sections_present():
     for name, needles in REQUIRED_SECTIONS.items():
         text = (templates_root() / name).read_text(encoding='utf-8')
         for needle in needles:
-            assert needle in text, f'{name} missing section marker: {needle!r}'
+            assert _contains(text, needle), f'{name} missing section marker: {needle!r}'
 
 
 def test_skeleton_keeps_model_family_tier_names():
@@ -244,3 +261,35 @@ def test_templates_reference_documents_every_packaged_template():
     reference = (root / 'docs' / 'templates-reference.md').read_text(encoding='utf-8')
     missing = [p.name for p in list_templates() if f'`{p.name}`' not in reference]
     assert not missing, f'templates-reference.md is missing: {missing}'
+
+
+def test_contains_normalises_whitespace():
+    """_contains matches needles across wrapped lines (KEEL-B23).
+
+    Template text often wraps needles across multiple lines. The raw `in` check
+    fails because it matches the exact substring including newlines and
+    indentation. _contains normalises all whitespace to single spaces so the
+    assertion works regardless of how the template wraps the text.
+    """
+    # Verify that raw `in` fails but _contains passes on the wrapped case
+    wrapped_text = 'Feasibility-grounding\n      ran FIRST'
+    needle = 'Feasibility-grounding ran FIRST'
+
+    assert needle not in wrapped_text, (
+        'test setup: raw `in` should fail on wrapped text; if this assertion '
+        'fires, the test hypothesis is wrong'
+    )
+    assert _contains(wrapped_text, needle), (
+        '_contains should match needles across wrapped lines by normalising whitespace (KEEL-B23)'
+    )
+
+    # Verify that _contains also works on text without wrapping
+    unwrapped_text = 'Feasibility-grounding ran FIRST'
+    assert _contains(unwrapped_text, needle)
+
+
+def test_contains_still_fails_on_missing_needles():
+    """_contains still fails when the needle is genuinely absent (negative test)."""
+    text = 'Feasibility-grounding ran FIRST'
+    missing_needle = 'Feasibility-grounding ran SECOND'
+    assert not _contains(text, missing_needle)
