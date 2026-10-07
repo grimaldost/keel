@@ -411,6 +411,22 @@ def test_a_self_quoting_row_whose_target_moved_is_repointed_to_the_target(tmp_pa
     assert '`spec.md:7` `### §1 Add the widget`' in spec.read_text(encoding='utf-8')
 
 
+def test_a_row_citing_its_own_line_is_not_confirmed_by_itself(tmp_path):
+    # The citing row sits on the line it claims, so the claimed-line test would find its own
+    # snippet there. The row is the citation, not the thing cited: repoint to the real target.
+    spec = _spec(tmp_path, SELF_QUOTING)
+    row_line = len(spec.read_text(encoding='utf-8').splitlines())
+    rows = SELF_QUOTING.replace('spec.md:7', f'spec.md:{row_line}')
+    spec = _spec(tmp_path, rows)
+    assert len(spec.read_text(encoding='utf-8').splitlines()) == row_line
+    report = reanchor(spec)
+    assert [(r.anchor, r.corrected) for r in report.applied] == [
+        (f'spec.md:{row_line}', 'spec.md:7')
+    ]
+    assert report.refused == []
+    assert '`spec.md:7` `### §1 Add the widget`' in spec.read_text(encoding='utf-8')
+
+
 def test_an_anchor_whose_snippet_is_on_the_claimed_line_and_elsewhere_is_left_alone(tmp_path):
     spec = _spec(tmp_path, '| FM-1 | §1 | `mod.py:6` `def load_orders(rows):` | yes |\n')
     (tmp_path / 'mod.py').write_text(

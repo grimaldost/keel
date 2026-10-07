@@ -119,13 +119,18 @@ def _repair_line(line: str, base: Path, line_no: int, spec_path: Path) -> tuple[
             )
             return match.group(0)
         lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
-        # The claimed line first, by the window test A12 applies: an anchor that already holds is
-        # not repaired, even when the snippet also sits elsewhere (or on the citing row itself).
-        wanted = ' '.join(snippet.split())
-        if 1 <= claimed <= len(lines) and wanted in ' '.join(lines[claimed - 1].split()):
-            return match.group(0)
         # A row that cites the spec it sits in is itself a line carrying its own snippet.
         own_row = line_no if target.resolve() == spec_path.resolve() else None
+        # The claimed line first, by the window test A12 applies: an anchor that already holds is
+        # not repaired, even when the snippet also sits elsewhere. The citing row never confirms
+        # itself: a claim pointing at the row's own line is not a confirmation.
+        wanted = ' '.join(snippet.split())
+        if (
+            claimed != own_row
+            and 1 <= claimed <= len(lines)
+            and wanted in ' '.join(lines[claimed - 1].split())
+        ):
+            return match.group(0)
         found = _snippet_line(lines, snippet, exclude=own_row)
         if found is None:
             outcomes.append(
