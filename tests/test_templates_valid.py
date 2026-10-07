@@ -30,7 +30,14 @@ def _contains(text: str, needle: str) -> bool:
 
 
 REQUIRED_SECTIONS = {
-    'definition-of-ready.md': ['Part A', 'Part B'],
+    'definition-of-ready.md': [
+        'Part A',
+        'Part B',
+        'anchors describe the tree at certification',
+        'from PR01 the DoD gates take over',
+        'Every repository named in the manifest',
+        'has its gate commands in the spec',
+    ],
     'definition-of-done.md': [
         'Deterministic gates',
         'Review gate',

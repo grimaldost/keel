@@ -18,9 +18,7 @@ only when the spec is well-formed AND a blind pre-mortem certification is record
 
 These assert *form*, not *correctness* — a well-formed spec can still be wrong (that
 is Part B's job). You do not check them by hand: `keel check-ready <spec>` is the script,
-and the block below is the contract it enforces, check by check. A prose restatement of
-that block used to sit here; it was a lossy paraphrase of the same facts, and a reader
-who trusted it over the block trusted the older of two copies.
+and the block below is the contract it enforces, check by check.
 
 ### Reference: what `check_spec_ready` asserts
 
@@ -61,6 +59,9 @@ makes a check's fires countable, and `where` collides across checks by design.)*
 *(A2/A5 detect absence/triviality, not semantic wrongness — Part A cannot judge
 "right." That is Part B.)*
 
+A certified spec's anchors describe the tree at certification, and from PR01 the DoD
+gates take over the certified state.
+
 ## Part B — correctness, certified (a fresh, non-author reviewer certifies, with evidence)
 
 Not mechanizable as form. Externalized: a reviewer who did **not** author the spec
@@ -88,6 +89,8 @@ are stateless.
       certified — the measurement profile feasibility-first, the data-pipeline profile
       population-first. The header's `Profile:` field selects which; a `code` spec reads neither
       and pays for neither.
+- [ ] Every repository named in the manifest's `Repo` column has its gate commands in the
+      spec's Gate commands section.
 
 ### The operator close (discharging a CONDITIONAL-CERTIFY)
 

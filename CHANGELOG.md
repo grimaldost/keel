@@ -104,6 +104,18 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   repositories a section spans; that hole stays with the Definition-of-Ready's Part B review (row
   E3d). Class: a relaxation; with a `Repo` column the failure set is a subset of the old one, so
   nothing that passed before can fail now and no spec in flight can newly fail.
+- **Definition-of-Ready clarifies the certified spec's lifetime and adds Part B item for gate command
+  coverage** (Q4b, E3d, 2026-10-06 triage). A prose restatement of the Part A reference block is
+  deleted from both the full and core templates (34 words: "A prose restatement of that block used to sit
+  here; it was a lossy paraphrase of the same facts, and a reader who trusted it over the block
+  trusted the older of two copies."). On new lines in the full sheet only, the Definition-of-Ready
+  now states the certified spec's lifetime: certified spec anchors describe the tree at
+  certification, and from PR01 the DoD gates take over the certified state. A Part B checklist item
+  is added: every repository named in the manifest's `Repo` column has its gate commands in the
+  spec's Gate commands section. The DoR prose is now 946 words (cap 950), well within the budget
+  freed by the deletion. The Definition-of-Ready reference block is unchanged, so it remains
+  identical in the full and core templates. Class: documentation and process clarification; no
+  new checks, so no spec in flight can newly fail.
 
 ### Fixed
 

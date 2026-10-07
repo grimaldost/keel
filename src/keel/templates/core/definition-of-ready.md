@@ -18,9 +18,7 @@ only when the spec is well-formed AND a blind pre-mortem certification is record
 
 These assert *form*, not *correctness* — a well-formed spec can still be wrong (that
 is Part B's job). You do not check them by hand: `keel check-ready <spec>` is the script,
-and the block below is the contract it enforces, check by check. A prose restatement of
-that block used to sit here; it was a lossy paraphrase of the same facts, and a reader
-who trusted it over the block trusted the older of two copies.
+and the block below is the contract it enforces, check by check.
 
 ### Reference: what `check_spec_ready` asserts
 
