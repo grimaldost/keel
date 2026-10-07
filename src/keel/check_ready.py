@@ -2694,6 +2694,10 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
         )
     raw = _field(cert_body, 'verdict')
     head = _verdict_head(raw)  # the bare verdict token, hyphens kept whole
+    # E7a/SW23: how the verdict was reached is RECORDED, never judged — an unknown value is echoed,
+    # not rejected, and no value changes pass or fail. It is only named in the messages below.
+    source = _field(cert_body, 'verdict source')
+    source_note = f' (verdict source: {source})' if source else ''
     if head == 'CERTIFIED':
         pass
     elif head == 'CONDITIONAL-CERTIFY':
@@ -2703,7 +2707,8 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
                 Warning(
                     'B1',
                     f'WARN: pre-mortem verdict is CONDITIONAL-CERTIFY, operator-accepted by '
-                    f'{operator!r} (ready modulo a named fix) — not a clean CERTIFIED.',
+                    f'{operator!r} (ready modulo a named fix) — not a clean CERTIFIED.'
+                    f'{source_note}',
                 )
             )
         else:
@@ -2725,7 +2730,7 @@ def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warni
                 'Pre-mortem certification',
                 f'pre-mortem verdict is {verdict!r}, not "CERTIFIED" — the line this gate parses '
                 'is `- **Verdict:** CERTIFIED` (trailing prose after the token is allowed), or '
-                '`- **Verdict:** CONDITIONAL-CERTIFY` with a named Operator.',
+                f'`- **Verdict:** CONDITIONAL-CERTIFY` with a named Operator.{source_note}',
                 'B1',
             )
         )

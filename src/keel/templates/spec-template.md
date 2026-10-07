@@ -150,6 +150,8 @@ certification; it does not prove the pass was blind.*
 
 - **Reviewer:**
 - **Verdict:** not yet certified
+- **Verdict source:** <blind-round | operator-close | operator-stop | oracle-accepted: <oracle> | waived: <argument> — how the verdict was reached; recorded and echoed in B1's messages, never judged>
+- **State reviewed:** <optional, one per round: as-design | as-built at <commit>>
 - **Operator:** <required only when the Verdict is CONDITIONAL-CERTIFY — the named owner who accepts "ready modulo a named fix"; check-ready then passes with a WARN (B1). If the Operator applies the conditions, the verdict stays CONDITIONAL-CERTIFY with a discharge note — the operator close, definition-of-ready.md Part B>
 - **Certification artifact:** <the saved pass output's path. `check-ready` reads the LEADING path token and ignores what follows, so a prior round belongs right here: `<stem>.premortem.md` (r1 at `<stem>.premortem-r1.md`)>
 - **Date:**
@@ -185,6 +187,7 @@ it changed, or `none`. A12 fails the row when the cell is empty.
 
 - **Amendment reviewer:**
 - **Amendment verdict:** not yet reviewed
+- **State reviewed:** <optional: as-design | as-built at <commit>>
 - **Amendment artifact:** <the saved amendment pass output's path>
 - **Edits sections:** <section numbers edited after the pass, if any; the latest dated subsection supersedes earlier ones>
 

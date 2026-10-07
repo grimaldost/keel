@@ -342,6 +342,73 @@ def test_conditional_certify_without_operator_fails_b1(tmp_path):
     assert any('operator' in v.message.lower() for v in result.violations)
 
 
+def _with_verdict_source(verdict: str, source: str | None, operator: str = '') -> str:
+    """READY_SPEC with the Verdict line replaced and, when given, a Verdict source line after it."""
+    lines = f'- **Verdict:** {verdict}'
+    if source is not None:
+        lines += f'\n- **Verdict source:** {source}'
+    if operator:
+        lines += f'\n- **Operator:** {operator}'
+    return READY_SPEC.replace('- **Verdict:** CERTIFIED', lines)
+
+
+def test_verdict_source_blind_round_on_certified_passes_b1(tmp_path):
+    # E7a: the optional `Verdict source:` line is read; on a CERTIFIED spec it changes nothing, and
+    # it is not a second Verdict line (its label does not match the verdict-line scan).
+    result = check_spec_ready(_write(tmp_path, _with_verdict_source('CERTIFIED', 'blind-round')))
+    assert result.passed, [v.message for v in result.violations]
+    assert not any('Verdict lines' in v.message for v in result.violations)
+    assert not any(w.check == 'B1' for w in result.warnings)
+
+
+def test_verdict_source_is_echoed_in_the_conditional_certify_warn(tmp_path):
+    # E7a: the conditional-certify WARN names the recorded source; pass/fail is unchanged.
+    spec = _with_verdict_source('CONDITIONAL-CERTIFY', 'operator-close', operator='grimaldo')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+    b1 = [w.message for w in result.warnings if w.check == 'B1']
+    assert len(b1) == 1 and '(verdict source: operator-close)' in b1[0]
+
+
+def test_verdict_source_unknown_value_is_echoed_not_rejected(tmp_path):
+    # E7a: the vocabulary is record-only; an unknown value is echoed, never a new failure.
+    spec = _with_verdict_source('CONDITIONAL-CERTIFY', 'some-new-form', operator='grimaldo')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed, [v.message for v in result.violations]
+    assert any('(verdict source: some-new-form)' in w.message for w in result.warnings)
+
+
+def test_verdict_source_record_only_values_do_not_rescue_needs_revision(tmp_path):
+    # SW23 (owner decision 2, built as "no"): oracle-accepted and waived are recorded reasons, not
+    # a pass. A NEEDS-REVISION spec still fails B1, and the message now says why it was recorded.
+    for source in ('oracle-accepted: the render parity fixture', 'waived: no reviewer available'):
+        spec = _with_verdict_source('NEEDS-REVISION', source)
+        result = check_spec_ready(_write(tmp_path, spec))
+        assert not result.passed, source
+        b1 = [v.message for v in result.violations if v.check == 'B1']
+        assert b1 and f'(verdict source: {source})' in b1[0], source
+
+
+def test_verdict_source_conditional_certify_without_operator_still_fails(tmp_path):
+    # SW23: a record-only source does not stand in for the named Operator.
+    spec = _with_verdict_source('CONDITIONAL-CERTIFY', 'waived: not needed')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert not result.passed
+    assert any('operator' in v.message.lower() for v in result.violations)
+
+
+def test_spec_without_verdict_source_is_unchanged(tmp_path):
+    # E7a: a missing field passes as before and adds no echo to any message.
+    spec = _with_verdict_source('CONDITIONAL-CERTIFY', None, operator='grimaldo')
+    result = check_spec_ready(_write(tmp_path, spec))
+    assert result.passed
+    assert not any('verdict source' in w.message for w in result.warnings)
+    bad = _with_verdict_source('NEEDS-REVISION', None)
+    failed = check_spec_ready(_write(tmp_path, bad))
+    assert not failed.passed
+    assert not any('verdict source' in v.message for v in failed.violations)
+
+
 def test_clean_certified_emits_only_the_b2_adoption_warn(tmp_path):
     # 0.12.0 §1: a plain CERTIFIED with no artifact reference passes; the single delta vs 0.11.1
     # is the B2 adoption WARN (verify-when-present nudge) — no other warning.

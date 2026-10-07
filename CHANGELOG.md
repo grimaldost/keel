@@ -116,6 +116,23 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   unchanged, and B2/decompose-check fields are not picked up from the new subsection. No contract-note
   prose is added (499/500, unchanged); the core template is untouched. Class: a template-only
   subsection; no check changes, no parser changes, so no spec in flight can newly fail.
+- **The spec-template records how a verdict was reached; B1 echoes it** (E7a, SW23, E7c, 2026-10-06
+  triage). A CONDITIONAL-CERTIFY or a not-CERTIFIED verdict said nothing about whether a blind round
+  produced it, the operator closed it, an external oracle accepted it or the review was waived, so a
+  reader of the spec could not tell. The full template gains `- **Verdict source:**` after the
+  Verdict line, with the placeholder values `blind-round | operator-close | operator-stop |
+  oracle-accepted: <oracle> | waived: <argument>`, and an optional `- **State reviewed:**` line
+  (`as-design | as-built at <commit>`), one per round, in the certification block and in each
+  Amendment review. `check-ready` reads the source with the same field parser as the other
+  certification lines and appends `(verdict source: <value>)` to the CONDITIONAL-CERTIFY WARN and to
+  the not-CERTIFIED B1 violation. The value is echoed, not validated: an unknown value is repeated,
+  never rejected, and verdict tokens, pass and fail and the one-Verdict-line rule are unchanged (the
+  label does not match the verdict-line scan). `oracle-accepted` and `waived` are record-only: a
+  NEEDS-REVISION spec carrying either still fails B1, and the message now names the recorded reason.
+  Whether either should ever pass is left as no. Guidance is in placeholder text on list lines, not
+  italic notes, so the contract notes stay at 499/500 and nothing is displaced; the core template is
+  untouched. Class: verify-when-present, an optional field that only adds text to messages that
+  already fire, so no spec in flight can newly fail.
 
 ### Changed
 

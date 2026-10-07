@@ -67,6 +67,8 @@ REQUIRED_SECTIONS = {
         '§ that creates it',
         'not just the address',
         'Amendment review',
+        'Verdict source:',
+        'State reviewed:',
     ],
     'series-toml-skeleton.md': ['Tier vocabulary', 'model-family names', 'method-bindings.md'],
     # The one binding that rots by itself: a consumer that pins a cache version names a
