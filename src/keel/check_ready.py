@@ -9,6 +9,7 @@ import fnmatch
 import hashlib
 import re
 import shlex
+import subprocess
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -372,6 +373,7 @@ def _candidate_counts(
     cert: str | None,
     structure_only: bool,
     requirement_ids: int,
+    base_candidates: int,
 ) -> dict[str, int]:
     """How many constructs of each check's own shape this spec presented (KEEL-B07).
 
@@ -431,6 +433,11 @@ def _candidate_counts(
         # W9's opportunity is a `### Conditions` row under a CONDITIONAL-CERTIFY: on any other
         # verdict the table is not read. Shares `_conditional_rows` with W9.
         'W9': 0 if structure_only else len(_conditional_rows(cert)),
+        # W10's opportunity is a recorded Base commit in a spec a repository holds: outside one, or
+        # with a placeholder, there is nothing to ask git. Computed once by the caller from
+        # `_recorded_base` and `_git_root`, the two reads W10 itself makes. A git that then cannot
+        # answer still counts: telling it apart would take a subprocess, and counting runs none.
+        'W10': base_candidates,
     }
 
 
@@ -494,6 +501,9 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     requirement_ids = _declared_requirement_ids(header, spec_path)
     violations += _check_requirements_ledger(header, sections, section_ids, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
+    # W10 (Part B) asks git only where a commit is recorded and a repository holds the spec.
+    base_commit = '' if structure_only else _recorded_base(cert)
+    base_repository = _git_root(spec_path) if base_commit else None
     # A12 owns the fold ledger's anchors; A6/A11 must not re-report them under prose semantics.
     # An `Anchor waivers` block is a record about anchors, not prose, and is masked the same way.
     outside_records = _mask_anchor_waivers(_mask_fold_ledger(text))
@@ -522,9 +532,11 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
             violations += artifact_violations
             warnings += artifact_warnings
         warnings += _status_currency_warning(header, cert)
+        warnings += _check_base(base_commit, base_repository)
 
     candidates = _candidate_counts(
         requirement_ids=requirement_ids,
+        base_candidates=int(base_repository is not None),
         text=text,
         prose=prose,
         header=header,
@@ -700,13 +712,15 @@ def _section_line_spans(text: str) -> dict[str, list[tuple[int, int]]]:
     return spans
 
 
+def _git_root(spec_path: Path) -> Path | None:
+    """The nearest directory at or above the spec that holds a `.git`, or None outside any."""
+    start = spec_path.resolve().parent
+    return next((c for c in (start, *start.parents) if (c / '.git').exists()), None)
+
+
 def _resolve_base(spec_path: Path) -> Path:
     """The directory paths are resolved against: the spec's git root, else its parent."""
-    start = spec_path.resolve().parent
-    for candidate in (start, *start.parents):
-        if (candidate / '.git').exists():
-            return candidate
-    return start
+    return _git_root(spec_path) or spec_path.resolve().parent
 
 
 def _field(body: str, name: str) -> str:
@@ -2810,3 +2824,89 @@ def _check_conditions(cert_body: str | None) -> list[Warning]:
             )
         )
     return warnings
+
+
+# W10 reads a hex object name only, from git's default abbreviation (7) up to a full SHA-256. A ref
+# name moves on its own, so it would test nothing; and a value that cannot begin with `-` cannot
+# reach git as an option.
+_COMMIT_SHA_RE = re.compile(r'[0-9a-f]{7,64}', re.IGNORECASE)
+_GIT_TIMEOUT_SECONDS = 5
+
+
+def _recorded_base(cert_body: str | None) -> str:
+    """The commit the certification's `- **Base:**` field records, or '' (W10).
+
+    Read as a path-valued field is (`_first_path_token`: the first backticked token, else the first
+    word), and kept only when it is a hex object name, so the template's `<...>` placeholder, prose
+    and ref names are no candidate.
+    """
+    token = _first_path_token(_field(cert_body or '', 'base'))
+    return token if _COMMIT_SHA_RE.fullmatch(token) else ''
+
+
+def _base_outside_head(repository: Path, commit: str) -> str:
+    """'absent' or 'diverged' when `commit` is not in HEAD's history, else '' (W10).
+
+    The gate's only subprocess calls are in this helper. check-ready is otherwise a pure function
+    of the files it reads (cli.py keeps ledger recording in the shell for that reason), and commit
+    ancestry cannot be read from files without reimplementing git, so this one question goes to
+    git. It fails open: git missing, an OSError, a timeout, or any exit other than the two read
+    below (128 from a repository git refuses to read, for one) is silence, never a finding. It
+    makes two calls so that a commit that is not there is told apart from a repository git cannot
+    read: `rev-parse --verify --quiet` exits 1 only for the first, where `merge-base` exits 128 for
+    both.
+    """
+
+    def git(*args: str) -> int | None:
+        try:
+            return subprocess.run(
+                ['git', '-C', str(repository), *args],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=_GIT_TIMEOUT_SECONDS,
+                check=False,
+            ).returncode
+        except (OSError, subprocess.SubprocessError):
+            return None
+
+    resolved = git('rev-parse', '--verify', '--quiet', f'{commit}^{{commit}}')
+    if resolved == 1:
+        return 'absent'
+    if resolved == 0 and git('merge-base', '--is-ancestor', commit, 'HEAD') == 1:
+        return 'diverged'
+    return ''
+
+
+def _check_base(commit: str, repository: Path | None) -> list[Warning]:
+    """W10 (Q5b, KEEL-B15): the commit the certification records as `Base:` left HEAD's history.
+
+    A rebase, a reset or a force-push can move a branch away from the state a pass reviewed while
+    the spec still reads certified, and B2's spec hash cannot see it: the spec did not change, the
+    code under it did. A warning, not a violation: rewriting history is sometimes the plan, and
+    the field is new, so a spec without it, or with the template's placeholder, owes nothing.
+    Silent outside a repository and whenever git cannot answer (`_base_outside_head`).
+    """
+    if not commit or repository is None:
+        return []
+    finding = _base_outside_head(repository, commit)
+    if finding == 'absent':
+        return [
+            Warning(
+                'W10',
+                f"WARN: the certification's Base commit {commit} does not resolve to a commit in "
+                'this repository — history was rewritten and the commit is gone, or it was never '
+                'fetched (a shallow clone). Fetch it and diff it against HEAD, or re-run the pass '
+                'and record the new Base.',
+            )
+        ]
+    if finding == 'diverged':
+        return [
+            Warning(
+                'W10',
+                f"WARN: the certification's Base commit {commit} is not an ancestor of HEAD — the "
+                'history the pass reviewed was rewritten (a rebase, a reset, a force-push) or this '
+                'branch never contained it, so the certified state may not be the one under gate. '
+                'Diff it against HEAD, or re-run the pass and record the new Base.',
+            )
+        ]
+    return []

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 # gate's reference block, positive-control corpus and candidate counts are per gate: folding the
 # D-letters into the DoR sheet would put a check in a contract that never runs it.
 #
-# A0-A12 and R1 are Part A's structural checks, B1/B2 the certification pair, W1-W9 the warnings:
+# A0-A12 and R1 are Part A's structural checks, B1/B2 the certification pair, W1-W10 the warnings:
 #   W1 kit skew or an unstamped spec · W2 header Status currency · W3 basename expansion
 #   W4 B2's adoption nudge (no artifact named) · W5 B2's spec-hash mismatch
 #   W6 a fold-ledger row whose snippet resolves at one other line — repairable drift
@@ -18,6 +18,7 @@ from dataclasses import dataclass
 #   W7 the hash moved by a DECLARED amendment; the certified content itself is intact
 #   W8 a criterion's grep scope covers a path another section declares it creates
 #   W9 a CONDITIONAL-CERTIFY's `### Conditions` row whose Status is not met or waived
+#   W10 the certification's recorded `Base:` commit is no longer an ancestor of HEAD
 # The two W4/W5 letters are new: B2's warnings were unlettered, and an uncountable warning can
 # neither be measured nor defended. A13 is the requirements ledger: a spec that declares a
 # register accounts for every order in it, and DEVIATED is the one disposition a session cannot
@@ -51,6 +52,7 @@ DOR_CHECK_IDS = frozenset(
         'W7',
         'W8',
         'W9',
+        'W10',
     }
 )
 # The Decompose exit gate: D1 the recorded SERIES review, D2 its saved artifact. The pair mirrors

@@ -1,6 +1,7 @@
 """Behaviour of the Definition-of-Ready gate (check_spec_ready)."""
 
 import re
+import subprocess
 
 import pytest
 
@@ -2732,3 +2733,175 @@ def test_the_templates_conditions_block_is_the_one_the_gate_reads_w9(tmp_path):
     assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
     assert [w.check for w in result.warnings] == ['B1', 'W9'], result.warnings
     assert result.warnings[1].message.endswith(_W9_OPEN)
+
+
+# --- Q5b (KEEL-B15): the recorded Base commit is still in HEAD's history (W10) -------------------
+#
+# A certification records what the pass reviewed, and a rebase, a reset or a force-push can move
+# the branch away from it: the spec still reads certified while the history the reviewer saw is
+# gone. The full template records the reviewed commit as `- **Base:**`, and W10 asks git whether
+# that commit is still an ancestor of HEAD. It is the gate's only subprocess call, so it fails
+# open: no repository, no git, a git that cannot answer, or a placeholder value is silence. These
+# controls need a real repository, which the adversarial corpus does not stage, so they live here
+# and the corpus records W10 as a named exception.
+
+_UNKNOWN_SHA = '0123456789abcdef0123456789abcdef01234567'
+
+
+def _git(repo, *args: str) -> str:
+    identity = ('-c', 'user.email=t@example.invalid', '-c', 'user.name=test')
+    return subprocess.run(
+        ['git', '-C', str(repo), *identity, *args],
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+        check=True,
+    ).stdout.strip()
+
+
+def _commit(repo, message: str) -> str:
+    _git(repo, 'commit', '-q', '--allow-empty', '-m', message)
+    return _git(repo, 'rev-parse', 'HEAD')
+
+
+def _two_commit_repo(repo) -> tuple[str, str]:
+    """A real repository with two commits; (first, second), HEAD at the second."""
+    _git(repo, 'init', '-q')
+    return _commit(repo, 'one'), _commit(repo, 'two')
+
+
+def _rewritten_repo(repo) -> str:
+    """A repository whose second commit a reset and a new commit left out of HEAD's history."""
+    first, second = _two_commit_repo(repo)
+    _git(repo, 'reset', '-q', '--hard', first)
+    _commit(repo, 'three, after the reset')
+    return second
+
+
+def _w10_spec(directory, base: str | None):
+    """READY_SPEC, with `- **Base:** <base>` under its Verdict when `base` is not None."""
+    cert = '- **Verdict:** CERTIFIED' + ('' if base is None else f'\n- **Base:** {base}')
+    return _write(directory, READY_SPEC.replace('- **Verdict:** CERTIFIED', cert))
+
+
+def _w10(result) -> list[str]:
+    return [w.message for w in result.warnings if w.check == 'W10']
+
+
+def _w10_probe(result) -> tuple[int, int]:
+    return next((p.candidates, p.fired) for p in result.probes if p.check == 'W10')
+
+
+def test_a_base_that_is_an_ancestor_of_head_is_silent_w10(tmp_path):
+    first, _ = _two_commit_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, first))
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (1, 0)
+
+
+def test_a_base_left_behind_by_a_reset_warns_w10_and_exits_zero(tmp_path):
+    from typer.testing import CliRunner
+
+    from keel.cli import app
+
+    orphaned = _rewritten_repo(tmp_path)
+    spec = _w10_spec(tmp_path, orphaned)
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    w10 = _w10(result)
+    assert len(w10) == 1, result.warnings
+    assert w10[0].startswith('WARN: ') and orphaned in w10[0], w10[0]
+    assert 'not an ancestor of HEAD' in w10[0], w10[0]
+    assert _w10_probe(result) == (1, 1)
+    run = CliRunner().invoke(app, ['check-ready', str(spec)])
+    assert run.exit_code == 0, run.output
+    assert orphaned in run.output
+
+
+def test_a_base_that_does_not_resolve_warns_w10(tmp_path):
+    _two_commit_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, _UNKNOWN_SHA))
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    w10 = _w10(result)
+    assert len(w10) == 1 and _UNKNOWN_SHA in w10[0], result.warnings
+    assert 'does not resolve' in w10[0], w10[0]
+
+
+@pytest.mark.parametrize('form', ['`{sha}`', '{sha} (main when the pass ran)', '{short}'])
+def test_the_base_is_read_from_its_leading_token_w10(tmp_path, form):
+    # The path-valued field rule (`_first_path_token`): a backticked value, trailing prose and an
+    # abbreviated SHA all name the commit.
+    orphaned = _rewritten_repo(tmp_path)
+    value = form.format(sha=orphaned, short=orphaned[:10])
+    w10 = _w10(check_spec_ready(_w10_spec(tmp_path, value)))
+    assert len(w10) == 1 and orphaned[:10] in w10[0], w10
+
+
+def test_a_spec_outside_any_repository_is_silent_w10(tmp_path):
+    result = check_spec_ready(_w10_spec(tmp_path, _UNKNOWN_SHA))
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+def test_no_base_field_is_silent_w10(tmp_path):
+    _two_commit_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, None))
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+@pytest.mark.parametrize('value', ['', 'main', 'v0.20.0', 'abc12', 'the reviewed tree'])
+def test_a_base_that_is_not_a_commit_sha_is_not_read_w10(tmp_path, value):
+    # Only a hex object name is a candidate: a ref name moves on its own, and a value that cannot
+    # start with `-` cannot reach git as an option.
+    _two_commit_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, value))
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+def test_the_templates_base_placeholder_is_silent_w10(tmp_path):
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    cert = template.split('## Pre-mortem certification', 1)[1]
+    line = next((ln for ln in cert.splitlines() if ln.startswith('- **Base:**')), None)
+    assert line is not None, 'spec-template.md records no `- **Base:**` in its certification'
+    _two_commit_repo(tmp_path)
+    spec = _write(
+        tmp_path,
+        READY_SPEC.replace('- **Verdict:** CERTIFIED', f'- **Verdict:** CERTIFIED\n{line}'),
+    )
+    result = check_spec_ready(spec)
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+def test_structure_only_does_not_read_the_base_w10(tmp_path):
+    orphaned = _rewritten_repo(tmp_path)
+    result = check_spec_ready(_w10_spec(tmp_path, orphaned), structure_only=True)
+    assert _w10(result) == [], result.warnings
+    assert _w10_probe(result) == (0, 0)
+
+
+def test_a_git_directory_git_cannot_read_is_silent_w10(tmp_path):
+    # The suite's own convention: an empty `.git` marks a repository root for path resolution
+    # without being a repository. git refuses it (exit 128), and that is a fault, not a finding.
+    (tmp_path / '.git').mkdir()
+    result = check_spec_ready(_w10_spec(tmp_path, _UNKNOWN_SHA))
+    assert _w10(result) == [], result.warnings
+
+
+@pytest.mark.parametrize(
+    'fault',
+    [FileNotFoundError('git'), PermissionError('git'), subprocess.TimeoutExpired('git', 5)],
+)
+def test_a_git_that_cannot_run_is_silent_w10(tmp_path, monkeypatch, fault):
+    orphaned = _rewritten_repo(tmp_path)
+
+    def broken(*args, **kwargs):
+        raise fault
+
+    monkeypatch.setattr('keel.check_ready.subprocess.run', broken)
+    result = check_spec_ready(_w10_spec(tmp_path, orphaned))
+    assert _w10(result) == [], result.warnings

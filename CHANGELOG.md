@@ -158,6 +158,38 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   because B1's conditional WARN is inherent to the verdict. Class: verify-when-present and
   warn-only; the table is new, so a spec without it is checked exactly as before, exit codes are
   unchanged, and no spec in flight can newly fail.
+- **`keel check-ready` warns when the certification's Base commit has left HEAD's history** (W10,
+  Q5b, KEEL-B15, 2026-10-06 triage; `(consumer-affecting)`: when a Base is recorded, check-ready now
+  runs `git` in the spec's repository). A rebase, a reset or a force-push can move a branch away
+  from the state a pre-mortem pass reviewed while the spec still reads certified, and B2's spec
+  hash cannot see it, because the spec did not change. The full spec template gains
+  `- **Base:** <the commit the pass reviewed, as a SHA; ...>` in the certification block, after
+  State reviewed. When the field's leading token is a hex SHA of 7 to 64 digits and the spec sits
+  in a git repository, W10 warns, naming the commit, when that commit is not an ancestor of HEAD
+  (`git merge-base --is-ancestor` exits 1) or does not resolve there (`git rev-parse --verify
+  --quiet` exits 1: history was rewritten and the commit is gone, or it was never fetched). A
+  placeholder, a ref name, no field, a spec outside any repository and `--structure-only` leave
+  W10 silent and uncounted. git missing, an OSError, a timeout (5 seconds per call) or any other
+  exit, such as 128 from a `.git` that git cannot read, is silent too: the check fails open. These
+  are the gate's first subprocess calls, kept in one helper, `_base_outside_head`, whose docstring
+  says so; the gate was otherwise a pure function of the files it reads (the "pure core" comment
+  in `cli.py`), and commit ancestry cannot be read from files. The plan named a single
+  `merge-base` call that read exit 128 as "does not resolve"; git also exits 128 for a `.git` it
+  cannot read, which the suite's own fixtures create, so a `rev-parse` call first tells the two
+  apart. The kit-version half of the row is not built: the header `Kit:` stamp that W1 compares
+  with the running gate is already the recorded-versus-serving kit comparison, and W1 deliberately
+  ignores a patch difference. `DOR_CHECK_IDS` gains W10; its candidates are a recorded SHA in a
+  spec a repository holds. The Definition-of-Ready reference block gains a W10 line, identical in
+  the full and core templates (59 words, cap 61); it is a lookup line, so no DoR prose is added
+  (942/950, unchanged). The template line is a field placeholder, not an italic note, so the
+  contract notes stay at 499/500 and nothing is displaced; the core template is untouched. The
+  adversarial corpus stages plain directories, not repositories, so W10 joins A3 as a named
+  exception in the coverage assertion, and its positive control lives in
+  `tests/test_check_ready.py` with a temporary repository: an ancestor is silent, a commit left
+  behind by `git reset --hard` and a new commit warns, and an unknown SHA warns, while no
+  repository, no field, a placeholder, an empty `.git` and a git that cannot run are silent.
+  Class: verify-when-present and warn-only; the field is new, so a spec without it is checked
+  exactly as before, exit codes are unchanged, and no spec in flight can newly fail.
 
 ### Changed
 
