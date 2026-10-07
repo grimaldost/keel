@@ -214,6 +214,16 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   Definition-of-Ready gains a matching reviewer item: 'Heaviest downstream consumer's tests gate
   the change' (the reviewer names the consumer's test suite gating the load, and reviews output-shape
   coverage). Template-only addition; no check or parser changes, so no spec in flight can newly fail.
+- **The measurement profile adds a bounded pilot and a no-verdict decision rule** (Q7c, KEEL-B12,
+  2026-10-06 triage). The measurement design sheet gains two author-filled fields: 'Bounded real
+  pilot' (a minimal real deployment before the full paid run; every arm produces well-formed,
+  non-degenerate output; the smallest footprint that tests all arms) and 'Decision rule — no
+  verdict' (when no arm discriminates on any criterion, specify the decision boundary that makes it
+  a no-verdict rather than a null). The Definition-of-Ready gains two matching reviewer items: one
+  certifies a bounded pilot ran all arms before the paid run with well-formed output; another
+  certifies the decision rule distinguishes no-verdict from each null and states the exact boundary.
+  The power precheck (Reps / power & MEWD) remains unchanged. Template-only addition; no check or
+  parser changes, so no spec in flight can newly fail.
 
 ### Changed
 

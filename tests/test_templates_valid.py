@@ -49,6 +49,8 @@ REQUIRED_SECTIONS = {
         'Feasibility-grounding ran FIRST',
         'Instrument defeatability',
         'pre-registered',
+        'Bounded real pilot',
+        'no verdict',
         'Producers and pinned literals (measured)',
         "Heaviest downstream consumer's suite",
         'Output shape a consumer reads',
