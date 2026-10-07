@@ -5,6 +5,10 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
+## [0.21.0] - 2026-10-06
+
+Placeholder section for release 0.21.0 entries. Release date to be updated at merge.
+
 ## [0.20.0] - 2026-09-13
 
 The method gated the spec and had no gate on the artifact that actually runs. It has one now — and
