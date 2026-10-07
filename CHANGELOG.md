@@ -5,6 +5,16 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
+## [0.21.1] - 2026-10-07
+
+Fixes from a read-only review of 0.21.0. A13 no longer reads the template's own
+`none | <path …>` header line as a register path, `keel re-anchor --by-content` says when the
+ref cannot be read at all instead of blaming the file, and the docs, the backlog and the
+pre-commit hooks are brought up to date. The one gate change only removes findings, so no spec
+that passed on 0.21.0 can newly fail. Body budgets are unchanged: directive 1,668/2,050; contract
+notes 499/500; agent wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum
+61/61.
+
 ## [0.21.0] - 2026-10-07
 
 New gate checks and fold-ledger structure, a handful of check relaxations, template and agent

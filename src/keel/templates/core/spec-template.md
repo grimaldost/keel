@@ -2,7 +2,7 @@
 
 - **Date:** YYYY-MM-DD
 - **Status:** draft | ready (DoR passed) | in progress | done
-- **Kit:** 0.21.0
+- **Kit:** 0.21.1
 - **Kind:** series
 - **Audience:** <who/what reads this>
 - **Output artifact(s):** <paths>
