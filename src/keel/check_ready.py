@@ -18,7 +18,18 @@ from keel.models import DOR_CHECK_IDS, GateResult, Probe, Violation, Warning, co
 # prose view (`_mask_inline_spans` space-fills inline-code spans, including a span hard-wrapped
 # across a line break), so documented CLI syntax like `keel init <target>` in backticks is fine —
 # even wrapped mid-span — while a leftover bare `<title>` heading placeholder fails (A3).
-_PLACEHOLDER_RE = re.compile(r'\b(?:TBD|TODO|FIXME)\b|\?\?\?')
+# TBD, FIXME and ??? fire wherever they appear. TODO fires only in a marker form, so prose that uses
+# the word (Portuguese "TODO o sistema") passes: `TODO:`, `TODO(`, `# TODO`, or the token standing
+# alone (a whole line, a list item, a table cell, or a backticked code span holding only it).
+_PLACEHOLDER_RE = re.compile(
+    r'\b(?:TBD|FIXME)\b|\?\?\?'
+    r'|\bTODO(?=[:(])'
+    r'|#[ \t]*TODO\b'
+    r'|`TODO`'
+    r'|^[ \t]*(?:(?:[-*+]|\d+[.)])[ \t]+)?TODO[ \t]*$'
+    r'|(?<=\|)[ \t]*TODO[ \t]*(?=\||$)'
+)
+_PLACEHOLDER_TOKEN_RE = re.compile(r'TBD|TODO|FIXME|\?\?\?')
 _ANGLE_PLACEHOLDER_RE = re.compile(r'<[a-z][^>\n]{2,}>')
 _SECTION_ID_RE = re.compile(r'§\d+')
 _MIN_CRITERION_WORDS = 5
@@ -1044,6 +1055,12 @@ def _check_document_acceptance(text: str) -> list[Violation]:
     ]
 
 
+def _placeholder_token(match: re.Match[str]) -> str:
+    """The bare token a `_PLACEHOLDER_RE` match stands for, without its marker punctuation."""
+    token = _PLACEHOLDER_TOKEN_RE.search(match.group(0))
+    return token.group(0) if token else match.group(0)
+
+
 def _check_placeholders(text: str, prose: str) -> list[Violation]:
     """A3: no TBD/TODO/FIXME/??? token, and no leftover `<...>` template placeholder, in the spec.
 
@@ -1052,6 +1069,8 @@ def _check_placeholders(text: str, prose: str) -> list[Violation]:
     stamped `### §1 <title>` heading or an unfilled `<the observable condition ...>` acceptance
     criterion is caught. The legacy tokens keep scanning the fence-masked line: a backticked `TODO`
     still fires, matching the spec-template's fence-only quoting doctrine.
+    TODO is a marker only in the forms `_PLACEHOLDER_RE` lists; the word inside a sentence is
+    not a placeholder.
     """
     violations: list[Violation] = []
     for lineno, (line, masked) in enumerate(
@@ -1061,7 +1080,7 @@ def _check_placeholders(text: str, prose: str) -> list[Violation]:
             violations.append(
                 Violation(
                     f'line {lineno}',
-                    f'placeholder token {match.group(0)!r} not allowed.',
+                    f'placeholder token {_placeholder_token(match)!r} not allowed.',
                     'A3',
                 )
             )

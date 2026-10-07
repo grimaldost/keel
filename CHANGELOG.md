@@ -40,6 +40,16 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   `--by-content` modes too. The fix it names is the ledger-only run (no `--body`), which leaves the
   hash unmoved. On an uncertified spec `--body` repoints and prints its NOTE as before. Class: a
   refusal added to one verb's opt-in flag; no check changes, so no spec in flight can newly fail.
+- **A3 fires on TODO only in its marker forms** (E2e, 2026-10-06 triage). The scan matched the
+  word `TODO` anywhere, so a Portuguese sentence such as "TODO o sistema usa o widget" failed a spec
+  as an unfinished placeholder. `TODO` now fires only as `TODO:`, `TODO(`, `# TODO`, or the token
+  standing alone: a whole line, a list item, a table cell, or a code span holding only it (so a
+  backticked legacy `TODO` still fires, as in 0.13.0). `TBD`, `FIXME` and `???` are unchanged, the
+  scan still reads the fence-masked line, and a fenced `# TODO` stays masked. The A3 line of the
+  Definition-of-Ready reference block is rewritten identically in the full and core templates (60
+  words, cap 61); it is a lookup line, so no contract-note or DoR prose is added and nothing is
+  displaced. Class: a relaxation; the new match set is a subset of the old one, so
+  nothing that passed before can fail now and no spec in flight can newly fail.
 
 ### Fixed
 

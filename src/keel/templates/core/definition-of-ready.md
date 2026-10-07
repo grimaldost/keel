@@ -32,7 +32,7 @@ A0 the header's `Kind:` declaration, when present, must read `series` or `single
 A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
 A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words), counted
    in the paragraph immediately after the marker
-A3 fail on a TBD/TODO/FIXME/??? token, or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view (inline-code spans space-filled, wrapped spans included), so backticked `<target>` syntax is exempt while a bare `<title>` is caught
+A3 fail on a TBD/FIXME/??? token, a TODO marker (`TODO:`, `TODO(`, `# TODO`, or the token alone as a line, list item, table cell or code span; "TODO o sistema" in prose passes), or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view, so backticked `<target>` is exempt while a bare `<title>` is caught
 A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — also absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` (ADR-0014)
 A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
 A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches

@@ -119,6 +119,55 @@ def test_placeholder_token_fails_a3(tmp_path):
     assert any('TODO' in v.message for v in result.violations)
 
 
+_A3_PROSE = 'Introduce `src/widget.py`.'
+
+
+def _a3(tmp_path, replacement):
+    bad = READY_SPEC.replace(_A3_PROSE, replacement)
+    assert bad != READY_SPEC
+    return [v for v in check_spec_ready(_write(tmp_path, bad)).violations if v.check == 'A3']
+
+
+@pytest.mark.parametrize(
+    'replacement',
+    [
+        _A3_PROSE + ' TODO: finalize.',
+        _A3_PROSE + ' TODO(owner) finalize.',
+        _A3_PROSE + '\n\n# TODO\n\n',
+        _A3_PROSE + '\n\nTODO\n\n',
+        _A3_PROSE + '\n\n- TODO\n\n',
+        _A3_PROSE + '\n\n1. TODO\n\n',
+        _A3_PROSE + '\n\n| TODO |\n\n',
+        _A3_PROSE + '\n\n| a | TODO\n\n',
+        _A3_PROSE + ' A backticked `TODO` still counts.',
+        _A3_PROSE + ' TBD later.',
+        _A3_PROSE + ' FIXME later.',
+        _A3_PROSE + ' ??? later.',
+    ],
+)
+def test_a3_fires_on_marker_forms(tmp_path, replacement):
+    assert _a3(tmp_path, replacement)
+
+
+@pytest.mark.parametrize(
+    'replacement',
+    [
+        _A3_PROSE + ' TODO o sistema usa o widget.',
+        _A3_PROSE + ' Cobre TODO caso de borda.',
+        _A3_PROSE + ' TODO list items are tracked elsewhere.',
+        _A3_PROSE + ' The TODO marker is discussed in prose.',
+    ],
+)
+def test_a3_ignores_todo_followed_by_a_word(tmp_path, replacement):
+    assert not _a3(tmp_path, replacement)
+
+
+def test_a3_reports_one_violation_per_todo_marker(tmp_path):
+    found = _a3(tmp_path, _A3_PROSE + ' # TODO: finalize.')
+    assert len(found) == 1
+    assert 'TODO' in found[0].message
+
+
 def test_uncovered_section_fails_a4(tmp_path):
     bad = READY_SPEC.replace('| PR02 | §2 | yes |\n', '')
     result = check_spec_ready(_write(tmp_path, bad))
