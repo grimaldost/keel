@@ -35,8 +35,9 @@ None of these pins a revision; uv resolves a `git+` URL with no `@<ref>` against
 repository's default branch (uv's documented behaviour), so what you get moves as that
 branch moves. To hold gate semantics still across a series, append `@<ref>` — a tag that
 exists (`git ls-remote --tags https://github.com/grimaldost/keel`) or a commit SHA.
-Tagging currently lags the shipped version, so run that command and check the ref
-resolves before pinning to it.
+Every release from 0.4.0 is tagged `v<version>` at the commit that merged it
+(CONTRIBUTING, "Release discipline"), so `@v<version>`, with the version a `CHANGELOG.md`
+heading names, is the pin.
 
 Requires Python >= 3.11 and `uv`. The `/keel-check-ready` slash command runs the
 engine straight from the installed plugin bundle

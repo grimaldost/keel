@@ -1838,13 +1838,18 @@ def register_ids(register_text: str) -> list[str]:
 
 
 def _register_path(header: str) -> str:
-    """The register the header declares, or '' — `none` is a declaration that there is none."""
+    """The register the header declares, or '' — `none` is a declaration that there is none.
+
+    Read from the leading token, exactly as `Certification artifact:` reads its path (KEEL-B03):
+    a field that carries a path plus a trailing parenthetical still resolves, and a leading `none`
+    declares no register whatever follows it — the template's own line is the menu
+    `none | <path …>`, which a fresh `keel new-spec` stamp carries unedited.
+    """
     declared = re.sub(r'[`*]', '', _field(header, 'requirements')).strip()
-    if not declared or declared.lower() in {'none', 'n/a', '-', '—'}:
+    token = declared.split()[0] if declared else ''
+    if token.rstrip('.,;:').lower() in {'', 'none', 'n/a', '-', '—'}:
         return ''
-    # The leading token, exactly as `Certification artifact:` reads its path (KEEL-B03): a field
-    # that carries a path plus a trailing parenthetical still resolves.
-    return declared.split()[0]
+    return token
 
 
 def _ledger_dispositions(ledger_body: str | None) -> list[tuple[str, str]]:

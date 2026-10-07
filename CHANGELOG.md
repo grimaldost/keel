@@ -5,6 +5,71 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
+## [0.21.1] - 2026-10-07
+
+Fixes from a read-only review of 0.21.0. A13 no longer reads the template's own
+`none | <path …>` header line as a register path, `keel re-anchor --by-content` says when the
+ref cannot be read at all instead of blaming the file, and the docs, the backlog and the
+pre-commit hooks are brought up to date. The one gate change only removes findings, so no spec
+that passed on 0.21.0 can newly fail. Body budgets are unchanged: directive 1,668/2,050; contract
+notes 499/500; agent wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum
+61/61.
+
+### Changed
+
+- **A consumer project's name is gone from the published tree.** Two `docs/backlog.md` citations,
+  a report stem and a cross-repository anchor, now use the `…` redaction the backlog's own
+  citation convention prescribes, and the adversarial corpus's `A6-absent-sibling` mutant cites
+  `../sibling/src/tinyetl/regions.py:3`. The mutant only needs a path that leaves the repository,
+  and it still fires exactly A6.
+- **`docs/backlog.md` records what 0.21.0 shipped.** KEEL-B12, B15, B20, B23, B24 and B56 each
+  gain a Status line naming the 0.21.0 entry that shipped them and what was left: B12 is shipped
+  (Q7c completed the after-spend half), B15's kit-version comparison and B20's `ext:<alias>`
+  grammar were deliberately not built, B20's other half shipped by a different route (the
+  `Anchor waivers` table), and B23 shipped as a test-only change with no entry of its own.
+- **Two install-path docs state the current facts.** `docs/getting-started.md` called the kit
+  `keel init` copies "ten-file"; it copies twelve, and the line now gives no count and lists the
+  two files it had left out (the requirements register and the pre-mortem profiles), with
+  `docs/templates-reference.md` still the full list. `docs/installation.md` said tagging lags the
+  shipped version; every release from 0.4.0 is tagged `v<version>` at the commit that merged it,
+  so `@v<version>` is the pin.
+- **The pre-commit ruff hooks run the locked ruff.** `.pre-commit-config.yaml` pinned
+  `ruff-pre-commit` at v0.15.0 while `uv.lock` and CI run ruff 0.16.9, so a commit could be
+  linted and formatted by a different ruff than the gate that judges it. The `ruff` and
+  `ruff-format` hooks are now local hooks that run `uv run ruff check --force-exclude --fix` and
+  `uv run ruff format --force-exclude`, the way the `ty` hook already ran, so the lock is the one
+  pin and a dependency bump moves both.
+
+### Fixed
+
+- **A13 reads a leading `none` as "no register declared", whatever follows it.** The spec
+  template's header line is the menu `- **Requirements:** none | <path to the register, …>`, and
+  `_register_path` compared the WHOLE value with `none`, so a fresh `keel new-spec` stamp fell
+  through to the path branch and failed A13 with "a requirements register at 'none'" on top of
+  its expected placeholder findings. The check now reads the leading token, as it already did for
+  a path, and treats `none`, `n/a`, `-` or `—` there (trailing `.`, `,`, `;` or `:` ignored) as no
+  register, so `none (the owner gave no standing orders)` declares none too. The template's
+  `Requirements:` line is unchanged: moving the alternatives into its italic note would cost
+  contract-note words at 499/500. Tests: four header values with trailing text, and the reproduction end to end
+  (`keel new-spec`, then `keel check-ready` on the stamp, with no A13 finding). Class: a
+  relaxation; the values read as "no register" are a strict superset of 0.21.0's and every other
+  value resolves to the same path, so no spec that passed on 0.21.0 can newly fail.
+- **`re-anchor --by-content` names a missing repository, ref or git** (`(consumer-affecting)`:
+  with no runnable git the verb now exits 0, where it exited 2). git exits 128 alike for "not a
+  git repository", an unknown revision and "path does not exist in `<ref>`", and the remap read
+  only `git show`'s exit status, so a spec outside any repository had every row refused with "HEAD
+  does not carry that file", a fault in the setup reported as a fact about the file. A new
+  `_ref_refusal` asks once per run, through `git rev-parse`, before any `git show`: outside a
+  repository each row now reads "not a git repository, so there is no `<ref>` to read the cited
+  line from", a ref that names no commit reads "`<ref>` does not resolve to a commit in this
+  repository", and only a readable ref that lacks the file keeps "does not carry that file". A git
+  that cannot run (not installed or not executable) is the same kind of refusal, "git could not
+  run"; it used to raise `FileNotFoundError` through the missing-spec handler, printing a bare OS
+  error with exit 2, and now exits 0 like the other refusals. `docs/cli-reference.md` names the
+  three cases. Tests: outside a repository with and without the suite's empty `.git` marker, an
+  unknown ref, and a git that cannot run. Class: refusal messages and that one exit code, on one
+  verb's opt-in mode; no check changes, so no spec in flight can newly fail.
+
 ## [0.21.0] - 2026-10-07
 
 New gate checks and fold-ledger structure, a handful of check relaxations, template and agent
