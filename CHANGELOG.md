@@ -190,6 +190,15 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   repository, no field, a placeholder, an empty `.git` and a git that cannot run are silent.
   Class: verify-when-present and warn-only; the field is new, so a spec without it is checked
   exactly as before, exit codes are unchanged, and no spec in flight can newly fail.
+- **The spec-template's Context section asks for consumed library guides** (D1e, KEEL-B56).
+  A spec that consumes a library which publishes a consumer-facing guide (a walkthrough, user
+  manual, or operator reference) should cite it in the Context. The full spec template gains a
+  plain instruction line after the existing "Why this work, and what it builds on" placeholder:
+  "Each consumed library with a consumer-facing guide: link it here; source reading verifies the
+  mechanism, not replaces it." Cites the guide before diving into source. The line is plain text,
+  not an italic note, so contract notes stay at 499/500 and nothing is displaced; the core template
+  is untouched. Template tests green. Class: a template-only addition; no check or parser changes,
+  so no spec in flight can newly fail.
 
 ### Changed
 

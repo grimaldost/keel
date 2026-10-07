@@ -19,6 +19,8 @@ kit this spec was scaffolded from; keep it, and W1 warns on skew and on its abse
 
 Why this work, and what it builds on (link the relevant ADRs).
 
+Each consumed library with a consumer-facing guide: link it here; source reading verifies the mechanism, not replaces it.
+
 ## Goal
 
 One or two sentences: what this delivers.
