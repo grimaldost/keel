@@ -468,6 +468,22 @@ def test_no_newer_keel_warning_when_the_ledger_is_off_or_missing(tmp_path, monke
     assert 'has run on this machine' not in runner.invoke(app, ['check-ready', str(spec)]).output
 
 
+def test_an_unreadable_ledger_leaves_check_ready_passing_without_a_warning(tmp_path, monkeypatch):
+    ledger = _ledger_with(tmp_path, monkeypatch, '99.0.0')
+    spec = _write_spec(tmp_path, ready=True)
+    real_read_text = Path.read_text
+
+    def read_text(self, *args, **kwargs):
+        if self == ledger:
+            raise PermissionError(13, 'Permission denied')
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'read_text', read_text)
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert result.exit_code == 0, result.output
+    assert 'has run on this machine' not in result.output
+
+
 def test_the_default_test_ledger_is_not_the_developers_real_one(tmp_path):
     # The autouse fixture in conftest.py: no test may append to the real ledger.
     from keel.gate_ledger import ledger_path

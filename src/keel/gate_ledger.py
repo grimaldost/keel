@@ -223,12 +223,17 @@ def newest_gate_version(path: Path | None) -> str | None:
     """The highest keel version recorded in the ledger, or None when it is off, missing or empty.
 
     Compared as int tuples, not strings, and a row whose `gate` is not a closed-shape version is
-    ignored. Read-only: the ledger is never written from here.
+    ignored. Read-only: the ledger is never written from here, and a read fault is fail-open like
+    `record_run`'s write: it yields None, never an exception.
     """
     if path is None:
         return None
+    try:
+        rows = read_lines(path)
+    except OSError:  # an unreadable ledger is telemetry, not a gate fault: read it as absent
+        return None
     best: tuple[int, ...] | None = None
-    for row in read_lines(path):
+    for row in rows:
         if not isinstance(row, dict):
             continue
         key = version_key(row.get('gate'))

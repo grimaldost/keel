@@ -237,3 +237,13 @@ def test_newest_gate_version_is_none_without_a_usable_ledger(tmp_path):
     assert newest_gate_version(None) is None
     assert newest_gate_version(tmp_path / 'missing.jsonl') is None
     assert newest_gate_version(_write_rows(tmp_path / 'junk.jsonl', 'x', 3)) is None
+
+
+def test_newest_gate_version_is_none_when_the_ledger_cannot_be_read(tmp_path, monkeypatch):
+    ledger = _write_rows(tmp_path / 'l.jsonl', '0.9.0')
+
+    def refuse(self, *args, **kwargs):
+        raise PermissionError(13, 'Permission denied')
+
+    monkeypatch.setattr(Path, 'read_text', refuse)
+    assert newest_gate_version(ledger) is None
