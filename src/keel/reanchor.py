@@ -144,17 +144,44 @@ def _repair_line(line: str, base: Path, line_no: int, spec_path: Path) -> tuple[
     return _ANCHOR_RE.sub(replace, line), outcomes
 
 
+def _git(base: Path, *args: str) -> subprocess.CompletedProcess[str] | None:
+    """Run git in `base`; None when git itself cannot run (not installed, not executable)."""
+    try:
+        return subprocess.run(
+            ['git', '-C', str(base), *args],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            check=False,
+        )
+    except OSError:
+        return None
+
+
+def _ref_refusal(base: Path, ref: str) -> str:
+    """Why no file can be read at `ref` from `base`, or '' when git can read that commit there.
+
+    Asked once per run, before any `git show`: git exits 128 alike for "not a git repository",
+    "unknown revision" and "path does not exist in <ref>", so the exit status of the per-file call
+    cannot say which one happened. `rev-parse` can, without reading git's (localised) stderr.
+    """
+    inside = _git(base, 'rev-parse', '--git-dir')
+    if inside is None:
+        return f'git could not run, so {ref} cannot be read'
+    if inside.returncode != 0:
+        return f'not a git repository, so there is no {ref} to read the cited line from'
+    resolved = _git(base, 'rev-parse', '--verify', '--quiet', f'{ref}^{{commit}}')
+    if resolved is None or resolved.returncode != 0:
+        return f'{ref} does not resolve to a commit in this repository'
+    return ''
+
+
 def _committed_lines(base: Path, ref: str, path: str) -> list[str] | None:
     """The file's lines as of `ref`, or None when that ref does not carry it."""
-    shown = subprocess.run(
-        ['git', '-C', str(base), 'show', f'{ref}:{path}'],
-        capture_output=True,
-        text=True,
-        encoding='utf-8',
-        errors='replace',
-        check=False,
-    )
-    return shown.stdout.splitlines() if shown.returncode == 0 else None
+    shown = _git(base, 'show', f'{ref}:{path}')
+    return shown.stdout.splitlines() if shown is not None and shown.returncode == 0 else None
 
 
 def _line_map(old: list[str], new: list[str]) -> dict[int, int]:
@@ -178,14 +205,21 @@ class _ContentRemap:
     base: Path
     ref: str
     _maps: dict[str, tuple[dict[int, int] | None, str]] = field(default_factory=dict)
+    _refusal: str | None = None
+
+    def _ref_refusal(self) -> str:
+        if self._refusal is None:
+            self._refusal = _ref_refusal(self.base, self.ref)
+        return self._refusal
 
     def _for(self, path: str) -> tuple[dict[int, int] | None, str]:
         if path not in self._maps:
             target = self.base / path
-            old = _committed_lines(self.base, self.ref, path) if target.is_file() else None
             if not target.is_file():
                 self._maps[path] = None, 'the file does not resolve'
-            elif old is None:
+            elif refusal := self._ref_refusal():
+                self._maps[path] = None, refusal
+            elif (old := _committed_lines(self.base, self.ref, path)) is None:
                 self._maps[path] = None, f'{self.ref} does not carry that file'
             else:
                 now = target.read_text(encoding='utf-8', errors='replace').splitlines()

@@ -388,6 +388,42 @@ def test_cli_by_content_on_an_unknown_ref_says_so(tmp_path):
     result = runner.invoke(app, ['re-anchor', str(spec), '--by-content', 'no-such-ref'])
     assert result.exit_code == 0
     assert 'no-such-ref' in result.output
+    assert 'does not resolve to a commit' in result.output, result.output
+    assert 'does not carry that file' not in result.output, result.output
+
+
+# git exits 128 both for "not a git repository" and for "path does not exist in <ref>", so a
+# refusal read from `git show`'s exit status alone told an author outside any repository that
+# HEAD "does not carry that file" — a fault in the setup reported as a fact about the file.
+
+
+@pytest.mark.parametrize('git_marker', [False, True], ids=['no-dot-git', 'empty-dot-git'])
+def test_by_content_outside_a_repository_says_so(tmp_path, monkeypatch, git_marker):
+    # The ceiling keeps git from finding a repository above tmp_path on a machine whose temp
+    # directory sits inside one; an empty `.git` is the suite's root marker, not a repository.
+    monkeypatch.setenv('GIT_CEILING_DIRECTORIES', str(tmp_path.parent))
+    if git_marker:
+        (tmp_path / '.git').mkdir()
+    (tmp_path / 'mod.py').write_text(MODULE, encoding='utf-8')
+    spec = tmp_path / 'spec.md'
+    spec.write_text(SPEC_HEAD + SNIPPETLESS, encoding='utf-8')
+    report = reanchor(spec, by_content='HEAD')
+    assert not report.applied
+    reasons = [r.refused for r in report.refused]
+    assert reasons and all('not a git repository' in reason for reason in reasons), reasons
+    assert not any('does not carry that file' in reason for reason in reasons), reasons
+
+
+def test_by_content_when_git_cannot_run_says_so(tmp_path, monkeypatch):
+    spec = _committed_spec(tmp_path, SNIPPETLESS)
+
+    def broken(*args, **kwargs):
+        raise FileNotFoundError('git')
+
+    monkeypatch.setattr('keel.reanchor.subprocess.run', broken)
+    result = runner.invoke(app, ['re-anchor', str(spec), '--by-content', 'HEAD'])
+    assert result.exit_code == 0, result.output
+    assert 'git could not run' in result.output, result.output
 
 
 # --- SW2/SW3: a correct anchor stays, a self-quoting row is not its own target, bytes survive --

@@ -29,6 +29,21 @@ notes 499/500; agent wrapper 540/550; Definition-of-Ready prose 942/950; referen
   (`keel new-spec`, then `keel check-ready` on the stamp, with no A13 finding). Class: a
   relaxation; the values read as "no register" are a strict superset of 0.21.0's and every other
   value resolves to the same path, so no spec that passed on 0.21.0 can newly fail.
+- **`re-anchor --by-content` names a missing repository, ref or git** (`(consumer-affecting)`:
+  with no runnable git the verb now exits 0, where it exited 2). git exits 128 alike for "not a
+  git repository", an unknown revision and "path does not exist in `<ref>`", and the remap read
+  only `git show`'s exit status, so a spec outside any repository had every row refused with "HEAD
+  does not carry that file", a fault in the setup reported as a fact about the file. A new
+  `_ref_refusal` asks once per run, through `git rev-parse`, before any `git show`: outside a
+  repository each row now reads "not a git repository, so there is no `<ref>` to read the cited
+  line from", a ref that names no commit reads "`<ref>` does not resolve to a commit in this
+  repository", and only a readable ref that lacks the file keeps "does not carry that file". A git
+  that cannot run (not installed or not executable) is the same kind of refusal, "git could not
+  run"; it used to raise `FileNotFoundError` through the missing-spec handler, printing a bare OS
+  error with exit 2, and now exits 0 like the other refusals. `docs/cli-reference.md` names the
+  three cases. Tests: outside a repository with and without the suite's empty `.git` marker, an
+  unknown ref, and a git that cannot run. Class: refusal messages and that one exit code, on one
+  verb's opt-in mode; no check changes, so no spec in flight can newly fail.
 
 ## [0.21.0] - 2026-10-07
 
