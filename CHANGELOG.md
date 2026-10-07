@@ -23,6 +23,23 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   `tests/conftest.py` autouse fixture that points `KEEL_GATE_LEDGER` at a per-test file, so the
   suite no longer appends to the developer's real ledger. Class: a standing signal on one command's
   output; no check changes, so no spec in flight can newly fail.
+- **`keel check-ready` warns when a criterion's grep reaches a file another section creates** (W8,
+  E4a, 2026-10-06 triage). In a field report, a late section's acceptance criterion was a
+  path-scoped grep that had to print nothing, over a directory in which an earlier section of the
+  same wave created a render fixture. The scope grew when that section landed, and satisfying the
+  criterion destroyed working data after seven pre-mortem rounds. The spec stated both halves and
+  nothing joined them. W8 reads each §N criterion paragraph (A2's span) for backticked `grep`, `rg`
+  or `git grep` commands and takes their path arguments as the scope: the first positional is the
+  pattern unless `-e`/`-f` supplies it, a pipe or redirect ends the command, and a command that
+  names no path is not a candidate. It warns when a scope is, or is a directory or glob over, a
+  concept-map "to be created" path that a different section claims under A5's rule (now one
+  helper, `_claims`, shared by both checks), and names the criterion's section, the scope, the path
+  and the creating section. `DOR_CHECK_IDS` gains W8, so the gate ledger's probes carry it; its
+  candidates are the path-scoped grep criteria. The Definition-of-Ready reference block gains a W8
+  line, identical in the full and core templates (59 words, cap 61); it is a lookup line, so no
+  contract-note or DoR prose is added and nothing is displaced. The adversarial corpus gains a W8
+  mutant. Class: verify-when-present and warn-only, a heuristic over existing structure; exit codes
+  are unchanged, so no spec in flight can newly fail.
 
 ### Changed
 

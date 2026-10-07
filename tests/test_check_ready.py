@@ -1982,3 +1982,117 @@ def test_build_output_only_basename_match_is_refused_and_names_the_copy_a6(tmp_p
     assert f'{tree}/run/models/instruments.sql' in refused[0].message
     assert 'cite the source it was copied from' in refused[0].message
     assert not any('instruments.sql' in w.message for w in result.warnings), result.warnings
+
+
+# --- E4a: a criterion's grep scope vs a path another section creates (W8) -----
+#
+# The field case: a late section's acceptance criterion was a path-scoped grep that had to print
+# nothing, over a directory in which an earlier section of the same wave created a render
+# fixture. The scope grew when that section landed, and satisfying the criterion destroyed working
+# data. The spec stated both halves — the concept map's "to be created" row and the grep — and
+# nothing joined them. A warning, because a scope over existing structure can be deliberate.
+
+_W8_CREATED = 'docs/render/sample.html'
+_W8_FIELD = "`git grep -n 'legacy.example' docs/` prints nothing once the host is retired."
+
+
+def _w8_spec(criterion: str, *, creator: int = 2) -> str:
+    """Eight sections; `creator` creates the render fixture and §8 carries `criterion`."""
+    sections = []
+    for n in range(1, 9):
+        body = (
+            f'Step {n} of the wave. **Acceptance criterion:** a unit test asserts step {n} holds.'
+        )
+        if n == 8:
+            body = f'Retire the legacy host. **Acceptance criterion:** {criterion}'
+        if n == creator:
+            body = f'Add the render fixture `{_W8_CREATED}`. {body}'
+        sections.append(f'### §{n} Step {n}\n{body}\n')
+    manifest = ''.join(f'| PR0{n} | §{n} | yes |\n' for n in range(1, 9))
+    return (
+        f'# Spec — legacy host retirement\n\n- **Status:** ready (DoR passed)\n'
+        f'- **Kit:** {__version__}\n\n## Numbered sections\n\n'
+        + '\n'.join(sections)
+        + '\n## Concept → module map\n\n| Concept | Module / file it lives in |\n|---|---|\n'
+        f'| render fixture | `{_W8_CREATED}` (to be created) |\n\n'
+        '## PR ↔ section manifest\n\n| PR | Implements section | One concern? |\n|---|---|---|\n'
+        + manifest
+        + '\n## Pre-mortem certification\n\n- **Reviewer:** review-panel (non-author)\n'
+        '- **Verdict:** CERTIFIED\n- **Date:** 2026-06-05\n'
+        '- **Failure modes considered & folded in:** none outstanding\n'
+    )
+
+
+def _w8(tmp_path, criterion: str, **kwargs):
+    result = check_spec_ready(_write(tmp_path, _w8_spec(criterion, **kwargs)))
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+    return [w for w in result.warnings if w.check == 'W8']
+
+
+def test_the_field_case_warns_w8_and_exits_zero(tmp_path):
+    from typer.testing import CliRunner
+
+    from keel.cli import app
+
+    spec = _write(tmp_path, _w8_spec(_W8_FIELD))
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    w8 = [w for w in result.warnings if w.check == 'W8']
+    assert len(w8) == 1, result.warnings
+    # Names the criterion's section, the scope, the path and the section that creates it.
+    for needle in ('§8', '`docs/`', f'`{_W8_CREATED}`', '§2'):
+        assert needle in w8[0].message, (needle, w8[0].message)
+    run = CliRunner().invoke(app, ['check-ready', str(spec)])
+    assert run.exit_code == 0, run.output
+    assert _W8_CREATED in run.output
+
+
+@pytest.mark.parametrize(
+    'criterion',
+    [
+        _W8_FIELD,
+        '`grep -rn legacy.example docs` prints nothing once the host is retired.',
+        '`rg -n -e legacy.example docs/render/` prints nothing once the host is retired.',
+        "`rg --glob '*.html' legacy.example docs/` prints nothing once the host is retired.",
+        f'`! grep -q legacy.example {_W8_CREATED}` holds once the host is retired.',
+        '`grep -rn legacy.example ./docs/ | wc -l` prints 0 once the host is retired.',
+        '`git grep -n legacy.example -- docs/*.html` prints nothing once the host is retired.',
+        '`grep -rn legacy.example .` prints nothing once the host is retired, repo wide.',
+    ],
+)
+def test_every_grep_form_over_the_created_path_warns_w8(tmp_path, criterion):
+    assert len(_w8(tmp_path, criterion)) == 1
+
+
+@pytest.mark.parametrize(
+    'criterion',
+    [
+        # A scope with no overlap, including a prefix that stops inside a path segment.
+        '`git grep -n legacy.example src/` prints nothing once the host is retired.',
+        '`grep -rn legacy.example docs/rend` prints nothing once the host is retired.',
+        # The pattern names the path; the scope is elsewhere.
+        f"`grep -rn '{_W8_CREATED}' src/` prints nothing once the host is retired.",
+        # No path argument at all: not a path-scoped criterion.
+        '`git grep -n docs/render` prints nothing once the host is retired, as checked.',
+        # A criterion with no command.
+        'a reviewer confirms the legacy host appears nowhere in the published pages.',
+    ],
+)
+def test_a_grep_scope_that_misses_the_created_path_is_silent_w8(tmp_path, criterion):
+    assert _w8(tmp_path, criterion) == []
+
+
+def test_a_grep_in_the_section_that_creates_the_path_is_silent_w8(tmp_path):
+    assert _w8(tmp_path, _W8_FIELD, creator=8) == []
+
+
+def test_w8_candidates_are_the_path_scoped_grep_criteria(tmp_path):
+    def probe(criterion: str):
+        result = check_spec_ready(_write(tmp_path, _w8_spec(criterion)))
+        return next((p.candidates, p.fired) for p in result.probes if p.check == 'W8')
+
+    assert probe(_W8_FIELD) == (1, 1)
+    assert probe('`git grep -n legacy.example src/` prints nothing, as checked here.') == (1, 0)
+    assert probe('a reviewer confirms the legacy host appears nowhere in the pages.') == (0, 0)
+    # `2>/dev/null` lexes as `2` then `>`: a file descriptor, not a path argument.
+    assert probe('`git grep -n legacy.example 2>/dev/null` prints nothing here.') == (0, 0)

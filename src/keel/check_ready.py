@@ -5,8 +5,10 @@ certification is recorded (Part B / B1), so the gate never green-lights a spec o
 structure alone. See docs/design/2026-06-05-dor-gate-design.md and ADR-0002.
 """
 
+import fnmatch
 import hashlib
 import re
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -392,6 +394,9 @@ def _candidate_counts(
         # W7 has an opportunity only where there is both a certification to compare against
         # and an amendment section to attribute the difference to.
         'W7': certified and int(bool(_AMENDMENT_HEADING_RE.search(text))),
+        # W8's opportunity is a criterion's grep command that names a path: one with no path, or
+        # a criterion with no command, has no scope to compare. Shares `_grep_criteria` with W8.
+        'W8': len(_grep_criteria(subsections)),
     }
 
 
@@ -448,6 +453,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     concept_body = _find_section(sections, 'concept', 'module')
     if concept_body is not None or not single_change:
         violations += _check_paths(concept_body, subsections, spec_path)
+    warnings += _check_grep_scopes(concept_body, subsections)
     # A13 is silent on a spec that declares no register, so its candidate count is the number of
     # orders the register holds — the denominator that tells `n/a` (no register anywhere in this
     # project) apart from `clean` (a register, and every order accounted for).
@@ -998,13 +1004,25 @@ def _check_numbered(subsections: list[tuple[str, str]]) -> list[Violation]:
     return violations
 
 
+def _criterion_paragraph(sub_body: str) -> str | None:
+    """The paragraph after a section's `acceptance criterion` marker; None when there is no marker.
+
+    Only the criterion's own paragraph, up to the first blank line, so an EMPTY criterion followed
+    by unrelated prose cannot launder A2's >=5-word floor. W8 reads its commands from the same span.
+    """
+    marker = re.search(r'acceptance\s+criterion', sub_body, re.IGNORECASE)
+    if marker is None:
+        return None
+    return re.split(r'\n[ \t]*\n', sub_body[marker.end() :], maxsplit=1)[0]
+
+
 def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
     """A2: every numbered section has a present, non-trivial acceptance criterion."""
     violations: list[Violation] = []
     for title, sub_body in subsections:
         where = _id_or_title(title)
-        marker = re.search(r'acceptance\s+criterion', sub_body, re.IGNORECASE)
-        if marker is None:
+        para = _criterion_paragraph(sub_body)
+        if para is None:
             violations.append(
                 Violation(
                     where,
@@ -1015,9 +1033,6 @@ def _check_acceptance(subsections: list[tuple[str, str]]) -> list[Violation]:
                 )
             )
             continue
-        # Count only the criterion's own paragraph (up to the first blank line), so an EMPTY
-        # criterion followed by unrelated prose cannot launder the >=5-word floor (A2).
-        para = re.split(r'\n[ \t]*\n', sub_body[marker.end() :], maxsplit=1)[0]
         words = _words(para)
         if len(words) < _MIN_CRITERION_WORDS:
             violations.append(
@@ -1167,6 +1182,33 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
     return violations
 
 
+def _basename(path: str) -> str:
+    return path.replace('\\', '/').rsplit('/', 1)[-1]
+
+
+def _to_be_created(concept_body: str) -> list[str]:
+    """The concept→module map's "to be created" paths, in row order (A5 and W8)."""
+    return [
+        path
+        for cells in _table_rows(concept_body)
+        if len(cells) >= 2
+        and 'to be created' in cells[1].lower()
+        and (path := _extract_path(cells[1]))
+    ]
+
+
+def _claims(body: str, path: str, tbc_basenames: list[str]) -> bool:
+    """Whether `body` claims the "to be created" `path`: names it, or its basename when unique.
+
+    A5's claim rule, and W8's: A5 asks it of every section at once, W8 of each section alone.
+    """
+    name = _basename(path)
+    return path in body or (
+        tbc_basenames.count(name) == 1
+        and re.search(rf'(?<![\w./-]){re.escape(name)}', body) is not None
+    )
+
+
 def _check_paths(
     concept_body: str | None, subsections: list[tuple[str, str]], spec_path: Path
 ) -> list[Violation]:
@@ -1188,11 +1230,7 @@ def _check_paths(
     base = _resolve_base(spec_path)
     section_text = '\n'.join(sub_body for _, sub_body in subsections)
     rows = [cells for cells in _table_rows(concept_body) if len(cells) >= 2]
-    tbc_basenames: list[str] = [
-        (_extract_path(cells[1]) or '').replace('\\', '/').rsplit('/', 1)[-1]
-        for cells in rows
-        if 'to be created' in cells[1].lower() and _extract_path(cells[1])
-    ]
+    tbc_basenames = [_basename(path) for path in _to_be_created(concept_body)]
     violations: list[Violation] = []
     for index, cells in enumerate(rows):
         module_cell = cells[1]
@@ -1211,12 +1249,7 @@ def _check_paths(
         if not path:
             continue
         if 'to be created' in module_cell.lower():
-            name = path.replace('\\', '/').rsplit('/', 1)[-1]
-            claimed = path in section_text or (
-                tbc_basenames.count(name) == 1
-                and re.search(rf'(?<![\w./-]){re.escape(name)}', section_text) is not None
-            )
-            if not claimed:
+            if not _claims(section_text, path, tbc_basenames):
                 violations.append(
                     Violation(
                         'Concept → module map',
@@ -1236,6 +1269,159 @@ def _check_paths(
                 )
             )
     return violations
+
+
+_GREP_COMMAND_RE = re.compile(r'!?[ \t]*(git[ \t]+grep|grep|rg)(?=\s|$)')
+# Per tool, the short options whose value is the next token. A cluster ends at the first such
+# letter (`-rne PAT`), and `e`/`f` supply the pattern, so every positional is then a path.
+_GREP_VALUE_SHORT = {'grep': 'efmABCdD', 'git grep': 'efmABC', 'rg': 'efgtTmABCMrEj'}
+_GREP_VALUE_LONG = frozenset(
+    {
+        '--regexp',
+        '--file',
+        '--max-count',
+        '--after-context',
+        '--before-context',
+        '--context',
+        '--include',
+        '--exclude',
+        '--exclude-dir',
+        '--glob',
+        '--iglob',
+        '--type',
+        '--type-not',
+        '--replace',
+        '--max-depth',
+        '--threads',
+    }
+)
+_SHELL_OPERATOR_CHARS = frozenset('|&;<>()')
+
+
+def _grep_scopes(command: str) -> list[str]:
+    """The path arguments of a `grep`, `rg` or `git grep` command, or [] (W8).
+
+    The first positional is the pattern unless `-e`/`-f` supplied it, and every later positional
+    is a path. A pipe, redirect or list operator ends the command. A command naming no path
+    searches wherever it runs, so it is not path-scoped and yields nothing.
+    """
+    match = _GREP_COMMAND_RE.match(command)
+    if match is None:
+        return []
+    tool = ' '.join(match.group(1).split())
+    rest = command[match.end() :]
+    try:
+        lexer = shlex.shlex(rest, posix=False, punctuation_chars=True)
+        lexer.whitespace_split = True
+        words = list(lexer)
+    except ValueError:  # an unbalanced quote: read the words rather than nothing
+        words = rest.split()
+    positional: list[str] = []
+    pattern_in_option = False
+    options_done = False
+    stream = iter(words)
+    for word in stream:
+        if set(word) <= _SHELL_OPERATOR_CHARS:
+            if word[0] in '<>' and positional and positional[-1].isdigit():
+                positional.pop()  # `2>/dev/null` lexes as `2`, `>`: a descriptor, not a path
+            break
+        if options_done or word == '-' or not word.startswith('-'):
+            quoted = len(word) >= 2 and word[0] == word[-1] and word[0] in '\'"'
+            positional.append(word[1:-1] if quoted else word)
+        elif word == '--':
+            options_done = True
+        elif word.startswith('--'):
+            name, has_value, _ = word.partition('=')
+            if not has_value and name in _GREP_VALUE_LONG:
+                next(stream, None)
+            pattern_in_option |= name in ('--regexp', '--file')
+        else:
+            for index, letter in enumerate(word[1:], 2):
+                if letter in _GREP_VALUE_SHORT[tool]:
+                    if index == len(word):
+                        next(stream, None)
+                    pattern_in_option |= letter in 'ef'
+                    break
+    return positional if pattern_in_option else positional[1:]
+
+
+def _grep_criteria(subsections: list[tuple[str, str]]) -> list[tuple[str, list[str]]]:
+    """(section id, path scopes) per path-scoped grep command in a §N criterion paragraph (W8)."""
+    found: list[tuple[str, list[str]]] = []
+    for title, sub_body in subsections:
+        para = _criterion_paragraph(sub_body) or ''
+        for span in _INLINE_SPAN_RE.finditer(para):
+            if scopes := _grep_scopes(' '.join(span.group(2).split())):
+                found.append((_id_or_title(title), scopes))
+    return found
+
+
+def _repo_relative(path: str) -> str:
+    """A path argument as the concept map writes one: `/`-separated, no `./`, no trailing `/`."""
+    path = path.replace('\\', '/')
+    while path.startswith('./'):
+        path = path[2:]
+    path = path.rstrip('/')
+    return '' if path == '.' else path
+
+
+def _scope_covers(scope: str, path: str) -> bool:
+    """Whether a grep path argument reaches `path` (W8).
+
+    It does when it is the path itself, a directory above it, or a glob the shell would expand to
+    it once the file exists; `.` is the whole tree.
+    """
+    scope, path = _repo_relative(scope), _repo_relative(path)
+    if not scope:
+        return True
+    if any(char in scope for char in '*?['):
+        return fnmatch.fnmatchcase(path, scope) or fnmatch.fnmatchcase(path, f'{scope}/*')
+    return path == scope or path.startswith(f'{scope}/')
+
+
+def _check_grep_scopes(
+    concept_body: str | None, subsections: list[tuple[str, str]]
+) -> list[Warning]:
+    """W8: a criterion's grep scope covers a path that a DIFFERENT section declares it creates.
+
+    Both halves are already in the spec — the concept map's "to be created" row, claimed by a
+    section under A5's rule, and a §N criterion that greps a directory — and nothing joined them.
+    When the creating section lands, the scope grows: the criterion now reads a file it was not
+    written against, and satisfying it can mean editing or deleting that file's working content.
+    A warning, not a violation: a scope over existing structure is often deliberate.
+    """
+    rows = _to_be_created(concept_body or '')
+    basenames = [_basename(path) for path in rows]  # A5's count, duplicate rows included
+    created = list(dict.fromkeys(rows))
+    claimers = {
+        path: list(
+            dict.fromkeys(
+                _id_or_title(title)
+                for title, sub_body in subsections
+                if _claims(sub_body, path, basenames)
+            )
+        )
+        for path in created
+    }
+    warnings: list[Warning] = []
+    for section, scopes in _grep_criteria(subsections):
+        for scope in scopes:
+            for path in created:
+                others = [claimer for claimer in claimers[path] if claimer != section]
+                if not others or not _scope_covers(scope, path):
+                    continue
+                warnings.append(
+                    Warning(
+                        'W8',
+                        f"WARN: {section}'s acceptance criterion greps `{scope}`, which covers "
+                        f'`{path}` — a path {", ".join(others)} creates (concept map, "to be '
+                        'created"). The scope grows when that section lands, so the criterion '
+                        'reads a file it was not written against; narrow the scope, or say in the '
+                        'criterion whether that file is meant to match.',
+                        cause=f'{section} {scope}',
+                    )
+                )
+    return warnings
 
 
 def _mask_fold_ledger(text: str) -> str:
