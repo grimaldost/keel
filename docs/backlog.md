@@ -660,13 +660,16 @@ recorded here explicitly. `[triage]`
 - **Change:** into KEEL-B10's file — a bounded real pilot before the full paid run asserting every
   arm (baselines, controls, decoys) produces well-formed non-degenerate output, and a decision rule
   that reports "no verdict" when no arm discriminates rather than a false negative.
-- **Status:** **partly shipped** 2026-08-12 (wave 2, 0.15.0). `pre-mortem-profiles.md` carries the
-  reviewer items that detect a degenerate design *before* the spend — feasibility-grounding first,
-  a per-criterion baseline expectation with the ceiling/floor flag, and instrument defeatability.
-  The two halves still missing are the ones that change what happens **after** the spend: the
-  bounded real pilot as a required step, and the explicit "no verdict" terminal state. This wave's
-  own kit-core ablation is the worked case for why they are wanted — it stopped at stage 1 and had
-  to report an instrument without power in prose, because no sheet gave that outcome a name.
+- **Status:** **shipped** 2026-10-07 (0.21.0, Q7c); the before-spend half 2026-08-12 (wave 2,
+  0.15.0). Wave 2 gave `pre-mortem-profiles.md` the reviewer items that detect a degenerate design
+  *before* the spend — feasibility-grounding first, a per-criterion baseline expectation with the
+  ceiling/floor flag, and instrument defeatability. Wave 2's own kit-core ablation was the worked
+  case for the other half — it stopped at stage 1 and had to report an instrument without power in
+  prose, because no sheet gave that outcome a name. 0.21.0 shipped the two halves that change what
+  happens **after** the spend: the measurement design sheet gains `Bounded real pilot` and
+  `Decision rule — no verdict` fields, each with a matching reviewer item (a pilot ran every arm
+  with well-formed, non-degenerate output before the paid run; the rule states the boundary that
+  makes a result no verdict rather than a null). No residue.
 - **Effort:** S · **Source:** `[triage Q7c]`
 
 ### KEEL-B13 — Widen the population clause from the author's cleanliness claim to the design's own domain
@@ -714,6 +717,15 @@ recorded here explicitly. `[triage]`
   a mechanism; (b) a machine-readable `Base:` commit, with check-ready WARNing when it is no longer
   an ancestor of the branch under gate and when the recorded kit version disagrees with the serving
   manifest.
+- **Status:** **shipped** 2026-10-07 (0.21.0), except the kit-version comparison in (b). (a) landed
+  as Q5a, check W9: the full spec template's certification gains a `### Conditions` table
+  (`| Gates | Condition | Status | Evidence |`), where Gates is the §N or commit a condition must
+  clear before and Status and Evidence record its discharge, and `check-ready` warns once per row
+  still open under a CONDITIONAL-CERTIFY, quoting it. (b) landed as Q5b, check W10: a
+  `- **Base:**` SHA in the certification block, with a warning when it no longer resolves or is no
+  longer an ancestor of HEAD. Residue: the recorded-versus-serving kit-version comparison was
+  deliberately not built — the header `Kit:` stamp that W1 compares with the running gate already
+  is that comparison, and W1 ignores a patch difference by design.
 - **Effort:** M · **Source:** `[triage Q5a/b]`
 
 ### KEEL-B16 — The spec pin travels with the series it governs
@@ -904,6 +916,13 @@ recorded here explicitly. `[triage]`
   spec's anchors describe the tree at certification, and a spec whose first section relocates them
   stays truthful as instructions while DoD gates from PR01. The prose half displaces an unwritten
   assumption the field derived twice.
+- **Status:** **shipped** 2026-10-07 (0.21.0), with (a) by a different route. (a) landed as E5b:
+  instead of an `ext:<alias>` prefix, a spec lists each anchor that cannot resolve by design in an
+  `Anchor waivers` table (`| Anchor | Reason |`), A6 drops its findings for each listed anchor, and
+  a row with no reason fails A6. (b) landed as Q4b: the full Definition-of-Ready sheet states that a
+  certified spec's anchors describe the tree at certification and that the DoD gates take over from
+  PR01. Residue: the `ext:<alias>` grammar was not built (KEEL-B55 had already closed it as
+  unneeded), so a waived anchor is skipped by A6, not resolved through a declared alias.
 - **Effort:** M · **Source:** `[triage Q4a/b]`
 
 ### KEEL-B21 — Every manifest row runs the full gate list before its merge
@@ -939,6 +958,11 @@ recorded here explicitly. `[triage]`
 - **Change:** normalize whitespace on both sides of the needle comparison
   (`re.sub(r'\s+', ' ', …)`) — the drift guard already does this for clause identity. Removes the
   fragility rather than warning about it.
+- **Status:** **shipped** 2026-10-07 (0.21.0, Q12a) as a test-only change, so the CHANGELOG carries
+  no entry for it: `tests/test_templates_valid.py` compares each required-section needle through
+  `_contains`, which collapses whitespace runs on both sides, and a test pins that a wrapped needle
+  still matches. No residue: the file's remaining raw `in` assertions check file names and short
+  code literals, not wrapped prose.
 - **Effort:** S · **Source:** `[triage Q12a]`
 
 ### KEEL-B24 — Widen the review checklist's Tests item with the adequacy question
@@ -948,6 +972,11 @@ recorded here explicitly. `[triage]`
   unpublished).
 - **Change:** rewrite the existing Tests item rather than adding a sibling. Rides the same file edit
   as **KEEL-B33**.
+- **Status:** **shipped** 2026-10-07 (0.21.0, Q7d), on its own rather than with KEEL-B33's edit. The
+  review checklist's Tests item keeps its first line and adds whether the test would fail if the
+  load-bearing predicate were subtly wrong and, for a registry or allow-list, to derive the set
+  from the spec and assert equality, not membership. A rewrite, not a sibling: the checklist still
+  has ten items. No residue.
 - **Effort:** S · **Source:** `[triage Q7d]`
 
 ### KEEL-B25 — Carried watch rows (no work until a second report)
@@ -1088,6 +1117,9 @@ recorded here explicitly. `[triage]`
   than substituting for it.
 - **Ordering:** the spec template's contract notes are at 499 of 500 words, so this owes a
   displacement before it can land there; the Definition of Done is the alternative home.
+- **Status:** **shipped** 2026-10-07 (0.21.0, D1e) in the spec template's Context section, as a
+  plain instruction line rather than an italic contract note, so the notes stay at 499/500 and no
+  displacement was owed. The core template does not carry the line. No residue.
 - **Effort:** S · **Source:** `[triage D1]`
 
 ### KEEL-B57 — Round shapes have no vocabulary, so a converging series pays full price per round

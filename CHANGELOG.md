@@ -22,6 +22,11 @@ notes 499/500; agent wrapper 540/550; Definition-of-Ready prose 942/950; referen
   citation convention prescribes, and the adversarial corpus's `A6-absent-sibling` mutant cites
   `../sibling/src/tinyetl/regions.py:3`. The mutant only needs a path that leaves the repository,
   and it still fires exactly A6.
+- **`docs/backlog.md` records what 0.21.0 shipped.** KEEL-B12, B15, B20, B23, B24 and B56 each
+  gain a Status line naming the 0.21.0 entry that shipped them and what was left: B12 is shipped
+  (Q7c completed the after-spend half), B15's kit-version comparison and B20's `ext:<alias>`
+  grammar were deliberately not built, B20's other half shipped by a different route (the
+  `Anchor waivers` table), and B23 shipped as a test-only change with no entry of its own.
 
 ### Fixed
 
