@@ -181,6 +181,13 @@ it changed, or `none`. A12 fails the row when the cell is empty.
 - **Series verdict:** not yet reviewed
 - **Series artifact:**
 
+### Amendment review — <date>, round <N>
+
+- **Amendment reviewer:**
+- **Amendment verdict:** not yet reviewed
+- **Amendment artifact:** <the saved amendment pass output's path>
+- **Edits sections:** <section numbers edited after the pass, if any; the latest dated subsection supersedes earlier ones>
+
 ---
 *Most Definition-of-Ready checks pass by construction here — numbered sections, per-section
 criteria, the concept→module map, the manifest. The one that cannot is the pre-mortem

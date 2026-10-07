@@ -232,3 +232,60 @@ def test_an_operator_close_keeps_its_suffix_when_an_edit_is_declared(tmp_path):
     _edit_section_two(spec, EDITING_AMENDMENT)
     message = _w5_message(spec)
     assert 'operator' in message.lower() and '§2' in message
+
+
+# --- Amendment review subsection --------------------------------------------------------
+# Inside `## Pre-mortem certification`, a subsection `### Amendment review — <date>, round <N>`
+# records a certification pass on an amendment, following the Series review pattern.
+# The Amendment review is part of the Pre-mortem certification section, which spec_hash excludes.
+
+AMENDMENT_REVIEW_SECTION = """
+
+### Amendment review — 2026-10-06, round 1
+
+- **Amendment reviewer:** review-panel (non-author)
+- **Amendment verdict:** CERTIFIED
+- **Amendment artifact:** `spec.amendment-r1.md`
+- **Edits sections:** §1
+
+The latest dated amendment subsection supersedes earlier ones.
+"""
+
+
+def test_filled_amendment_review_leaves_spec_hash_unchanged(tmp_path):
+    # The Amendment review subsection is part of the Pre-mortem certification section,
+    # which spec_hash excludes. Adding it should not move the canonical hash.
+    spec = _spec(tmp_path)
+    before = spec_hash(spec)
+    # Insert the Amendment review subsection before the closing separator of the
+    # Pre-mortem certification section
+    text = spec.read_text(encoding='utf-8')
+    # Find the position of the closing separator after Series review
+    series_end = text.find('### Series review')
+    closing_sep = text.find('\n---', series_end)
+    inserted = text[:closing_sep] + AMENDMENT_REVIEW_SECTION + text[closing_sep:]
+    spec.write_text(inserted, encoding='utf-8')
+    assert spec_hash(spec) == before
+    # And verify it's part of the Pre-mortem certification section
+    assert spec_hash_without_amendments(spec) == before
+
+
+def test_amendment_review_subsection_does_not_affect_certification(tmp_path):
+    # The Amendment review subsection is part of the Pre-mortem certification section,
+    # which is excluded from the hash. Adding it should:
+    # 1. Not change the hash (already tested above)
+    # 2. Not prevent certification from working (B2 checks still pass)
+    # 3. Not be scanned for Verdict lines (B1 only reads the first one)
+    spec = _spec(tmp_path)
+    certified_hash = spec_hash(spec)
+    # Insert the Amendment review subsection
+    text = spec.read_text(encoding='utf-8')
+    series_end = text.find('### Series review')
+    closing_sep = text.find('\n---', series_end)
+    inserted = text[:closing_sep] + AMENDMENT_REVIEW_SECTION + text[closing_sep:]
+    spec.write_text(inserted, encoding='utf-8')
+    _certify(spec, certified_hash)
+    warns = _warns(spec)
+    # No W7 because the certified content is intact (the Amendment review is part of the
+    # Pre-mortem certification section which is excluded from the hash)
+    assert 'W7' not in warns and 'W5' not in warns

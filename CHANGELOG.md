@@ -103,6 +103,19 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   cell filled fires nothing); the E6a template test's row gains the fifth cell. Class:
   verify-when-present; a ledger without the column, the three- and four-column legacy shapes
   included, is checked exactly as before, so no spec in flight can newly fail.
+- **The spec-template gains an `### Amendment review` subsection** (SW10, 2026-10-06 triage).
+  After a spec is certified, post-certification changes land in an `## Amendment` section
+  following the release discipline. An `### Amendment review — <date>, round <N>` subsection
+  inside `## Pre-mortem certification` records when a reviewer certifies an amendment round.
+  The subsection follows the Series review pattern: `- **Amendment reviewer:**`,
+  `- **Amendment verdict:**`, `- **Amendment artifact:**`, and `- **Edits sections:**` (the
+  sections edited after the pass, if any). Guidance is in field placeholders; the latest dated
+  subsection supersedes earlier ones. The addition is part of the Pre-mortem certification section,
+  which `spec_hash` excludes, so `spec_hash` is unchanged and amendments remain tamper-evident.
+  Tests verify adding the filled subsection leaves the canonical hash and the B1 Verdict scan
+  unchanged, and B2/decompose-check fields are not picked up from the new subsection. No contract-note
+  prose is added (499/500, unchanged); the core template is untouched. Class: a template-only
+  subsection; no check changes, no parser changes, so no spec in flight can newly fail.
 
 ### Changed
 

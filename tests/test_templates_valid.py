@@ -66,6 +66,7 @@ REQUIRED_SECTIONS = {
         'IS its snippet',
         '§ that creates it',
         'not just the address',
+        'Amendment review',
     ],
     'series-toml-skeleton.md': ['Tier vocabulary', 'model-family names', 'method-bindings.md'],
     # The one binding that rots by itself: a consumer that pins a cache version names a
