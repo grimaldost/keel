@@ -27,6 +27,12 @@ notes 499/500; agent wrapper 540/550; Definition-of-Ready prose 942/950; referen
   (Q7c completed the after-spend half), B15's kit-version comparison and B20's `ext:<alias>`
   grammar were deliberately not built, B20's other half shipped by a different route (the
   `Anchor waivers` table), and B23 shipped as a test-only change with no entry of its own.
+- **Two install-path docs state the current facts.** `docs/getting-started.md` called the kit
+  `keel init` copies "ten-file"; it copies twelve, and the line now gives no count and lists the
+  two files it had left out (the requirements register and the pre-mortem profiles), with
+  `docs/templates-reference.md` still the full list. `docs/installation.md` said tagging lags the
+  shipped version; every release from 0.4.0 is tagged `v<version>` at the commit that merged it,
+  so `@v<version>` is the pin.
 
 ### Fixed
 
