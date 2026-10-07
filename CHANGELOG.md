@@ -33,6 +33,12 @@ notes 499/500; agent wrapper 540/550; Definition-of-Ready prose 942/950; referen
   `docs/templates-reference.md` still the full list. `docs/installation.md` said tagging lags the
   shipped version; every release from 0.4.0 is tagged `v<version>` at the commit that merged it,
   so `@v<version>` is the pin.
+- **The pre-commit ruff hooks run the locked ruff.** `.pre-commit-config.yaml` pinned
+  `ruff-pre-commit` at v0.15.0 while `uv.lock` and CI run ruff 0.16.9, so a commit could be
+  linted and formatted by a different ruff than the gate that judges it. The `ruff` and
+  `ruff-format` hooks are now local hooks that run `uv run ruff check --force-exclude --fix` and
+  `uv run ruff format --force-exclude`, the way the `ty` hook already ran, so the lock is the one
+  pin and a dependency bump moves both.
 
 ### Fixed
 
