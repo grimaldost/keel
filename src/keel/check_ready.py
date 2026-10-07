@@ -9,6 +9,7 @@ import fnmatch
 import hashlib
 import re
 import shlex
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -352,8 +353,11 @@ def _candidate_counts(
     shared, not re-derived — and the suite pins the invariant that a check never fires without a
     counted candidate, which is what catches drift if a check's shape changes and this does not.
     """
-    anchors = sum(1 for m in _ANCHOR_RE.finditer(text) if _anchor_shaped(m.group(1)))
-    ranges = sum(1 for m in _ANCHOR_RANGE_RE.finditer(text) if _anchor_shaped(m.group(1)))
+    # A waiver row is A6's construct and its cells are masked from the scans, so it counts once,
+    # as a row, never again as the anchor it lists. With no block the view is `text` unchanged.
+    anchor_view = _mask_anchor_waivers(text)
+    anchors = sum(1 for m in _ANCHOR_RE.finditer(anchor_view) if _anchor_shaped(m.group(1)))
+    ranges = sum(1 for m in _ANCHOR_RANGE_RE.finditer(anchor_view) if _anchor_shaped(m.group(1)))
     ledger_rows = len(_ledger_rows(cert))
     # W6's opportunity is a ledger row carrying a snippet: a row without one has nothing to
     # resolve from, so its silence says nothing. Shares `_ledger_anchor` with the check.
@@ -373,7 +377,7 @@ def _candidate_counts(
         'A4': max(len(_table_rows(manifest_body or '')) - 1, 0) or int(manifest_body is None),
         'A5': max(len([c for c in _table_rows(concept_body or '') if len(c) >= 2]) - 1, 0)
         or int(concept_body is None),
-        'A6': anchors,
+        'A6': anchors + len(_waiver_rows(text)),
         'A7': len(_ADR_REF_RE.findall(text)),
         'A8': len(_SECTION_REF_RE.findall(prose)),
         'A9': len(_MODEL_ON_RE.findall(text)) + len(_REUSE_RE.findall(text)),
@@ -461,11 +465,14 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     violations += _check_requirements_ledger(header, sections, section_ids, spec_path)
     cert = _find_section(sections, 'pre-mortem', 'certification')
     # A12 owns the fold ledger's anchors; A6/A11 must not re-report them under prose semantics.
-    outside_ledger = _mask_fold_ledger(text)
-    anchor_violations, anchor_warnings = _check_anchors(outside_ledger, spec_path)
-    violations += anchor_violations
+    # An `Anchor waivers` block is a record about anchors, not prose, and is masked the same way.
+    outside_records = _mask_anchor_waivers(_mask_fold_ledger(text))
+    waived, waiver_violations = _anchor_waivers(text)
+    violations += waiver_violations
+    anchor_violations, anchor_warnings = _check_anchors(outside_records, spec_path)
+    violations += [v for v in anchor_violations if not (v.check == 'A6' and v.where in waived)]
     warnings += anchor_warnings
-    range_violations, range_warnings = _check_anchor_ranges(outside_ledger, spec_path)
+    range_violations, range_warnings = _check_anchor_ranges(outside_records, spec_path)
     violations += range_violations
     warnings += range_warnings
     violations += _check_adr_numbers(text, spec_path)
@@ -1424,6 +1431,35 @@ def _check_grep_scopes(
     return warnings
 
 
+_BLOCK_HEADING_RE = re.compile(r'^#{2,6}[ \t]+')
+# E5b: the anchor-waiver block's heading, at level 2 (a section of its own) or level 3 (inside an
+# `## Amendment`, where a certified spec adds it without touching the certified body).
+_WAIVER_HEADING_RE = re.compile(r'^#{2,3}[ \t]+anchor waivers\s*$', re.IGNORECASE)
+
+
+def _heading_blocks(lines: list[str], opens: Callable[[str], object]) -> list[range]:
+    """Line ranges of each block whose heading `opens` accepts, up to the next level-2-6 heading."""
+    spans: list[range] = []
+    start: int | None = None
+    for index, line in enumerate(lines):
+        if _BLOCK_HEADING_RE.match(line):
+            if start is not None:
+                spans.append(range(start, index))
+            start = index + 1 if opens(line) else None
+    if start is not None:
+        spans.append(range(start, len(lines)))
+    return spans
+
+
+def _mask_blocks(text: str, opens: Callable[[str], object]) -> str:
+    """Space-fill each block whose heading `opens` accepts, offsets preserved."""
+    lines = text.splitlines(keepends=True)
+    for span in _heading_blocks(lines, opens):
+        for index in span:
+            lines[index] = re.sub(r'[^\n]', ' ', lines[index])
+    return ''.join(lines)
+
+
 def _mask_fold_ledger(text: str) -> str:
     """Space-fill the `### Fold ledger` sub-table, offsets preserved.
 
@@ -1432,15 +1468,54 @@ def _mask_fold_ledger(text: str) -> str:
     re-check the same rows under prose semantics and report the SAME defect twice, under a check
     that cannot repair it and with a second fire in the hit-rate ledger. One row, one owner.
     """
+    return _mask_blocks(text, lambda heading: 'fold ledger' in heading.lower())
+
+
+def _mask_anchor_waivers(text: str) -> str:
+    """Space-fill every `Anchor waivers` block, offsets preserved, as the ledger is masked.
+
+    A waiver row is a record about an anchor, not prose: its cells (a reason may cite where the
+    referent went) are not anchors for A6 or A11 to scan.
+    """
+    return _mask_blocks(text, _WAIVER_HEADING_RE.match)
+
+
+def _waiver_rows(text: str) -> list[list[str]]:
+    """The data rows of every `Anchor waivers` table (`| Anchor | Reason |`), headers dropped."""
     lines = text.splitlines(keepends=True)
-    inside = False
-    for index, line in enumerate(lines):
-        if re.match(r'^#{2,6}[ \t]+', line):
-            inside = 'fold ledger' in line.lower()
+    rows: list[list[str]] = []
+    for span in _heading_blocks(lines, _WAIVER_HEADING_RE.match):
+        rows += _table_rows(''.join(lines[index] for index in span))[1:]
+    return rows
+
+
+def _anchor_waivers(text: str) -> tuple[frozenset[str], list[Violation]]:
+    """E5b (verify-when-present): the anchors the waiver tables exempt from A6, and the bad rows.
+
+    An anchor cannot always resolve by design: its file is in a repository this gate cannot read,
+    or a section of the spec itself moves it. A row lists the anchor by its exact `path:line` text
+    (the first backticked token of its first cell, else the bare cell) and says why in its second.
+    A row with no reason is not a waiver: it fails as A6 and exempts nothing. A spec with no block
+    has nothing waived and is checked exactly as before.
+    """
+    waived: set[str] = set()
+    violations: list[Violation] = []
+    for cells in _waiver_rows(text):
+        span = re.search(r'`([^`]*)`', cells[0])
+        anchor = (span.group(1) if span else cells[0]).strip()
+        reason = cells[1] if len(cells) > 1 else ''
+        if re.search(r'\w', reason):
+            waived.add(anchor)
             continue
-        if inside:
-            lines[index] = re.sub(r'[^\n]', ' ', line)
-    return ''.join(lines)
+        violations.append(
+            Violation(
+                'Anchor waivers',
+                f'waiver names no reason for {anchor!r} — a listed anchor is exempt from A6 only '
+                'with the reason it cannot resolve here; fill its Reason cell or drop the row.',
+                'A6',
+            )
+        )
+    return frozenset(waived), violations
 
 
 def _check_anchors(text: str, spec_path: Path) -> tuple[list[Violation], list[Warning]]:

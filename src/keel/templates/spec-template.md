@@ -89,6 +89,17 @@ literal complete or not at all.*
 `Verdict:` line, a to-do token, an example `### heading` — fence it. Fenced content is masked before
 every check; unfenced, it false-fails A3 or shadows the certification.*
 
+## Anchor waivers
+
+Only for an anchor that cannot resolve by design: its file is in a repository this gate cannot
+read, or a section of this spec moves the line it cites. A6 does not fail an anchor listed here
+by its exact `path:line` text, and a row that names no reason fails. On a certified spec, add the table
+as `### Anchor waivers` inside a `## Amendment` section instead, so the certified body does not
+change and W7 reports the addition.
+
+| Anchor | Reason |
+|---|---|
+
 ## Requirements ledger
 
 Only when the header names a register. One row per entry in it, so an order this spec neither

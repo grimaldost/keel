@@ -40,6 +40,25 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   contract-note or DoR prose is added and nothing is displaced. The adversarial corpus gains a W8
   mutant. Class: verify-when-present and warn-only, a heuristic over existing structure; exit codes
   are unchanged, so no spec in flight can newly fail.
+- **An `Anchor waivers` table exempts the anchors it lists from A6** (E5b, KEEL-B20, 2026-10-06
+  triage). Some anchors cannot resolve by design: the file is in a repository the gate cannot read,
+  or a section of the spec itself moves the line it cites. Such evidence had to move into prose, or
+  the gate failed by construction on every run. A spec may now carry a `| Anchor | Reason |` table
+  under an `Anchor waivers` heading at level 2 or 3. A6 drops its violations for each anchor a row
+  lists by its exact `path:line` text (the first backticked token of the Anchor cell). A row with no
+  reason fails as A6 ("waiver names no reason") and exempts nothing. The block is masked before the
+  A6 and A11 scans, as the fold ledger is, so a reason that cites where the referent went is not
+  scanned as an anchor; each row counts as one A6 candidate. A certified spec adds the table as
+  `### Anchor waivers` inside its `## Amendment`, so the certified body does not change and B2
+  reports the addition as W7 (owner decision 2026-09-19). `_mask_fold_ledger` now shares one block
+  walker with the new mask; its behaviour is unchanged. The full spec template gains an
+  `## Anchor waivers` section with a plain paragraph and an empty table, so no italic contract-note
+  words are added (499/500, unchanged) and nothing is displaced; the core template does not carry
+  it. The A6 line of the Definition-of-Ready reference block is extended identically in the full
+  and core templates (60 words, cap 61); it is a lookup line, so no DoR prose is added. The
+  adversarial corpus gains a positive control (a reasonless row fires exactly A6) and a negative
+  control (a waived sibling anchor fires nothing). Class: verify-when-present; a spec with no block
+  is checked exactly as before, so no spec in flight can newly fail.
 
 ### Changed
 

@@ -328,3 +328,33 @@ fires = ["W8"]
 why = "a criterion's grep scope covers a file another section creates: the scope grows when that section lands, so the criterion measures code it was never written about, and satisfying it can mean deleting the new file's working content. The spec states both halves, the concept map's 'to be created' row and the grep, and nothing joined them"
 find = "their sum, asserted by a unit test."
 replace = "their sum, asserted by a unit test, and `grep -rn 'float(' src/tinyetl/` prints nothing."
+
+[[mutant]]
+id = "A6-waiver-without-reason"
+fires = ["A6"]
+why = "E5b: a waiver exempts an anchor from A6 only with the reason it cannot resolve. A row that names none is not a waiver and fails, even over an anchor that resolves, because the record itself is incomplete"
+find = "## PR ↔ section manifest"
+replace = """## Anchor waivers
+
+| Anchor | Reason |
+|---|---|
+| `src/tinyetl/regions.py:3` |  |
+
+## PR ↔ section manifest"""
+
+[[mutant]]
+id = "A6-waived-sibling-anchor"
+fires = []
+why = "E5b's negative control: an anchor into a repository the gate cannot read is legitimate evidence, and a waiver with its reason keeps A6 silent on it. Without the waiver row this is A6-absent-sibling"
+find = """row, asserted by a docs-sync check.
+
+## Requirements ledger"""
+replace = """row, asserted by a docs-sync check, as `../docs-site/status.md:4` records.
+
+## Anchor waivers
+
+| Anchor | Reason |
+|---|---|
+| `../docs-site/status.md:4` | the status page lives in a sibling repository this gate cannot read |
+
+## Requirements ledger"""

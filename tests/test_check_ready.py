@@ -1,9 +1,12 @@
 """Behaviour of the Definition-of-Ready gate (check_spec_ready)."""
 
+import re
+
 import pytest
 
 from keel import __version__
 from keel.check_ready import check_spec_ready, spec_hash
+from keel.templates import templates_root
 
 # A well-formed, pre-mortem-certified spec in the spec-template.md shape. It carries the header
 # `Kit:` stamp the template ships (T0.3), so the W1 unstamped nudge is not the ambient state of
@@ -2096,3 +2099,104 @@ def test_w8_candidates_are_the_path_scoped_grep_criteria(tmp_path):
     assert probe('a reviewer confirms the legacy host appears nowhere in the pages.') == (0, 0)
     # `2>/dev/null` lexes as `2` then `>`: a file descriptor, not a path argument.
     assert probe('`git grep -n legacy.example 2>/dev/null` prints nothing here.') == (0, 0)
+
+
+# E5b (KEEL-B20): an `Anchor waivers` table exempts the anchors it lists from A6, matched by their
+# exact `path:line` text. A row names a reason or fails; a spec with no block is unchanged.
+_WAIVED = '`missing/mod.py:9`'
+_WAIVER_REASON = 'the module lives in a sibling repository this gate cannot read'
+
+
+def _waivers(*rows: str, level: str = '##') -> str:
+    return f'{level} Anchor waivers\n\n| Anchor | Reason |\n|---|---|\n' + '\n'.join(rows) + '\n\n'
+
+
+def _waiver_spec(tmp_path, cite: str, block: str):
+    (tmp_path / '.git').mkdir(exist_ok=True)
+    spec = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', f'Introduce `src/widget.py`. See {cite}.'
+    ).replace('## PR ↔ section manifest', block + '## PR ↔ section manifest')
+    return _write(tmp_path, spec)
+
+
+def _a6(result):
+    return [(v.where, v.message) for v in result.violations if v.check == 'A6']
+
+
+def test_a_listed_anchor_with_a_reason_is_silent_a6(tmp_path):
+    spec = _waiver_spec(tmp_path, _WAIVED, _waivers(f'| {_WAIVED} | {_WAIVER_REASON} |'))
+    result = check_spec_ready(spec)
+    assert result.passed, _a6(result) or result.violations
+
+
+def test_an_unlisted_anchor_still_fails_beside_a_waiver_a6(tmp_path):
+    # Exact `path:line` text: a waiver for line 9 says nothing about line 10 of the same file.
+    spec = _waiver_spec(
+        tmp_path,
+        f'{_WAIVED} and `missing/mod.py:10`',
+        _waivers(f'| {_WAIVED} | {_WAIVER_REASON} |'),
+    )
+    result = check_spec_ready(spec)
+    assert [where for where, _ in _a6(result)] == ['missing/mod.py:10']
+
+
+def test_a_waiver_row_without_a_reason_fails_a6(tmp_path):
+    # A waiver with no reason is not a waiver: the row fails, and the anchor is not exempted.
+    spec = _waiver_spec(tmp_path, _WAIVED, _waivers(f'| {_WAIVED} |  |'))
+    result = check_spec_ready(spec)
+    assert not result.passed
+    messages = [message for _, message in _a6(result)]
+    assert any('waiver names no reason' in m and 'missing/mod.py:9' in m for m in messages), (
+        messages
+    )
+    assert 'missing/mod.py:9' in [where for where, _ in _a6(result)]
+
+
+def test_the_waiver_table_is_not_scanned_as_anchors_a6_a11(tmp_path):
+    # The block is the waiver's record, not prose: a reason may cite where the referent went, and
+    # neither A6 nor A11 reads the block's cells (as `_mask_fold_ledger` does for A12's rows).
+    reason = 'the §1 move puts it at `missing/new.py:4`, body `missing/new.py:4-6`'
+    spec = _waiver_spec(tmp_path, _WAIVED, _waivers(f'| {_WAIVED} | {reason} |'))
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+
+
+def test_a_waiver_row_is_an_a6_candidate(tmp_path):
+    # A check never fires without a counted candidate, so a row counts even when its anchor cell
+    # is written unbackticked and no prose anchor exists.
+    spec = _waiver_spec(tmp_path, 'the module', _waivers('| missing/mod.py:9 |  |'))
+    probe = next(p for p in check_spec_ready(spec).probes if p.check == 'A6')
+    assert (probe.candidates, probe.fired) == (1, 1)
+
+
+def test_a_waiver_added_inside_an_amendment_warns_w7_not_w5(tmp_path):
+    # Owner 2026-09-19: a certified body does not change. The waiver goes in `### Anchor waivers`
+    # under `## Amendment`, so B2 reads the moved hash as an addition (W7), not a revision (W5).
+    (tmp_path / '.git').mkdir()
+    certified = READY_SPEC.replace(
+        'Introduce `src/widget.py`.', f'Introduce `src/widget.py`. See {_WAIVED}.'
+    ).replace(
+        '- **Date:** 2026-06-05',
+        '- **Certification artifact:** `spec.premortem.md`\n- **Date:** 2026-06-05',
+    )
+    spec = _write(tmp_path, certified)
+    (tmp_path / 'spec.premortem.md').write_text(
+        f'PREMORTEM-VERDICT: CERTIFIED\nSpec-hash: {spec_hash(spec)}\n', encoding='utf-8'
+    )
+    amendment = '\n## Amendment\n\n' + _waivers(f'| {_WAIVED} | {_WAIVER_REASON} |', level='###')
+    spec.write_text(certified + amendment, encoding='utf-8')
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
+    warned = {w.check for w in result.warnings}
+    assert 'W7' in warned and 'W5' not in warned, result.warnings
+
+
+def test_the_templates_waiver_block_is_the_one_the_gate_reads_a6(tmp_path):
+    # CONTRIBUTING 2a: a parser tested only on synthetic fixtures can doze on the shipped template.
+    # The scaffold's own block, given one row, must exempt that anchor and fire nothing else.
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    found = re.search(r'^## Anchor waivers\n.*?(?=^## )', template, re.MULTILINE | re.DOTALL)
+    assert found is not None, 'spec-template.md documents no `## Anchor waivers` block'
+    block = found.group(0).rstrip('\n') + f'\n| {_WAIVED} | {_WAIVER_REASON} |\n\n'
+    result = check_spec_ready(_waiver_spec(tmp_path, _WAIVED, block))
+    assert result.passed, [(v.check, v.where, v.message) for v in result.violations]
