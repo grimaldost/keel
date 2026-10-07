@@ -33,7 +33,7 @@ A1 fail unless >=1 "### §N" heading under "Numbered sections", all numbered
 A2 fail unless each §N has a non-trivial "Acceptance criterion" (present, >=5 words), counted
    in the paragraph immediately after the marker
 A3 fail on a TBD/FIXME/??? token, a TODO marker (`TODO:`, `TODO(`, `# TODO`, or the token alone as a line, list item, table cell or code span; "TODO o sistema" in prose passes), or a leftover `<...>` angle placeholder — the angle idiom is matched on the prose view, so backticked `<target>` is exempt while a bare `<title>` is caught
-A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage — also absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` (ADR-0014)
+A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage; with a `Repo` (or `Repository`) column the key is (section, repo), one row per repository — also absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` (ADR-0014)
 A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
 A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches. An `Anchor waivers` table (`##` or `###` heading, `| Anchor | Reason |`) exempts each anchor it lists by exact `path:line` with a reason; its own cells are not scanned, and a row naming no reason fails
 A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR

@@ -9,6 +9,7 @@ import fnmatch
 import hashlib
 import re
 import shlex
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -1127,6 +1128,11 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
     header naming it, else the second column), so a §N mentioned in a "One concern?" / "Depends on"
     comment cell neither breaks the count nor lets a PR smuggle a second section past the gate; and
     a single PR row citing two sections now fails (the scope-bundling A4 exists to forbid).
+
+    An optional `Repo` (or `Repository`) column re-keys the PR side on (section, repo cell): a
+    section that spans repositories takes one row per repository, the same pair twice still fails,
+    and every section still needs a row. A blank repo cell is its own key, so a manifest without
+    the column, or with it left empty, checks exactly as before (E3c).
     """
     if manifest_body is None:
         return [
@@ -1143,12 +1149,23 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
         (i for i, h in enumerate(header) if 'section' in h.lower() or 'implements' in h.lower()),
         1 if len(header) > 1 else 0,
     )
+    repo_col = next(
+        (
+            i
+            for i, h in enumerate(header)
+            if i != section_col and h.lower() in ('repo', 'repository')
+        ),
+        None,
+    )
     violations: list[Violation] = []
     cited: list[str] = []
+    keys: list[tuple[str, str]] = []
     for row in rows[1:]:
         cell = row[section_col] if section_col < len(row) else ''
         ids = _SECTION_ID_RE.findall(cell)
         cited.extend(ids)
+        repo = row[repo_col] if repo_col is not None and repo_col < len(row) else ''
+        keys.extend((sid, repo) for sid in ids)
         if len(ids) != 1:
             pr = row[0].strip() if row else '(row)'
             violations.append(
@@ -1163,17 +1180,23 @@ def _check_manifest(manifest_body: str | None, section_ids: list[str]) -> list[V
         violations.append(
             Violation('PR ↔ section manifest', 'manifest has no PR → section rows.', 'A4')
         )
+    per_key = Counter(keys)
     for sid in section_ids:
-        count = cited.count(sid)
-        if count == 0:
+        if sid not in cited:
             violations.append(
                 Violation('PR ↔ section manifest', f'section {sid} is not covered by any PR.', 'A4')
             )
-        elif count > 1:
+        for (key_sid, repo), count in per_key.items():
+            if key_sid != sid or count < 2:
+                continue
+            if repo_col is None:
+                in_repo = ''
+            else:
+                in_repo = f' in repo {repo!r}' if repo else ' with no repo named'
             violations.append(
                 Violation(
                     'PR ↔ section manifest',
-                    f'section {sid} is covered by {count} PRs (not a bijection).',
+                    f'section {sid} is covered by {count} PRs{in_repo} (not a bijection).',
                     'A4',
                 )
             )

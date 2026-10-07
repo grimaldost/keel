@@ -126,6 +126,10 @@ named ratification the gate fails (A13).
 *Every section must be covered by exactly one PR, and every PR must cite exactly
 one section. A many-to-one or uncovered section is a DoR failure.*
 
+Optional columns: `Repo` (the repository a PR lands in) and `Wave` (the batch it ships with; the
+gate does not read it). With a `Repo` column, a section that spans repositories takes one row per
+repository, and the same section twice in one repository still fails.
+
 ## Definition of Done (this spec)
 
 Concrete, checkable conditions for the whole spec (beyond per-section criteria).

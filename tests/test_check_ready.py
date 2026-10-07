@@ -178,6 +178,85 @@ def test_uncovered_section_fails_a4(tmp_path):
     assert any('§2' in v.message and 'cover' in v.message.lower() for v in result.violations)
 
 
+# E3c: a manifest may carry an optional `Repo` (or `Repository`) column, and with it A4 keys on
+# (section, repo) — a section that spans two repositories takes one PR row per repository. The
+# relaxation is the only change: the same (section, repo) twice still fails, every section still
+# needs a row, and a manifest without the column (a `Wave` column alone included) is unchanged.
+_MANIFEST_ROWS = (
+    '| PR | Implements section | One concern? |\n|---|---|---|\n'
+    '| PR01 | §1 | yes |\n| PR02 | §2 | yes |\n'
+)
+
+
+def _manifest_a4(tmp_path, manifest):
+    spec = READY_SPEC.replace(_MANIFEST_ROWS, manifest)
+    assert spec != READY_SPEC
+    return [v for v in check_spec_ready(_write(tmp_path, spec)).violations if v.check == 'A4']
+
+
+@pytest.mark.parametrize('repo_header', ['Repo', 'Repository', 'repo', 'REPOSITORY'])
+def test_repo_column_lets_a_section_take_one_row_per_repository_a4(tmp_path, repo_header):
+    manifest = (
+        f'| PR | {repo_header} | Implements section | Wave | One concern? |\n'
+        '|---|---|---|---|---|\n'
+        '| PR01 | a | §1 | 1 | yes |\n| PR02 | a | §2 | 2 | yes |\n| PR03 | b | §2 | 2 | yes |\n'
+    )
+    assert _manifest_a4(tmp_path, manifest) == []
+
+
+def test_repo_column_still_fails_one_section_twice_in_one_repository_a4(tmp_path):
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | a | §1 | yes |\n| PR02 | a | §2 | yes |\n| PR03 | a | §2 | yes |\n'
+    )
+    found = _manifest_a4(tmp_path, manifest)
+    assert len(found) == 1
+    assert '§2' in found[0].message and 'not a bijection' in found[0].message
+    assert "'a'" in found[0].message
+
+
+def test_repo_column_still_fails_an_uncovered_section_a4(tmp_path):
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | a | §1 | yes |\n| PR02 | b | §1 | yes |\n'
+    )
+    found = _manifest_a4(tmp_path, manifest)
+    assert [v.message for v in found] == ['section §2 is not covered by any PR.']
+
+
+def test_blank_repo_cells_are_one_key_a4(tmp_path):
+    # A blank Repo cell is its own key, so a column left empty checks exactly as no column does.
+    manifest = (
+        '| PR | Repo | Implements section | One concern? |\n|---|---|---|---|\n'
+        '| PR01 |  | §1 | yes |\n| PR02 |  | §2 | yes |\n| PR03 |  | §2 | yes |\n'
+    )
+    found = _manifest_a4(tmp_path, manifest)
+    assert len(found) == 1
+    assert '§2' in found[0].message and 'not a bijection' in found[0].message
+
+
+@pytest.mark.parametrize(
+    'manifest',
+    [
+        # no Repo column: one section in two rows is the many-to-one A4 forbids, as before
+        '| PR | Implements section | One concern? |\n|---|---|---|\n'
+        '| PR01 | §1 | yes |\n| PR02 | §2 | yes |\n| PR03 | §2 | yes |\n',
+        # a Wave column alone relaxes nothing
+        '| PR | Implements section | Wave | One concern? |\n|---|---|---|---|\n'
+        '| PR01 | §1 | 1 | yes |\n| PR02 | §2 | 1 | yes |\n| PR03 | §2 | 2 | yes |\n',
+    ],
+)
+def test_without_a_repo_column_one_section_in_two_rows_still_fails_a4(tmp_path, manifest):
+    found = _manifest_a4(tmp_path, manifest)
+    assert [v.message for v in found] == ['section §2 is covered by 2 PRs (not a bijection).']
+
+
+def test_spec_template_names_the_optional_repo_and_wave_columns():
+    text = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    manifest = text.split('## PR ↔ section manifest', 1)[1].split('\n## ', 1)[0]
+    assert '`Repo`' in manifest and '`Wave`' in manifest
+
+
 def test_missing_path_fails_a5(tmp_path):
     (tmp_path / '.git').mkdir()  # pin the path-resolution base to tmp_path
     bad = READY_SPEC.replace(

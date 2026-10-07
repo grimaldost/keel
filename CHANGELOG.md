@@ -86,6 +86,24 @@ Placeholder section for release 0.21.0 entries. Release date to be updated at me
   words, cap 61); it is a lookup line, so no contract-note or DoR prose is added and nothing is
   displaced. Class: a relaxation; the new match set is a subset of the old one, so
   nothing that passed before can fail now and no spec in flight can newly fail.
+- **A4 keys on (section, repository) when the manifest has a `Repo` column** (E3c, 2026-10-06
+  triage). In a programme spread over several repositories, a section whose change lands in two of
+  them needs one PR in each, and A4 failed the second row as "not a bijection", so the manifest
+  could not record the split. A manifest may now carry an optional `Repo` (or `Repository`, any
+  case) column. When it does, A4 counts coverage per section and repo cell: a section may take one
+  row per repository, the same section twice in one repository still fails as "not a bijection"
+  (the message now names the repository), and every section still needs at least one row. A blank
+  repo cell is its own key, and a manifest without the column, a `Wave` column alone included, is
+  checked exactly as before. The full spec template names the optional `Repo` and `Wave` columns in
+  a plain paragraph under the manifest (the gate does not read `Wave`), so no italic contract-note
+  words are added (499/500, unchanged) and nothing is displaced; the core template is untouched.
+  The A4 line of the Definition-of-Ready reference block is extended identically in the full and
+  core templates (39 words, cap 61); it is a lookup line, so no DoR prose is added. Not built: the
+  triage acceptance "a section spanning two repositories with one row fails" needs a per-section
+  repository declaration that the template does not carry, so the gate has no source for which
+  repositories a section spans; that hole stays with the Definition-of-Ready's Part B review (row
+  E3d). Class: a relaxation; with a `Repo` column the failure set is a subset of the old one, so
+  nothing that passed before can fail now and no spec in flight can newly fail.
 
 ### Fixed
 
