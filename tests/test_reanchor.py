@@ -112,6 +112,20 @@ def test_a_weak_snippet_is_refused_by_name(tmp_path):
     assert report.refused and 'too short' in report.refused[0].refused
 
 
+def test_a_weak_snippet_still_on_its_claimed_line_is_kept_silently(tmp_path):
+    # SW2: the claimed line is tested before the snippet's strength, as A12 tests it. A short
+    # snippet that still sits where the row says is a correct anchor, not a refusal.
+    spec = _spec(tmp_path, '| FM-1 | §1 | `mod.py:3` `import re` | yes |\n')
+    before = spec.read_bytes()
+    report = reanchor(spec)
+    assert report.applied == []
+    assert report.refused == []
+    assert spec.read_bytes() == before
+    result = runner.invoke(app, ['re-anchor', str(spec), '--check'])
+    assert result.exit_code == 0
+    assert 'nothing to repoint' in result.output
+
+
 def test_a_snippet_on_no_line_is_refused_by_name(tmp_path):
     spec = _spec(tmp_path, '| FM-1 | §1 | `mod.py:3` `def nothing_like_this(rows):` | yes |\n')
     report = reanchor(spec)
@@ -474,4 +488,14 @@ def test_a_crlf_spec_keeps_a_carriage_return_on_every_line(tmp_path):
     assert reanchor(spec).applied
     after = spec.read_bytes()
     assert after.count(b'\n') == after.count(b'\r\n') == before.count(b'\r\n')
-    assert b'`mod.py:6`' in after
+    changed = [
+        (old, new)
+        for old, new in zip(before.split(b'\r\n'), after.split(b'\r\n'), strict=True)
+        if old != new
+    ]
+    assert changed == [
+        (
+            DRIFTED.rstrip('\n').encode('utf-8'),
+            DRIFTED.rstrip('\n').replace('mod.py:3', 'mod.py:6').encode('utf-8'),
+        )
+    ]

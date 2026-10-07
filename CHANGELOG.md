@@ -352,11 +352,12 @@ wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum 61/6
 - **`keel re-anchor` leaves a correct anchor alone** (SW2, 2026-10-06 triage). A ledger row that
   quotes the line it cites carries its own snippet, so the snippet sat on two lines of the spec and
   the pass refused the row as "on no line, or on several" — `--check` printed the refusal for an
-  anchor that was right. The claimed line is now tested first, by the window test A12 applies, and
-  an anchor whose snippet is still there is kept even when the snippet also appears elsewhere. When
-  the anchor cites the spec itself, the citing row is excluded from the search, so a moved target
-  is repointed to the target and never to the row. Class: a repair that refuses and rewrites less;
-  no check changes, so no spec in flight can newly fail.
+  anchor that was right. The claimed line is now tested first, by the window test A12 applies and
+  before the snippet's strength, and an anchor whose snippet is still there is kept even when the
+  snippet also appears elsewhere or is too short to repair from. When the anchor cites the spec
+  itself, the citing row is excluded from the search, so a moved target is repointed to the target
+  and never to the row. Class: a repair that refuses and rewrites less; no check changes, so no spec
+  in flight can newly fail.
 - **`keel re-anchor` preserves the spec's line endings** (SW3, same triage). The spec was read with
   universal newlines and written back with the platform's, so an LF spec re-anchored on Windows
   came back with every line CRLF. The pass now reads and writes with `newline=''`, so only the

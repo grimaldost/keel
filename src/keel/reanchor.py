@@ -113,23 +113,24 @@ def _repair_line(line: str, base: Path, line_no: int, spec_path: Path) -> tuple[
         if not target.is_file():
             outcomes.append(Repair(line_no, anchor, refused='the file does not resolve'))
             return match.group(0)
-        if not _strong_snippet(snippet):
-            outcomes.append(
-                Repair(line_no, anchor, refused='the snippet is too short to repair from')
-            )
-            return match.group(0)
         lines = target.read_text(encoding='utf-8', errors='replace').splitlines()
         # A row that cites the spec it sits in is itself a line carrying its own snippet.
         own_row = line_no if target.resolve() == spec_path.resolve() else None
-        # The claimed line first, by the window test A12 applies: an anchor that already holds is
-        # not repaired, even when the snippet also sits elsewhere. The citing row never confirms
-        # itself: a claim pointing at the row's own line is not a confirmation.
+        # The claimed line first, by the window test A12 applies, and before the snippet's
+        # strength: an anchor that already holds is not repaired, even when the snippet is short
+        # or also sits elsewhere. The citing row never confirms itself: a claim pointing at the
+        # row's own line is not a confirmation.
         wanted = ' '.join(snippet.split())
         if (
             claimed != own_row
             and 1 <= claimed <= len(lines)
             and wanted in ' '.join(lines[claimed - 1].split())
         ):
+            return match.group(0)
+        if not _strong_snippet(snippet):
+            outcomes.append(
+                Repair(line_no, anchor, refused='the snippet is too short to repair from')
+            )
             return match.group(0)
         found = _snippet_line(lines, snippet, exclude=own_row)
         if found is None:
