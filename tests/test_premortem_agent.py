@@ -126,6 +126,17 @@ def test_the_domain_lenses_live_in_the_profile_sheet_only():
         assert needle not in agent, f'agent carries a directive the kit owns elsewhere: {clause!r}'
 
 
+def test_the_returned_message_opening_lines_do_not_collide():
+    """SW12: line 1 is the save path, line 2 the spec-hash instruction, so the missing-directive
+    notice takes the line after them; and the instruction names the SPEC as the file to leave
+    alone until the hash is stamped, since editing it first makes B2 compare a post-edit spec."""
+    agent = _normalized(AGENT)
+    assert 'Its first line is the save path' in agent
+    assert 'its second line is: "After the last fold this pass read' in agent
+    assert 'before editing the spec' in agent
+    assert 'say so in your third line' in agent
+
+
 def test_agent_keeps_the_output_contract_tokens():
     agent = AGENT.read_text(encoding='utf-8')
     for token in OUTPUT_CONTRACT:

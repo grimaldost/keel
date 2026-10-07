@@ -14,7 +14,7 @@ column, the `new-instrument:` marker, the `Anchor waivers` table) fire only when
 is present, and A3 and A4 are relaxed, so no spec in flight can newly fail. The one new signal on
 upgrade is W1's kit-skew WARN on specs stamped 0.20.0, which is warn-only. Body budgets after
 this release: directive 1,668/2,050 (unchanged); contract notes 499/500 (unchanged); agent
-wrapper 531/550; Definition-of-Ready prose 942/950; reference-block maximum 61/61 (W2, unchanged).
+wrapper 540/550; Definition-of-Ready prose 942/950; reference-block maximum 61/61 (W2, unchanged).
 
 ### Added
 
@@ -236,18 +236,19 @@ wrapper 531/550; Definition-of-Ready prose 942/950; reference-block maximum 61/6
   flight can newly fail.
 - **Reviewer's returned message opens with the save instruction** (SW12, 2026-10-06 triage). The
   pre-mortem agent wrapper rewrites the output invariant for B2 (the returned artifact that the
-  caller saves verbatim). The message now opens with the save path (`<spec-stem>.premortem.md`, or
-  `-r<N>` for a later round), followed by the directive to stamp `keel spec-hash` after the last
-  fold and before editing. A missing directive-file report, which the agent names when the template
-  is unreachable, is now reported on the second line (after the save path), not the first. The agent
-  wrapper's word budget measures 531 (cap 550; was 499). The
-  instruction adds 33 words to the wrapper's output-contract bullet and displaces only the
-  parenthetical "(`<spec-stem>.premortem.md`, B2)", which becomes "(B2)" with the path moved into
-  the new sentence, and the word "first" in the missing-directive line, which becomes "second".
-  Tests
-  add `.premortem.md` and `keel spec-hash` to the output-contract tokens. The template file
-  `pre-mortem-prompt.md` is unchanged. Class: output contract only; no prompt, template, or check
-  changes, so no spec in flight can newly fail.
+  caller saves verbatim). The message's first line is now the save path
+  (`<spec-stem>.premortem.md`, or `-r<N>` for a later round), and its second line tells the
+  receiver to stamp `keel spec-hash <spec>` into the saved file's header after the last fold the
+  pass read and before editing the spec: a spec edited first would leave B2 comparing against a
+  revision the reviewer never read. A missing directive-file report, which the agent names when the
+  template is unreachable, moves from the first line to the third, after the two fixed lines. The
+  agent wrapper's word budget measures 540 (cap 550; was 499). The output-contract bullet grows
+  from 13 to 54 words and displaces only the parenthetical "(`<spec-stem>.premortem.md`, B2)",
+  which becomes "(B2)" with the path moved into the new sentences, and the word "first" in the
+  missing-directive line, which becomes "third". Tests add `.premortem.md` and `keel spec-hash` to
+  the output-contract tokens and pin the three line positions and the words "before editing the
+  spec". The template file `pre-mortem-prompt.md` is unchanged. Class: output contract only; no
+  prompt, template, or check changes, so no spec in flight can newly fail.
 
 ### Changed
 
