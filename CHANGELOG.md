@@ -5,6 +5,92 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
+## [0.22.0] - 2026-10-08
+
+A narrower plugin and a gate that sheds a check on evidence. Three commands that no session ran
+are gone, the bundled reviewer runs on a fixed tier, `keel gate-health` reads only field rows, A7
+warns instead of failing under the rule `docs/evidence.md` pre-registered for it, and the
+Definition-of-Ready catalogue can no longer grow without something paying for the new check. The
+one gate change removes failures, so no spec that passed on 0.21.1 can newly fail. The catalogue
+holds 28 ids (`DOR_CHECK_IDS`, `src/keel/models.py`), none added or removed. Body budgets after:
+directive 1,668/2,050; contract notes 499/500; agent wrapper 546/550; Definition-of-Ready prose
+942/950; reference-block maximum 61/61.
+
+### Removed
+
+- **`/keel-apply`, `/keel-premortem` and `/keel-triage`.** In the maintainer's sessions of the
+  2026-07-26..09-26 field window keel ran 493 times in 14 of 230 sessions: 488 through the CLI, 4
+  through the `apply-method` skill, 1 through `/keel-check-ready`, and none through these three. Each one's work has a home
+  that stays. Ask for the method in plain words and the `apply-method` skill loads; start in plan
+  mode to see the phases before anything is edited. The pre-mortem is the `pre-mortem-review`
+  agent dispatched as a native subagent (`@agent-keel:pre-mortem-review <spec>`, or ask Claude to
+  run it); the caller's fold, save and record steps are `docs/getting-started.md` steps 4 to 6
+  with `definition-of-ready.md` Part B as the reference, and the `apply-method` skill now carries
+  the save-and-record step too. The SERIES pass is the same agent dispatched at the generated
+  series, saved as `<spec-stem>.series-premortem.md` and gated by `keel decompose-check`; the
+  `apply-method` skill's Decompose step and `docs/getting-started.md` step 6 say so. Reflection triage is `reflection-triage.md` (`keel show
+  reflection-triage`). `docs/plugin-reference.md` maps each command to its replacement. A
+  project's `method-bindings.md` or design doc that names one of the three should name the skill,
+  the agent or the template instead.
+
+### Changed
+
+- **`/keel-check-ready` is for a person to type.** Its front matter sets
+  `disable-model-invocation: true`, so the model no longer runs it on its own and calls
+  `keel check-ready` directly. A test holds every file under `commands/` to that.
+- **The `pre-mortem-review` agent runs on a fixed tier.** Its front matter adds `model: opus`,
+  `effort: high` and `omitClaudeMd: true`. Without them the agent inherited the dispatching
+  session's model and effort, so the same spec got a frontier pass at maximum effort from one
+  session and a cheap pass from another, and it read the user, project and local CLAUDE.md files
+  (managed policy files still load). A cold
+  reading of a spec against the code scores 85 on the choosing-models rubric, the strong tier.
+  Claude Code's plugin components reference lists all three fields for plugin agents. A caller
+  that passes a model on the dispatch still overrides `model`, `CLAUDE_CODE_EFFORT_LEVEL` still
+  overrides `effort`, and `omitClaudeMd` needs Claude Code 2.1.271 or later (an older one ignores
+  it).
+- **A7 warns instead of failing** (`(consumer-affecting)`: a spec whose only finding is A7 now
+  exits 0 where it exited 1). The first row of `docs/evidence.md`'s pre-registered table fired: on
+  the gate ledger's field rows A7 had 79 candidates across 42 distinct spec revisions in 12 repo
+  names, and on the three names that are certainly distinct repositories, 66 candidates across 37
+  revisions. It never fired, and its positive control (the
+  `A7-number-collision` mutant) fires. It still names the colliding ADR. One field fire returns it
+  to failing, per the table's second row. A9 does not clear the bar (40 revisions, one
+  repository) and is unchanged. The reference-block line and `adr-template.md`'s note say "warns";
+  `docs/evidence.md` records the figures.
+- **`keel gate-health` leaves out the rows keel's own test suite wrote, and counts them.** Before
+  0.21.0's hermetic conftest every CLI test appended a row whose repo is a pytest `tmp_path`
+  directory (the test's name cut to 30 characters, then a counter). A row is left out only when it
+  has that shape and was written by keel 0.21.0 or older, so a real repository named like
+  `testbed2` keeps every row from 0.22.0 on, and `--repo` reads the repository it names whole. On
+  the maintainer's ledger 2,394 of 2,898 rows are left out, leaving 504 field rows. The table
+  gains `candidates`, `revisions` and `repos` columns, the units the pre-registered dispositions
+  are written in. A revision is a spec's content, counted once however many directories ran it,
+  `revisions-fired-on` now counts the same way, and `fire-rate` divides it by revisions with an
+  opportunity where it divided by runs; `repos` counts directory names, so two
+  worktrees of one repository count twice, and the footer says so.
+- **W4's message** points at `definition-of-ready.md` Part B for saving the pass's output, instead
+  of the deleted command file.
+- **Private tool names are gone from the published tree.** The doctrine (its mechanism map and
+  one §2 note), `docs/concepts.md`, the `apply-method` skill and three kit templates (`README.md`,
+  `method-bindings.md`, `pre-mortem-prompt.md`'s When/who section) used one as the example series
+  orchestrator; they now name convoy, with what convoy does not cover (injections, reflection
+  extraction) left to the project, or the role. Six ADRs (one of them redacts a second name) and
+  the entries that cited it in the 0.1.0, 0.5.0, 0.6.0 and 0.7.0 sections carry the `…`
+  redaction mark, and the three tagged sections among them are exempted by name from the
+  tagged-section lock. Two lines that pointed at that tool's scorer for a default tier now say
+  the orchestrator's default tier. `tests/test_doctrine_bindings_currency.py` forbade two dead
+  skill names in the doctrine; it now pins the Route & Budget row's own cells instead of carrying
+  the names.
+
+### Added
+
+- **A budget on the check catalogue.** `tests/test_check_budget.py` fails when `DOR_CHECK_IDS`
+  gains an id, against the merge-base with `origin/main`, that the same change does not pay for by
+  removing an id or demoting one to warn-only, and that no row of `docs/evidence.md`'s tables names
+  in its first cell. The catalogue went from 25 to 28 ids between 0.20.0 and 0.21.0 with none
+  removed; the test holds the rule, not that count, so removing or demoting a check never fails
+  it. CONTRIBUTING states it as Gate health 3b.
+
 ## [0.21.1] - 2026-10-07
 
 Fixes from a read-only review of 0.21.0. A13 no longer reads the template's own
@@ -1605,7 +1691,7 @@ mechanizable half; the design calls are recorded and deferred (ADR-0013).
 
 ### Routed out / carried
 
-- → pr-pilot: the program-level convergence budget, the catch-cost telemetry denominator, and the
+- → the orchestrator (`…`): the program-level convergence budget, the catch-cost telemetry denominator, and the
   orchestrator-constraint SERIES checks (one-sink-per-dataset, base-branch targeting).
 - Held at `watch` (single LOW report): the calibration/threshold ceiling-direction eval note (T5b).
 
@@ -1662,7 +1748,7 @@ mechanizable half; the design calls are recorded and deferred (ADR-0013).
 
 ### Routed out / carried
 
-- → pr-pilot: the REVIEW-command-vs-design diff + full-tree generated-mirror freshness; the per-wave
+- → the orchestrator (`…`): the REVIEW-command-vs-design diff + full-tree generated-mirror freshness; the per-wave
   FIRE release-notes line + predicted-vs-invariant tagging; the eval-run cost denominator.
 - Carried (no new field evidence this round): R2 program convergence budget, R3 observational ledger,
   R4 cost-intensity dial, R5 DC4-A disk-truth axis.
@@ -1710,7 +1796,7 @@ mechanizable half; the design calls are recorded and deferred (ADR-0013).
 
 ### Routed out / declined
 
-- → pr-pilot: silent engine-loss + the watchdog, the cost model, scaffold employer-identity defaults.
+- → the orchestrator (`…`): silent engine-loss + the watchdog, the cost model, scaffold employer-identity defaults.
 - Held at `watch`: N6b cardinal-vs-enumeration lint (false-positive risk). Deferred as a standalone
   repo script: N9a publish-readiness sweep (repo tooling, not a method gate — thinness, ADR-0003).
 
@@ -1836,7 +1922,7 @@ mechanizable half; the design calls are recorded and deferred (ADR-0013).
 
 ### Added
 
-- Initial scaffold: repo-that-is-a-plugin-with-engine (mirrors pr-pilot).
+- Initial scaffold: repo-that-is-a-plugin-with-engine (mirrors the series orchestrator it was built beside, `…`).
 - `keel` CLI: `check-ready`, `bind-check`, `budget-drift` (stubbed) and `init` (real).
 - Claude Code plugin: `apply-method` skill, `/keel-*` commands, `pre-mortem-review` agent, template kit.
 - Doctrine + docs ladder; ADR log (ADR-0001); feedback intake; CONTRIBUTING.

@@ -45,11 +45,18 @@ gate exists to catch exactly that over-claim in a spec):
 3. **Track each gate's hit-rate** — a gate that has fired zero times across N series is a triage
    input: sharpen it, or cut it as decayed ritual. *Machine-recorded:* `keel check-ready` appends
    one line per run to a local ledger and `keel gate-health` reads it back
-   (`docs/cli-reference.md`). Read it in three states, not two — a check with **no applicable
-   runs** never had an opportunity and its silence says nothing in either direction; only a check
-   with applicable runs and no fires is evidence of anything. The ledger records the counts; the
-   disposition is still a judgement, and the standing bar for a cut is opportunity **and** a
-   positive control **and** no open defeat, all three.
+   (`docs/cli-reference.md`), leaving out the rows keel's own test suite wrote. Read it in three
+   states, not two — a check with **no applicable runs** never had an opportunity and its silence
+   says nothing in either direction; only a check with applicable runs and no fires is evidence of
+   anything. The ledger records the counts; the disposition is still a judgement, and the standing
+   bar for a cut is opportunity **and** a positive control **and** no open defeat, all three.
+   Where `docs/evidence.md` pre-registered a disposition, the ledger decides it: A7 was demoted to
+   WARN that way in 0.22.0.
+3b. **The check catalogue grows only when something pays for the new check.** A new
+   Definition-of-Ready id lands with an existing id removed or demoted to warn-only in the same
+   change, or with a pre-registered row in `docs/evidence.md` naming the disposition the ledger
+   will fire for it. One check per finding is how a gate grows until nobody reads it.
+   *Machine-enforced:* `tests/test_check_budget.py`, against the merge-base with `origin/main`.
 3a. **A measured null is scoped to what was measured.** A pre-mortem ablation found *danger
    framing* inert in agent-directed prose. That is not a licence to delete the `blast_radius:`
    field, whose text names *what else the fix reaches* — target naming, the highest-value measured
@@ -73,7 +80,7 @@ only ever grown — one clause per finding. Each now carries a number, enforced 
 | The spec-template's italic gate-contract notes (`src/keel/templates/spec-template.md`) | 500 | read by every author the scaffold reaches. Ratcheted from 925 when the duplicated notes moved to their one home |
 | The bundled agent wrapper (`agents/pre-mortem-review.md`) | 550 | identity + dispatch + output contract only (ADR-0017); the directives live in the template |
 | The Definition-of-Ready sheet's PROSE (`src/keel/templates/definition-of-ready.md` minus its fenced reference block) | 950 | read end-to-end at adoption and by every reviewer. Set at the measured size |
-| Each entry of that sheet's reference block, per check | 61 | the block's length is a function of the CHECK CATALOGUE, not of prose discipline — a test makes a new letter mandatory there — so capping the sheet as one body made every check the gate gains cost prose budget forever. Capped per line instead, at the measured maximum: the catalogue may grow, a line may not sprawl |
+| Each entry of that sheet's reference block, per check | 61 | the block's length is a function of the CHECK CATALOGUE, not of prose discipline — a test makes a new letter mandatory there — so capping the sheet as one body made every check the gate gains cost prose budget forever. Capped per line instead, at the measured maximum: the catalogue grows only when paid for (Gate health 3b), and a line may not sprawl |
 
 The DoR caps are deliberately set where the body actually is, not where it should end up: the
 remaining candidates (Part-B prose beyond the reference block, the certification framing, the

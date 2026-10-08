@@ -34,7 +34,7 @@ A3 fail on a TBD/FIXME/??? token, `# TODO`, or a TODO that no word follows on it
 A4 parse the PR<->section manifest: fail unless bijection(PRs, sections), full coverage; with a `Repo` (or `Repository`) column the key is (section, repo), one row per repository — also absent-ok when the header declares `- **Phases:** ... (Decompose: skipped)` (ADR-0014)
 A5 each concept->module path: fail unless exists(path) or ("to be created" and claimed by a §)
 A6 each `path:line` anchor: fail unless file exists, line in range, and any quoted snippet (the backticked token right after the anchor) matches. An `Anchor waivers` table (`##` or `###` heading, `| Anchor | Reason |`) exempts each anchor it lists by exact `path:line` with a reason; its own cells are not scanned, and a row naming no reason fails
-A7 each cited `docs/adr/NNNN-...md`: fail unless that number is free on the base or names that ADR
+A7 (warn) each cited `docs/adr/NNNN-...md` whose number a different ADR already holds on the base warns, naming it (a failure until keel 0.22.0, demoted by the ledger rule keel pre-registered for it)
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
 A10 when an Enforcement-status table is present: fail if prose claims an invariant "enforced"/"guaranteed" whose row is not enforced

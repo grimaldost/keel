@@ -7,7 +7,7 @@
 /plugin install keel
 ```
 
-Installs the `apply-method` skill, the four `/keel-*` commands, the `pre-mortem-review`
+Installs the `apply-method` skill, the `/keel-check-ready` command, the `pre-mortem-review`
 agent, and the template kit. Each entry point, its argument and what it does:
 `docs/plugin-reference.md`.
 

@@ -12,7 +12,7 @@ Part A passes and before execution.
 - **Who:** a fresh agent that has not authored the spec (a stateless pass, so the
   judgment is externalized, not the author's own). keel's bundled
   `pre-mortem-review` agent can execute it, or run it as an orchestrator
-  pre-series hook (e.g. pr-pilot's), or a manual pass.
+  pre-series hook, or a manual pass.
 - **Single home:** the bundled agent READS this file at run start and applies every directive in
   it; its own body carries identity, dispatch and the output contract only. So this file is the
   one place a directive is added, reworded or retired — there is no second copy to keep in step

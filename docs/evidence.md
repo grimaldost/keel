@@ -98,6 +98,41 @@ Enforcement-status table or a fold ledger — so A10's and A12's false-positive 
 **unmeasured**, not as zero. A widening whose control corpus cannot exercise it says so in the
 CHANGELOG rather than claiming a clean bill.
 
+### The A7 disposition fired, 2026-10-08
+
+Nothing above is rewritten. The first row of the table fired for A7, and this records it with the
+ledger figures, as the row requires.
+
+**The instrument first.** Until 0.22.0 `keel gate-health` read every row in the ledger, and most
+of the maintainer's were written by keel's own test suite: a test's spec sits in a pytest
+`tmp_path`, whose directory name (the test's name cut to 30 characters, then a counter) the row
+records as its repo. Of 2,898 rows (2026-08-11 to 2026-10-07), 2,394 were the suite's, leaving 504
+field rows. 0.22.0 leaves those rows out and prints candidates, revisions and repos per check, the
+units this table is written in. A revision is a spec's content (the ledger's `rev`, a prefix of
+its spec hash), counted once however many directories ran it, and its candidates count once with
+it. Every figure below is that command's output on 2026-10-08.
+
+**A7, field rows only.** 80 applicable runs; 79 candidates across 42 distinct revisions in 12 repo
+names; 0 fires. A repo name over-counts repositories, because a worktree records under its own
+directory, so the bar was also read on the three names that are certainly distinct repositories
+(keel and two consumer projects, each read with `--repo`): 66 candidates across 37 revisions, 0
+fires, which clears the bar by itself. The positive control (the `A7-number-collision` mutant)
+fires. All four conditions hold, so **A7 is demoted to WARN in 0.22.0**: it still looks and still
+names the collision, and it no longer rejects a spec. The second row stands: one field fire
+cancels the demotion and A7 returns to failing.
+
+**A9 does not clear the bar.** 40 candidates across 40 revisions, all in one repository, 0 fires.
+It stays as it is.
+
+### The check budget (0.22.0)
+
+The Definition-of-Ready catalogue went from 25 ids to 28 between 0.20.0 and 0.21.0: three
+warnings added (W8, W9, W10), none removed. From 0.22.0 a new id is admitted in one of two
+ways: the same change removes an id or demotes one to warn-only, or a row in this file's tables
+names the new id in its first cell, which is the disposition the ledger will fire for it, written
+before its data arrives. `tests/test_check_budget.py` holds the rule against the merge-base with
+`origin/main`.
+
 ## The comparative claim is retired (ADR-0015)
 
 The controlled experiment against a disciplined baseline (designed 2026-06-06, maintainer-local) never

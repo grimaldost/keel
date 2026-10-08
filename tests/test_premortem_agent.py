@@ -24,6 +24,7 @@ import re
 from pathlib import Path
 
 from keel import __version__
+from tests.test_plugin_manifest import frontmatter
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENT = ROOT / 'agents' / 'pre-mortem-review.md'
@@ -75,6 +76,30 @@ def test_agent_preserves_frontmatter():
     assert head.startswith('---')
     assert 'name: pre-mortem-review' in head
     assert 'tools:' in head
+
+
+def test_agent_frontmatter_fixes_the_reviewers_tier():
+    """The pass runs on the tier its job was scored for, not the tier of whoever dispatched it.
+
+    Until 0.22.0 the agent named no `model` or `effort`, so it inherited the calling session's:
+    a frontier session at maximum effort ran a frontier pass, and a cheap one ran a cheap pass, on
+    the same spec. A cold reading of a spec against the code is judgment work (choosing-models
+    score 85, the strong tier), so the front matter fixes it. `omitClaudeMd` keeps the caller's
+    CLAUDE.md files out: the reviewer takes its directives from the template and its facts from
+    the code it reads. Plugin agents honour all three fields (Claude Code docs, "Frontmatter
+    fields in plugin agents"); a Claude Code too old to know one ignores it.
+    """
+    fields = frontmatter(AGENT)
+    assert fields.get('name') == 'pre-mortem-review'
+    assert fields.get('tools') == 'Read, Grep, Glob', 'the reviewer stays read-only'
+    assert fields.get('model') == 'opus', (
+        f'model reads {fields.get("model")!r}: the tier is a recorded choosing-models decision '
+        '(CHANGELOG 0.22.0), never `inherit`'
+    )
+    assert fields.get('effort') == 'high', f'effort reads {fields.get("effort")!r}'
+    assert fields.get('omitClaudeMd') == 'true', (
+        f'omitClaudeMd reads {fields.get("omitClaudeMd")!r}'
+    )
 
 
 def test_agent_identity_line_states_the_running_version():

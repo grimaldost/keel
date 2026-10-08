@@ -46,15 +46,18 @@ the expected not-yet-certified failure. Fix what it names; re-run until `OK`.
 Run the pre-mortem pass with a reviewer that did NOT author the spec — the bundled
 `pre-mortem-review` agent (or any fresh context given `pre-mortem-prompt.md`). Size the arc by the
 doctrine's round economy: two rounds for a BLOCKER-bearing / shared-contract / fresh-from-catalog
-spec, one pass for a LOW-stakes reversible round. See `commands/keel-premortem.md` for the full
-caller protocol.
+spec, one pass for a LOW-stakes reversible round. In Claude Code, dispatch it as a native subagent
+— `@agent-keel:pre-mortem-review docs/design/my-feature-spec.md`, or ask Claude to run the
+pre-mortem on the spec. Steps 5 and 6 are the caller's protocol, and `definition-of-ready.md` Part B
+is its reference.
 
 ## 5. Fold, ledger, save the artifact
 
 Fold each finding's `smallest_fix` back into the spec (re-grounding it first — it is a hypothesis),
 record one `### Fold ledger` row per folded finding (`finding · target · path:line · confirmed` —
 optionally with a verified snippet), and save the pass's returned output verbatim to
-`docs/design/my-feature-spec.premortem.md` with a `Spec-hash:` from:
+`docs/design/my-feature-spec.premortem.md` with a `Spec-hash:` taken after the last fold the final
+pass read (that pass re-reads the folded spec, so the hash matches what ships), from:
 
 ```
 keel spec-hash docs/design/my-feature-spec.md
@@ -72,7 +75,11 @@ keel check-ready docs/design/my-feature-spec.md
 ```
 
 `OK` (possibly with named WARNs) means the spec is Ready: decompose it (one PR per numbered
-section, per the manifest) and implement — each PR cites its section, gates run after each.
+section, per the manifest) and implement — each PR cites its section, gates run after each. A
+multi-PR series gets the SERIES pass first: the same subagent dispatched at the generated PR
+prompts and their DAG, its output saved as `docs/design/my-feature-spec.series-premortem.md` and
+recorded under `### Series review`, then `keel decompose-check docs/design/my-feature-spec.md`
+before any PR runs.
 
 ## 7. Close the loop
 

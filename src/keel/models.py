@@ -22,7 +22,8 @@ from dataclasses import dataclass
 # The two W4/W5 letters are new: B2's warnings were unlettered, and an uncountable warning can
 # neither be measured nor defended. A13 is the requirements ledger: a spec that declares a
 # register accounts for every order in it, and DEVIATED is the one disposition a session cannot
-# write for itself.
+# write for itself. A7 keeps its letter but only warns since 0.22.0 (docs/evidence.md's
+# pre-registered demotion). An id added here is paid for: tests/test_check_budget.py.
 DOR_CHECK_IDS = frozenset(
     {
         'A0',

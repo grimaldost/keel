@@ -2,8 +2,8 @@
 
 Per ADR-0003, the doctrine names ROLES; specific tools are reference bindings, bound per
 project in `method-bindings.md`. The mechanism map's Route & Budget row still pointed at two
-skills that exist nowhere — `model-tiers` / `pr-prompt-scorer`, orphaned by the pr-pilot ->
-convoy migration. This guard pins the fix: the doctrine row is role-generic, the concrete tool
+skills that exist nowhere, orphaned when the series orchestrator was replaced by convoy. This
+guard pins the fix: the doctrine row is role-generic, the concrete tool
 appears only as an 'e.g.' in the bindings sheet, and keel-on-keel answers the new slot (the
 kit's own rule: a slot left unbound is a method-not-fully-applied warning).
 """
@@ -17,15 +17,18 @@ def _read(rel: str) -> str:
     return (ROOT / rel).read_text(encoding='utf-8')
 
 
-def test_no_orphaned_scorer_skill_names():
-    # The dead cell named `model-tiers` / `pr-prompt-scorer` (single rg hit repo-wide before the
-    # fix). The System column reads 'model tiers' with a SPACE, so the hyphenated forms are safe
-    # to forbid outright.
+def test_the_route_and_budget_row_names_a_role_not_a_tool():
+    # The row once named two skills that exist nowhere. Pinning the row's own cells holds the fix
+    # without the test carrying the dead names: the System cell is the role, and the reference
+    # cell defers to the bindings sheet, where a tool appears only as an 'e.g.'.
     doctrine = _read('docs/doctrine.md')
-    assert 'model-tiers' not in doctrine, 'doctrine still names the dead `model-tiers` skill'
-    assert 'pr-prompt-scorer' not in doctrine, (
-        'doctrine still names the dead `pr-prompt-scorer` skill'
+    row = next(
+        (line for line in doctrine.splitlines() if line.startswith('| Route & Budget |')), ''
     )
+    assert row, 'the mechanism map lost its Route & Budget row'
+    cells = [cell.strip() for cell in row.strip().strip('|').split('|')]
+    assert cells[1] == 'capacity-dispatch policy', cells
+    assert '`method-bindings.md`' in cells[2], cells
 
 
 def test_capacity_dispatch_is_bound_role_generically():

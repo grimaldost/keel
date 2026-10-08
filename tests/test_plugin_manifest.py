@@ -176,11 +176,55 @@ def test_changelog_heading_chain_is_intact():
         )
 
 
+def frontmatter(path: Path) -> dict[str, str]:
+    """The `key: value` lines between a file's opening `---` pair; {} when it has none."""
+    lines = path.read_text(encoding='utf-8').splitlines()
+    if not lines or lines[0].strip() != '---':
+        return {}
+    fields: dict[str, str] = {}
+    for line in lines[1:]:
+        if line.strip() == '---':
+            return fields
+        key, sep, value = line.partition(':')
+        if sep and key.strip() and not key.startswith(' '):
+            fields[key.strip()] = value.strip()
+    return {}
+
+
 def test_referenced_assets_exist():
     assert (ROOT / 'skills' / 'apply-method' / 'SKILL.md').exists()
     assert (ROOT / 'agents' / 'pre-mortem-review.md').exists()
-    for command in ('keel-apply', 'keel-check-ready', 'keel-premortem', 'keel-triage'):
-        assert (ROOT / 'commands' / f'{command}.md').exists()
+    assert (ROOT / 'commands' / 'keel-check-ready.md').exists()
+
+
+def test_every_command_is_left_to_the_person_who_types_it():
+    # 0.22.0 deleted `/keel-apply`, `/keel-premortem` and `/keel-triage`: none ran once in the
+    # 2026-07-26..09-26 field window (493 keel invocations, 488 of them the CLI), and each one's
+    # work already had a home the model reaches without it — the `apply-method` skill, the
+    # `pre-mortem-review` agent, the `reflection-triage.md` template. A command that stays is a
+    # person's entry point, so the model must not run it on its own: a skill the model can reach
+    # and a command a person types are two surfaces, and one file should not be both.
+    commands = sorted((ROOT / 'commands').glob('*.md'))
+    assert commands, 'commands/ enumerated empty'
+    model_invocable = [
+        path.name
+        for path in commands
+        if frontmatter(path).get('disable-model-invocation') != 'true'
+    ]
+    assert not model_invocable, (
+        f"commands the model can invoke on its own: {model_invocable} — a command is a person's "
+        'entry point; set `disable-model-invocation: true`, or make it a skill'
+    )
+
+
+def test_frontmatter_reads_only_the_opening_block(tmp_path):
+    page = tmp_path / 'page.md'
+    page.write_text('---\nname: x\nlist:\n  - y: 1\n---\nbody: not a field\n', encoding='utf-8')
+    assert frontmatter(page) == {'name': 'x', 'list': ''}
+    page.write_text('no front matter\n---\nname: x\n---\n', encoding='utf-8')
+    assert frontmatter(page) == {}
+    page.write_text('---\nname: x\n', encoding='utf-8')
+    assert frontmatter(page) == {}, 'an unterminated block is not front matter'
 
 
 def test_no_empty_hooks_placeholder(hooks_json=ROOT / 'hooks' / 'hooks.json'):

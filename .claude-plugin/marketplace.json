@@ -12,7 +12,7 @@
     {
       "name": "keel",
       "source": ".",
-      "description": "apply-method skill, slash commands, pre-mortem agent, template kit, and the keel gate CLI."
+      "description": "apply-method skill, pre-mortem-review agent, /keel-check-ready command, template kit, and the keel gate CLI."
     }
   ]
 }

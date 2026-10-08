@@ -11,7 +11,7 @@ onboarding, or feedback intake. It is to be team-shared and registry-distributed
 ## Decision
 
 Package keel as a single repo that is simultaneously a Claude Code plugin and a Python engine,
-mirroring `pr-pilot`. The plugin delivers agent-facing doctrine (skill, commands, agent,
+mirroring the series orchestrator it was built beside (`…`). The plugin delivers agent-facing doctrine (skill, commands, agent,
 template kit); the engine (`src/keel/` + `keel` CLI) delivers the deterministic gates. The
 deterministic gate logic ships stubbed first, with its interface pinned by contract tests.
 

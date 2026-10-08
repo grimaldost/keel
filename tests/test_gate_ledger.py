@@ -28,6 +28,7 @@ from keel.cli import app
 from keel.gate_ledger import (
     SCHEMA_VERSION,
     LedgerLine,
+    is_suite_row,
     ledger_path,
     line_for_run,
     newest_gate_version,
@@ -194,6 +195,131 @@ def test_gate_health_reports_applicable_runs_and_fire_rate(monkeypatch, tmp_path
     assert out.exit_code == 0
     assert 'A4' in out.output and 'A7' in out.output
     assert 'author loop' in out.output.lower() or 'structure-only' in out.output.lower()
+
+
+def _row(
+    repo: str, rev: str, a7: int, *, fired: int = 0, gate: str = '0.20.0', ts: str = ''
+) -> dict:
+    """A ledger row reduced to what gate-health reads, with A7 the only check that saw anything."""
+    return {
+        'ts': ts or '2026-09-01T00:00:00Z',
+        'gate': gate,
+        'repo': repo,
+        'spec': 'aaaa0000',
+        'rev': rev,
+        'mode': 'full',
+        'passed': True,
+        'probes': {'A7': [a7, fired, fired]},
+    }
+
+
+def _gate_health(monkeypatch, tmp_path: Path, rows: list[dict], *args: str):
+    ledger = tmp_path / 'ledger.jsonl'
+    ledger.write_text(''.join(json.dumps(row) + '\n' for row in rows), encoding='utf-8')
+    monkeypatch.setenv('KEEL_GATE_LEDGER', str(ledger))
+    out = runner.invoke(app, ['gate-health', *args])
+    assert out.exit_code == 0, out.output
+    return out.output
+
+
+def _columns(output: str, check: str) -> dict[str, str]:
+    lines = output.splitlines()
+    header = next(line for line in lines if line.startswith('check '))
+    row = next(line for line in lines if line.startswith(f'{check} '))
+    return dict(zip(header.split()[1:], row.split()[1:], strict=True))
+
+
+@pytest.mark.parametrize(
+    ('repo', 'gate', 'suite'),
+    [
+        ('test_check_ready_passes_on_rea0', '0.20.0', True),  # the 30-character cut, a counter
+        ('test_x12', '0.21.0', True),  # 0.21.0 still wrote them, until its conftest landed
+        ('test_the_grouped_checks_report1', '0.14.0', True),
+        ('keel', '0.20.0', False),
+        ('test-harness0', '0.20.0', False),  # pytest writes `\W` as `_`; a hyphen is not its shape
+        ('tests', '0.20.0', False),  # no counter
+        ('my_test_0', '0.20.0', False),
+        ('test_' + 'a' * 30 + '0', '0.20.0', False),  # 35 characters before the counter
+        ('testbed2', '0.22.0', False),  # a real repository so named, after the suite stopped
+        ('test_x12', '0.21.1', False),
+        ('test_x12', 'not-a-version', False),
+    ],
+)
+def test_a_suite_row_is_a_pytest_tmp_path_repo_from_keel_0_21_0_or_older(repo, gate, suite):
+    assert is_suite_row({'repo': repo, 'gate': gate}) is suite
+
+
+def test_gate_health_leaves_out_the_rows_keels_own_suite_wrote(monkeypatch, tmp_path):
+    # Until 0.21.0's hermetic conftest, every CLI test appended to the developer's real ledger, and
+    # on the maintainer's those rows were 2,394 of 2,898. Read with them, a check's opportunity is
+    # mostly the suite's, and a pre-registered disposition cannot be read off the command at all.
+    output = _gate_health(
+        monkeypatch,
+        tmp_path,
+        [
+            _row('proj-a', '11111111', 3),
+            _row('proj-a', '11111111', 3),  # the same revision run twice: counted once
+            _row('proj-a-worktree', '11111111', 3),  # and from a second directory: still once
+            _row('proj-b', '22222222', 2),
+            _row('test_adr_number_collision_fai0', '33333333', 9, fired=1),
+        ],
+    )
+    assert '4 runs' in output, output
+    assert "1 row written by keel's own test suite left out" in output, output
+    assert _columns(output, 'A7') == {
+        'applicable': '4',
+        'candidates': '5',
+        'revisions': '2',
+        'repos': '3',
+        'revisions-fired-on': '0',
+        'causes': '0',
+        'fire-rate': '0.00',
+    }
+
+
+def test_the_fire_rate_is_revisions_fired_on_over_revisions_with_an_opportunity(
+    monkeypatch, tmp_path
+):
+    # Both counts beside it are revisions, so the rate is too: one of two revisions fired, however
+    # often the fired one was re-run. Dividing by runs read 1/3 here.
+    output = _gate_health(
+        monkeypatch,
+        tmp_path,
+        [
+            _row('proj-a', '11111111', 1, fired=1),
+            _row('proj-a', '11111111', 1, fired=1),
+            _row('proj-b', '22222222', 1),
+        ],
+    )
+    columns = _columns(output, 'A7')
+    assert (columns['revisions'], columns['revisions-fired-on']) == ('2', '1'), columns
+    assert columns['fire-rate'] == '0.50', columns
+
+
+def test_gate_health_with_only_suite_rows_reports_no_runs(monkeypatch, tmp_path):
+    output = _gate_health(monkeypatch, tmp_path, [_row('test_x0', '44444444', 1)])
+    assert 'no runs' in output.lower()
+    assert "1 row written by keel's own test suite left out" in output
+
+
+def test_gate_health_counts_only_the_suite_rows_its_window_would_have_read(monkeypatch, tmp_path):
+    rows = [
+        _row('proj-a', '11111111', 3, ts='2026-10-01T00:00:00Z'),
+        _row('test_x0', '44444444', 1, ts='2026-08-01T00:00:00Z'),
+    ]
+    output = _gate_health(monkeypatch, tmp_path, rows, '--since', '2026-09-01')
+    assert 'left out' not in output, output
+    assert '1 runs' in output, output
+
+
+def test_gate_health_reads_a_named_repo_whole(monkeypatch, tmp_path):
+    # A repository whose directory happens to look like a pytest tmp_path, named on the command
+    # line: the caller asked for it, so none of its rows is set aside as the suite's.
+    output = _gate_health(
+        monkeypatch, tmp_path, [_row('test1', '55555555', 2, gate='0.20.0')], '--repo', 'test1'
+    )
+    assert 'left out' not in output and 'no runs' not in output.lower(), output
+    assert _columns(output, 'A7')['applicable'] == '1'
 
 
 def test_gate_health_on_an_absent_ledger_says_so_and_exits_zero(monkeypatch, tmp_path):
