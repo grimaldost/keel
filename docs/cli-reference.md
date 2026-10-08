@@ -11,7 +11,7 @@ console-script executable.
 | `keel spec-hash <spec>` | Print the canonical certification hash (the spec minus its certification section and its header `Status:` line — an `## Amendment` section is NOT removed, so an amendment still moves the hash; B2 recomputes without it to tell an addition from an edit, W7; when the body did change and an `## Amendment`, or the latest `### Amendment review` subsection of the certification, carries a `- **Edits sections:** §N, …` line, W5 names that declared edit, and says it is recorded, not verified) — what a saved pre-mortem artifact records as `Spec-hash:` (B2) | 0 ok, 2 not-runnable | **real** |
 | `keel re-anchor <spec> [--check] [--body] [--by-content <git-ref>]` | Repoint drifted anchors from the snippets that identify them. The fold ledger by default — it sits inside the span `spec-hash` removes, so the repair cannot invalidate the certification it serves; `--body` also rewrites prose anchors and says that the hash moves, and is refused on a spec that carries a recorded certification (CERTIFIED or CONDITIONAL-CERTIFY): drift after certification goes through an `## Amendment`. A weak snippet off its claimed line, a range anchor, or a snippet on no line is reported and left alone. `--by-content <git-ref>` repairs from the tree instead of the snippet: it reads the line each anchor cited AS OF that ref and repoints to where that content sits now, so the snippet-less (and unbackticked) row the template emits is repairable, and a range moves both ends. A line inside a hunk changed or deleted since the ref is reported, never guessed at, and so is a run that cannot read the ref at all: outside a git repository, with a ref that names no commit, or with no runnable git, each row says which | 0 ok, 2 refused or not runnable | **real** |
 | `keel new-spec <target> [--force]` | Stamp `spec-template.md` to a new spec path (the author on-ramp) | 0 ok, 2 exists | **real** |
-| `keel gate-health [--since] [--repo]` | Read back the local hit-rate ledger: per check, applicable runs / distinct revisions it fired on / causes / fire rate, split by author-loop vs full-gate runs | 0 | **real** |
+| `keel gate-health [--since] [--repo]` | Read back the local hit-rate ledger: per check, applicable runs / candidates, distinct revisions and repos with an opportunity / distinct revisions it fired on / causes / fire rate (revisions fired on over revisions with an opportunity), split by author-loop vs full-gate runs. Rows keel's own test suite wrote are left out and counted | 0 | **real** |
 | `keel show <name> [--list]` | Print a body from the serving kit — `checks` (the Part-A reference block), `directive` (the dispatched pre-mortem prompt), or any template by stem. A projection read at run time, never a copy, so it cannot drift from the shipped file | 0 ok, 2 unknown name | **real** |
 | `keel init <target> [--force]` | Copy the full template kit into a project | 0 ok, 2 exists | **real** |
 | `keel bind-check <bindings>` | Every portability slot in a method-bindings sheet is bound to something concrete. The binding column is resolved by HEADER (`This project` when the table has one, else the last column), and `not bound — <reason>` WARNs rather than fails — a named deferral is a decision, a blank is a gap (ADR-0018) | 0 ok, 1 unbound, 2 no sheet | **real** |
@@ -47,6 +47,16 @@ Each check reports three states, not two — `candidates == 0` means no construc
 present (**n/a**), `candidates > 0` with no fires means the check looked and found nothing
 (**clean**), and only the second is evidence. Writing is fail-open: a full disk or a read-only
 home changes what is recorded and never the 0/1/2 exit codes.
+
+`gate-health` reads the field and only the field. A row written by keel 0.21.0 or older whose
+repo is a pytest `tmp_path` directory (the test's name cut to 30 characters, then a counter, as in
+`test_check_ready_passes_on_rea0`) came from keel's own test suite, before 0.21.0's hermetic
+conftest kept the suite out of the real ledger; those rows are left out and their count is
+printed, except under `--repo`, which reads the repository it names whole. A revision is a spec's
+content (the row's `rev`), counted once however often and from however many directories it ran,
+and `candidates` counts once per revision; `repos` counts the directory names runs recorded, so two
+worktrees of one repository count twice. These are the units `docs/evidence.md`'s pre-registered
+dispositions are written in.
 
 **The hash's scope is pinned per gate MINOR**, exactly as W1's kit-skew semantics are. Changing
 what `spec_hash` covers invalidates every `Spec-hash:` already recorded in a saved pre-mortem

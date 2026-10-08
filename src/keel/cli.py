@@ -11,7 +11,14 @@ from keel.bindings import check_bindings
 from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready, spec_hash
 from keel.decompose_check import check_decomposition
-from keel.gate_ledger import ledger_path, newest_gate_version, read_lines, record_run, version_key
+from keel.gate_ledger import (
+    is_suite_row,
+    ledger_path,
+    newest_gate_version,
+    read_lines,
+    record_run,
+    version_key,
+)
 from keel.models import DOR_CHECK_IDS, GateResult
 from keel.reanchor import CertifiedBodyError, reanchor
 from keel.show import available, body
@@ -193,7 +200,17 @@ def gate_health_cmd(
     if since:
         rows = [row for row in rows if row.get('ts', '') >= since]
     if repo:
+        # A repo named on the command line is read whole, whatever its name looks like.
         rows = [row for row in rows if row.get('repo') == repo]
+    else:
+        field = [row for row in rows if not is_suite_row(row)]
+        if len(field) < len(rows):
+            suite = len(rows) - len(field)
+            typer.echo(
+                f"{suite} {'row' if suite == 1 else 'rows'} written by keel's own test suite left "
+                'out (keel 0.21.0 or older, in a repo named like a pytest tmp_path: test…N).'
+            )
+        rows = field
     if not rows:
         typer.echo(
             'no runs recorded yet — the ledger is written by `keel check-ready` '
@@ -207,20 +224,32 @@ def gate_health_cmd(
         f'{len(submitted)} full-gate on a spec submitted as ready. '
         f'{sum(1 for row in submitted if not row.get("passed"))} of the latter were rejected.'
     )
-    typer.echo('check  applicable  revisions-fired-on  causes  fire-rate')
+    # candidates, revisions and repos are the units docs/evidence.md's pre-registered dispositions
+    # are written in. A revision is the spec's content (`rev`, a prefix of its spec hash), so one
+    # revision run twice, or from two directories, is one revision and its candidates count once.
+    typer.echo(
+        'check  applicable  candidates  revisions  repos  revisions-fired-on  causes  fire-rate'
+    )
     for check in sorted(DOR_CHECK_IDS, key=_check_order):
         applicable = [row for row in rows if row.get('probes', {}).get(check, [0])[0] > 0]
-        fired_on = {
-            (row.get('repo'), row.get('spec'), row.get('rev'))
-            for row in applicable
-            if row['probes'][check][1] > 0
-        }
+        per_revision: dict[object, int] = {}
+        for row in applicable:
+            key = row.get('rev')
+            per_revision[key] = max(per_revision.get(key, 0), row['probes'][check][0])
+        repos = {row.get('repo') for row in applicable}
+        fired_on = {row.get('rev') for row in applicable if row['probes'][check][1] > 0}
         causes = sum(row['probes'][check][2] for row in applicable)
-        rate = f'{len(fired_on) / len(applicable):.2f}' if applicable else 'n/a'
-        typer.echo(f'{check:<6} {len(applicable):>10}  {len(fired_on):>18}  {causes:>6}  {rate:>9}')
+        rate = f'{len(fired_on) / len(per_revision):.2f}' if per_revision else 'n/a'
+        typer.echo(
+            f'{check:<6} {len(applicable):>10}  {sum(per_revision.values()):>10}  '
+            f'{len(per_revision):>9}  {len(repos):>5}  {len(fired_on):>18}  {causes:>6}  {rate:>9}'
+        )
     typer.echo(
         'A check with applicable runs and no fires is CLEAN; one with no applicable runs never '
-        'had an opportunity, and its silence says nothing either way.'
+        "had an opportunity, and its silence says nothing either way. A revision is a spec's "
+        'content, counted once wherever it ran, and fire-rate is revisions fired on over '
+        'revisions with an opportunity; `repos` counts the directory names runs recorded, so two '
+        'worktrees of one repository count twice.'
     )
 
 

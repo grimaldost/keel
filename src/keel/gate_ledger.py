@@ -57,6 +57,11 @@ _SLUG_RE = re.compile(r'^[A-Za-z0-9._-]{1,64}$')
 _HEX_RE = re.compile(r'^[0-9a-f]{4,64}$')
 _TS_RE = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$')
 _VERSION_RE = re.compile(r'^\d+\.\d+\.\d+$')
+# A pytest `tmp_path` basename: the test's name cut to 30 characters (`test` and 26 more), then
+# the counter pytest numbers it with. See `is_suite_row`.
+_SUITE_REPO_RE = re.compile(r'^test\w{0,26}\d+$')
+# The last keel version whose test suite could write to the real ledger.
+_LAST_SUITE_WRITER = (0, 21, 0)
 _MODES = frozenset({'full', 'structure-only'})
 _KINDS = frozenset({'series', 'single-change', 'undeclared'})
 # The recorded verdict is bucketed, not quoted: a real verdict line carries trailing prose (a
@@ -210,6 +215,26 @@ def read_lines(path: Path) -> list[dict]:
         except json.JSONDecodeError:
             continue
     return out
+
+
+def is_suite_row(row: dict) -> bool:
+    """True for a row keel's own test suite wrote, which a health reading leaves out.
+
+    pytest names each test's `tmp_path` after the test — `re.sub(r'\\W', '_', name)[:30]` plus a
+    counter — and a spec written there records that directory as its repo. Until 0.21.0's
+    hermetic conftest every CLI test appended such a row to the developer's real ledger: 2,394 of
+    the maintainer's 2,898, enough that a check's opportunity read mostly as the suite's. The
+    conftest has kept the suite out since, so a row from a later keel is never one of them, and a
+    real repository named like `testbed2` keeps every row it records from 0.22.0 on.
+    """
+    repo = row.get('repo')
+    gate = version_key(row.get('gate'))
+    return (
+        isinstance(repo, str)
+        and _SUITE_REPO_RE.match(repo) is not None
+        and gate is not None
+        and gate <= _LAST_SUITE_WRITER
+    )
 
 
 def version_key(value: object) -> tuple[int, ...] | None:
