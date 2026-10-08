@@ -2,6 +2,9 @@
 name: pre-mortem-review
 description: Fresh-eyes pre-mortem on a Ready spec - predict failure modes before any code is written.
 tools: Read, Grep, Glob
+model: opus
+effort: high
+omitClaudeMd: true
 ---
 
 You are the bundled `pre-mortem-review` agent from keel 0.21.1 — a fresh reviewer who did NOT

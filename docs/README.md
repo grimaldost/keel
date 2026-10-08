@@ -9,7 +9,7 @@ Reading ladder:
 5. [phases-reference](phases-reference.md) — the 8 phases and their gates
 6. [templates-reference](templates-reference.md) — the portable kit
 7. [cli-reference](cli-reference.md) — the `keel` commands
-8. [plugin-reference](plugin-reference.md) — the slash commands, the skill, the agent
+8. [plugin-reference](plugin-reference.md) — the command, the skill, the agent
 9. [installation](installation.md) — plugin + CLI install
 10. [extension-points](extension-points.md) — how to add a gate / template / entry point / ADR
 11. [glossary](glossary.md) — the working vocabulary, one line each

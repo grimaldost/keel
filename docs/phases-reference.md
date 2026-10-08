@@ -15,6 +15,7 @@ Each phase has an artifact, an entry gate (Ready), and an exit gate (Done).
 
 keel gates: phase 2 → `keel check-ready` (+ the DESIGN pre-mortem pass); phase 3 →
 `keel decompose-check` (+ the SERIES pass over the generated series); phase 4 → `keel budget-drift`;
-phase 8 → the `/keel-triage` slash command, which drives `reflection-triage.md`.
+phase 8 → `reflection-triage.md` (`keel show reflection-triage`), which the `apply-method`
+skill's Reflect step runs.
 (`keel check-ready` is live as of 0.2.0; `keel budget-drift` is still a stub — deferred,
 ADR-0003 — and the phase-8 loop is a template procedure, not a deterministic gate.)

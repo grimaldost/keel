@@ -13,10 +13,10 @@ machines (gates, hooks). **Enforced discipline beats intended discipline** — t
 wager, designed to and so far observed to, never measured to beat a disciplined baseline
 (see [`docs/evidence.md`](docs/evidence.md)).
 
-keel ships that method two ways: a **Claude Code plugin** (the `apply-method` skill, four
-`/keel-*` slash commands, a pre-mortem agent, and the template kit — see
-[`docs/plugin-reference.md`](docs/plugin-reference.md)) and a **`keel` CLI** (the
-deterministic gates — see [`docs/cli-reference.md`](docs/cli-reference.md)).
+keel ships that method two ways: a **Claude Code plugin** (the `apply-method` skill, the
+`pre-mortem-review` subagent, a `/keel-check-ready` command for a person to run the gate, and the
+template kit — see [`docs/plugin-reference.md`](docs/plugin-reference.md)) and a **`keel` CLI**
+(the deterministic gates — see [`docs/cli-reference.md`](docs/cli-reference.md)).
 
 ## Install
 
@@ -38,7 +38,9 @@ uvx --from git+https://github.com/grimaldost/keel keel --help
 - `keel init ./my-kit` — drop the template kit (DoR, DoD, checklists, spec/ADR templates) into a project.
 - `keel check-ready spec.md` — Definition-of-Ready gate: spec well-formedness + a recorded blind pre-mortem.
 - `keel decompose-check spec.md` — Decompose exit gate: the generated series was reviewed before anything ran it.
-- `/keel-apply` — have an agent set up and run the method here.
+- In Claude Code, ask to apply the method here: the `apply-method` skill loads, and plan mode
+  shows the phases before anything is edited. The blind pre-mortem is the bundled subagent,
+  `@agent-keel:pre-mortem-review <spec>`.
 
 The full first loop, with the exact commands in order:
 [`docs/getting-started.md`](docs/getting-started.md).

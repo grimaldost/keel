@@ -10,7 +10,9 @@ Adding to keel follows its own three-way promotion rule (see `reflection-triage.
 - **New plugin entry point** — add the file under `commands/` (or `skills/` / `agents/`) and a row
   in `docs/plugin-reference.md`;
   `test_plugin_manifest.py::test_plugin_reference_documents_every_entry_point` globs all three
-  directories and fails if a shipped entry point is missing from that table.
+  directories and fails if a shipped entry point is missing from that table. A command is a
+  person's entry point and carries `disable-model-invocation: true`; work the model should reach
+  on its own is a skill or an agent (`test_every_command_is_left_to_the_person_who_types_it`).
 - **New decision** — add a numbered ADR under `docs/adr/` and index it in `docs/adr/README.md`.
 
 Every promotion is recorded in `CHANGELOG.md` with a version bump.

@@ -117,7 +117,7 @@ def test_kit_change_without_a_changelog_entry_is_unrecorded():
     assert unrecorded(['docs/doctrine.md', 'README.md']) == ['docs/doctrine.md']
     assert unrecorded(['agents/pre-mortem-review.md']) == ['agents/pre-mortem-review.md']
     assert unrecorded(['skills/apply-method/SKILL.md']) == ['skills/apply-method/SKILL.md']
-    assert unrecorded(['commands/keel-apply.md']) == ['commands/keel-apply.md']
+    assert unrecorded(['commands/keel-check-ready.md']) == ['commands/keel-check-ready.md']
 
 
 def test_kit_change_with_a_changelog_entry_is_recorded():

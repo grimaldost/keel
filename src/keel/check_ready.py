@@ -2616,7 +2616,7 @@ def _check_certification_artifact(
             Warning(
                 'W4',
                 'WARN: the certification names no artifact — B2 verifies one when present; save '
-                "the pass's returned output per keel-premortem.md and reference it "
+                "the pass's returned output per definition-of-ready.md Part B and reference it "
                 '(`Certification artifact:`).',
             )
         ]

@@ -1,6 +1,7 @@
 ---
 description: Run the Definition-of-Ready gate on a spec file.
 argument-hint: <path-to-spec.md>
+disable-model-invocation: true
 ---
 
 Run the keel Definition-of-Ready gate on the spec at $ARGUMENTS from the installed
