@@ -88,8 +88,8 @@ pre-registered analysis plan.
 
 ## Source-of-truth boundary
 
-Orchestration mechanics (`series.toml` schema, hooks, scoring tiers) belong to
-the series orchestrator (e.g. pr-pilot, when installed) — link to its docs,
+Orchestration mechanics (`series.toml` schema, hooks, model tiers) belong to
+the series orchestrator (e.g. convoy, when installed) — link to its docs,
 don't restate them here. This skill and the templates are the method layer;
 the orchestrator is the orchestration layer. Without one, the series tables
 still work as manual checklists.

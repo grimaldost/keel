@@ -77,4 +77,4 @@ floor/ceiling one.
   placed before the ledger in the same subsection is out-of-contract).
 - The directives stay drift-guarded (five new markers; the MARKERS tuple length is pinned at 22).
 - Engine-side halves (program convergence budget, the orchestrator that gates on the greppable verdict
-  line) route to pr-pilot, recorded keel-side only (ADR-0003).
+  line) route to the orchestrator (`…`), recorded keel-side only (ADR-0003).

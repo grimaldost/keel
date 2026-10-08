@@ -70,6 +70,17 @@ directive 1,668/2,050; contract notes 499/500; agent wrapper 546/550; Definition
   worktrees of one repository count twice, and the footer says so.
 - **W4's message** points at `definition-of-ready.md` Part B for saving the pass's output, instead
   of the deleted command file.
+- **Private tool names are gone from the published tree.** The doctrine (its mechanism map and
+  one §2 note), `docs/concepts.md`, the `apply-method` skill and three kit templates (`README.md`,
+  `method-bindings.md`, `pre-mortem-prompt.md`'s When/who section) used one as the example series
+  orchestrator; they now name convoy, with what convoy does not cover (injections, reflection
+  extraction) left to the project, or the role. Six ADRs (one of them redacts a second name) and
+  the entries that cited it in the 0.1.0, 0.5.0, 0.6.0 and 0.7.0 sections carry the `…`
+  redaction mark, and the three tagged sections among them are exempted by name from the
+  tagged-section lock. Two lines that pointed at that tool's scorer for a default tier now say
+  the orchestrator's default tier. `tests/test_doctrine_bindings_currency.py` forbade two dead
+  skill names in the doctrine; it now pins the Route & Budget row's own cells instead of carrying
+  the names.
 
 ### Added
 
@@ -1680,7 +1691,7 @@ mechanizable half; the design calls are recorded and deferred (ADR-0013).
 
 ### Routed out / carried
 
-- → pr-pilot: the program-level convergence budget, the catch-cost telemetry denominator, and the
+- → the orchestrator (`…`): the program-level convergence budget, the catch-cost telemetry denominator, and the
   orchestrator-constraint SERIES checks (one-sink-per-dataset, base-branch targeting).
 - Held at `watch` (single LOW report): the calibration/threshold ceiling-direction eval note (T5b).
 
@@ -1737,7 +1748,7 @@ mechanizable half; the design calls are recorded and deferred (ADR-0013).
 
 ### Routed out / carried
 
-- → pr-pilot: the REVIEW-command-vs-design diff + full-tree generated-mirror freshness; the per-wave
+- → the orchestrator (`…`): the REVIEW-command-vs-design diff + full-tree generated-mirror freshness; the per-wave
   FIRE release-notes line + predicted-vs-invariant tagging; the eval-run cost denominator.
 - Carried (no new field evidence this round): R2 program convergence budget, R3 observational ledger,
   R4 cost-intensity dial, R5 DC4-A disk-truth axis.
@@ -1785,7 +1796,7 @@ mechanizable half; the design calls are recorded and deferred (ADR-0013).
 
 ### Routed out / declined
 
-- → pr-pilot: silent engine-loss + the watchdog, the cost model, scaffold employer-identity defaults.
+- → the orchestrator (`…`): silent engine-loss + the watchdog, the cost model, scaffold employer-identity defaults.
 - Held at `watch`: N6b cardinal-vs-enumeration lint (false-positive risk). Deferred as a standalone
   repo script: N9a publish-readiness sweep (repo tooling, not a method gate — thinness, ADR-0003).
 
@@ -1911,7 +1922,7 @@ mechanizable half; the design calls are recorded and deferred (ADR-0013).
 
 ### Added
 
-- Initial scaffold: repo-that-is-a-plugin-with-engine (mirrors pr-pilot).
+- Initial scaffold: repo-that-is-a-plugin-with-engine (mirrors the series orchestrator it was built beside, `…`).
 - `keel` CLI: `check-ready`, `bind-check`, `budget-drift` (stubbed) and `init` (real).
 - Claude Code plugin: `apply-method` skill, `/keel-*` commands, `pre-mortem-review` agent, template kit.
 - Doctrine + docs ladder; ADR log (ADR-0001); feedback intake; CONTRIBUTING.

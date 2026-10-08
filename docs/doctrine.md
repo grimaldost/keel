@@ -188,7 +188,7 @@ These operating notes carry sharpening 5 into practice:
   wave that adds the surface or changes behaviour, and a cross-cutting blind audit (the consumer's
   DoD#9-style panel: boundaries · API-surface · contracts · release-docs) runs once before a release
   cut. The pre-mortem carries the per-wave directives (`pre-mortem-prompt.md`); the executable diff
-  and the release-notes mechanization route to the orchestrator (pr-pilot).
+  and the release-notes mechanization route to the series orchestrator.
 
 ## 3. Phases
 
@@ -230,11 +230,11 @@ links (this doc lives in a different repo).
 |---|---|---|
 | Decide | ADR log | `docs/adr/` |
 | Specify | Spec + prompt template | committed spec + `docs/llm/TASK_PROMPT_TEMPLATE.md` |
-| Decompose | orchestrated series (e.g. pr-pilot) + the series review (`keel decompose-check`) | `docs/llm/PR_ORCHESTRATION.md`, `pr-series/`, `series.toml` |
-| Route & Budget | capacity-dispatch policy | bound in `method-bindings.md` — otherwise the scorer's own tier heuristics |
+| Decompose | orchestrated series (e.g. convoy) + the series review (`keel decompose-check`) | `docs/llm/PR_ORCHESTRATION.md`, `pr-series/`, `series.toml` |
+| Route & Budget | capacity-dispatch policy | bound in `method-bindings.md` — otherwise the orchestrator's default tier |
 | Implement | conventions + edit-time hook + TDD | `AGENTS.md`, `plugins/acme-contributor/hooks/pre-edit-boundary.py`, a TDD discipline skill |
 | Gate | guardrails + gate commands | `docs/llm/GUARDRAILS.md`, `scripts/check_*.py`, `docs/llm/DEV_WORKFLOW.md` |
-| Review | reviewer + checklist | `.pr-pilot/injections/review_checklist.md`, the orchestrator's reviewer, `/review-pr` |
+| Review | reviewer + checklist | a review-checklist file the reviewer reads (or the orchestrator's injection, where it has one), `/review-pr` |
 | Reflect | reflection hook → memory | a reflections hook → `reflections.jsonl` → a consolidating memory store |
 
 Three **roles** implement the phases, at three scopes — each filled by a reference-binding
@@ -244,7 +244,8 @@ tool a project swaps in `method-bindings.md`:
   work. *Reference binding:* a process-discipline pack (e.g. humblepowers).
 - **Series orchestration** — a series of units (the wave/PR DAG, gates between phases, model
   routing, injections, reflection extraction). *Reference binding:* a `series.toml`
-  orchestrator (e.g. pr-pilot).
+  orchestrator (e.g. convoy, which runs the DAG, the gates and model routing; injections and
+  reflection extraction then stay with the project).
 - **Cross-series memory** — the loop across series (journals → meditation → doctrine; this
   doc is the doctrine tier). *Reference binding:* a consolidating memory store.
 

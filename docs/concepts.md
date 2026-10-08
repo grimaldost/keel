@@ -6,7 +6,8 @@ keel is one method at three nested scopes: **task ⊂ series ⊂ program**.
   → finish). *Reference binding:* a process-discipline pack (e.g. humblepowers).
 - **Series orchestration** governs a series of units (the wave/PR DAG, gates between phases,
   model routing, injections, reflection extraction). *Reference binding:* a `series.toml`
-  orchestrator (e.g. pr-pilot).
+  orchestrator (e.g. convoy, which runs the DAG, the gates and model routing; injections and
+  reflection extraction then stay with the project).
 - **Cross-series memory** governs across series (journals → meditation → doctrine). *Reference
   binding:* a consolidating memory store; keel's `docs/doctrine.md` is the doctrine tier.
 

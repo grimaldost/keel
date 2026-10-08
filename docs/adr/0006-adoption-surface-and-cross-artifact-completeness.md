@@ -51,9 +51,9 @@ the 8th and 9th consecutive waves. The residual misses cluster in two places ADR
 ## Alternatives considered
 
 - **Add a new deterministic A-letter for the cross-artifact class** — rejected: the design-named
-  reviewer-subset and the REVIEW command are the *orchestrator's* artifacts (pr-pilot), not keel's; a
+  reviewer-subset and the REVIEW command are the *orchestrator's* artifacts (`…`), not keel's; a
   keel gate could not be project-agnostic and would breach thinness (ADR-0003). keel carries the
-  directive; the executable diff and full-tree-freshness enforcement route to pr-pilot.
+  directive; the executable diff and full-tree-freshness enforcement route to the orchestrator (`…`).
 - **A discriminating-power / construct-validity gate** — rejected: whether a design *can answer its
   question* is irreducibly semantic (ADR-0002 Part B). It ships as a pre-mortem directive plus a DoR
   eval-spec profile note, not a check.
@@ -84,5 +84,5 @@ the 8th and 9th consecutive waves. The residual misses cluster in two places ADR
   guard. The mechanizable cross-artifact slices are routed, not built (thinness).
 - **Routed out** (separate ledgers, ADR-0003): the REVIEW-command-vs-design diff and full-tree
   freshness enforcement; the per-wave FIRE release-notes line and predicted-vs-invariant tagging; the
-  eval-run cost denominator → pr-pilot.
+  eval-run cost denominator → the orchestrator (`…`).
 - **Extends ADR-0002, ADR-0003, ADR-0004, and ADR-0005**; it supersedes none.

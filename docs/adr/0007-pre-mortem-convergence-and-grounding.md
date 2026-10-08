@@ -49,7 +49,7 @@ null/over-provisioned studies pre-spend. The residual misses cluster at the pre-
   clause (the claim twin of the 0.6.1 fix re-grounding).
 - **§4 first-class SERIES-pass checklist.** A directive, byte-identical in both files: base-branch content
   reality, per-PR gate × contract-test interactions, cross-prompt contract drift. Project-agnostic items
-  only; the orchestrator-constraint items (one-sink-per-dataset, base-branch targeting) route to pr-pilot.
+  only; the orchestrator-constraint items (one-sink-per-dataset, base-branch targeting) route to the orchestrator (`…`).
   Doctrine's two-pass cadence note records that the SERIES pass carries its own checklist.
 - **§5 on-ramp completion.** The structural pointer now fires on absent OR malformed-*shape* structure
   (un-numbered heading, non-bijection manifest, empty manifest), not only absent — while staying quiet on a
@@ -91,5 +91,5 @@ directive set grows.
   error shows the accepted `path:line` form.
 - **One gate change ships** (§2, a widen + a non-blocking WARN channel); §1/§3/§4/§6 are drift-guarded
   directives, §5 is two ergonomic fixes. The engine-side slices (program convergence budget, catch-cost
-  denominator, orchestrator SERIES checks) are **routed → pr-pilot** (separate ledgers, ADR-0003).
+  denominator, orchestrator SERIES checks) are **routed → the orchestrator (`…`)** (separate ledgers, ADR-0003).
 - **Extends ADR-0002, ADR-0003, ADR-0004, ADR-0005, and ADR-0006**; it supersedes none.

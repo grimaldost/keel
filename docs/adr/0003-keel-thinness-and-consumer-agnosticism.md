@@ -10,7 +10,7 @@ risk: keel sits atop three pre-existing systems (a single-unit discipline, a ser
 orchestrator, a cross-series memory) and could bloat into a *fourth* — absorbing engine
 concerns (orchestrator resilience, the salvage workflow) and consumer-specific knowledge (one
 project's typing/dispatch rules). The doctrine also named specific tools (superpowers /
-pr-pilot / cognitive-memory) directly in its mechanism map — a portability leak, since the
+`…` / `…`) directly in its mechanism map — a portability leak, since the
 agnostic contract should be separable from per-project bindings. Two gates
 (`check_budget_drift`, `check_bindings`) were scaffolded with no cited motivating failure.
 

@@ -46,7 +46,11 @@ ANNOTATED_FROM = (0, 18, 0)
 # one release before v0.17.0; v0.10.0 and v0.12.0 are older post-tag section edits found by
 # this guard's first sweep over history. v0.17.0 itself is NOT exempt: the 0.18.0 cut
 # reconciled its section to exactly what the tag contains, so the lock holds it like any other.
-SECTION_LOCK_GRANDFATHERED = frozenset({'v0.10.0', 'v0.12.0', 'v0.16.0'})
+# v0.5.0, v0.6.0 and v0.7.0 each carry one entry edited in 0.22.0 to redact a private tool's name
+# from the published tree; the entries say the same thing with the name replaced by `…`.
+SECTION_LOCK_GRANDFATHERED = frozenset(
+    {'v0.5.0', 'v0.6.0', 'v0.7.0', 'v0.10.0', 'v0.12.0', 'v0.16.0'}
+)
 # A tag outside this shape (a release candidate, a scratch tag) is not a release tag and is
 # not asserted over — without the guard the first `v0.19.0-rc1` reds the suite with a
 # ValueError instead of a verdict.

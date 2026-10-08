@@ -81,6 +81,6 @@ so judgment-class doctrine never reached the field through the bundled agent.
 - New optional authoring conventions: the `### Fold ledger` table (A12) and the `path:lo-hi` range anchor
   (A11); a `Reviewed against:` SHA field; a removal/rename/retype text-consumer checklist (directive).
 - **Routed out** (separate ledgers, ADR-0003): engine/execution-resilience (silent engine-loss, the
-  watchdog), the cost model, and scaffold employer-identity defaults → pr-pilot; keel keeps only the
+  watchdog), the cost model, and scaffold employer-identity defaults → the orchestrator (`…`); keel keeps only the
   project-agnostic doctrine fragment and does not track their fate.
 - **Extends ADR-0002 and ADR-0004**; it does not supersede them.

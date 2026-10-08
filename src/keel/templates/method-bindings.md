@@ -12,7 +12,7 @@ with your project.
 | **ADR home** — a numbered decision log | `docs/adr/` | |
 | **Spec format** — numberable sections, acceptance criteria | committed spec + `docs/llm/TASK_PROMPT_TEMPLATE.md` | |
 | **Guardrails + gate commands** — deterministic pass/fail | `docs/llm/GUARDRAILS.md`, `scripts/check_*.py`, `ruff`/`mypy`/`pytest` | |
-| **Review checklist** — project-specific, blocking | `.pr-pilot/injections/review_checklist.md` (or your orchestrator's equivalent) | |
+| **Review checklist** — project-specific, blocking | your orchestrator's review-checklist injection, or a checklist file the reviewer reads | |
 | **Reflection sink** — feeds the next round | a reflections hook → `reflections.jsonl` → your memory store | |
 
 ## Upgrade bindings
@@ -51,10 +51,10 @@ file records only which one this project runs.
 
 | Slot | `acme-ledger` (example) | This project |
 |---|---|---|
-| Series runner | a `series.toml` orchestrator (e.g. pr-pilot) — or the series table as a manual checklist | |
+| Series runner | a `series.toml` orchestrator (e.g. convoy) — or the series table as a manual checklist | |
 | Single-unit discipline | a process-discipline pack (e.g. humblepowers) | |
 | Cross-series memory | a consolidating memory store (journals → distilled guidance) | |
-| Capacity dispatch | a task→(model, effort) routing policy (e.g. humblepowers' choosing-models) — otherwise the scorer's tier heuristics | |
+| Capacity dispatch | a task→(model, effort) routing policy (e.g. humblepowers' choosing-models) — otherwise the orchestrator's default tier | |
 
 *A slot left unbound is a method-not-fully-applied warning. Bind every row before running a series
 under the method — `keel bind-check <this file>` fails on an empty cell. A slot this project
