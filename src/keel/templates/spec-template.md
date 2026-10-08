@@ -2,7 +2,7 @@
 
 - **Date:** YYYY-MM-DD
 - **Status:** draft | ready (DoR passed) | in progress | done
-- **Kit:** 0.21.1
+- **Kit:** 0.22.0
 - **Kind:** series
 - **Profile:** code
 - **Audience:** <who/what reads this>
