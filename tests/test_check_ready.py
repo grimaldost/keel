@@ -576,11 +576,17 @@ def _with_adr(tmp_path, existing_name, declared_ref):
     return check_spec_ready(_write(tmp_path, spec))
 
 
-def test_adr_number_collision_fails(tmp_path):
+def test_adr_number_collision_warns(tmp_path):
+    # A7 was demoted to WARN in 0.22.0 by the rule docs/evidence.md pre-registered for it: on the
+    # field rows of the gate ledger it had 79 candidates across 42 revisions in 12 repo names, at
+    # least 3 of them distinct repositories, and never fired, while its positive control fires.
+    # The check still looks and still names the collision; it no longer rejects the spec.
     result = _with_adr(tmp_path, '0001-existing-decision.md', 'docs/adr/0001-new-thing.md')
-    assert not result.passed
+    assert result.passed, [v.message for v in result.violations]
+    assert not [v for v in result.violations if v.check == 'A7']
     assert any(
-        '0001' in v.message and 'already used' in v.message.lower() for v in result.violations
+        w.check == 'A7' and '0001' in w.message and 'already used' in w.message.lower()
+        for w in result.warnings
     )
 
 

@@ -521,7 +521,7 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     range_violations, range_warnings = _check_anchor_ranges(outside_records, spec_path)
     violations += range_violations
     warnings += range_warnings
-    violations += _check_adr_numbers(text, spec_path)
+    warnings += _check_adr_numbers(text, spec_path)
     violations += _check_references(text, spec_path)
     violations += _check_section_refs(text, prose, section_ids)
     violations += _check_enforcement_claims(sections, text)
@@ -2327,19 +2327,23 @@ def _check_fold_ledger(
     return violations, warnings
 
 
-def _check_adr_numbers(text: str, spec_path: Path) -> list[Violation]:
-    """Code-grounding: a cited ADR number must match an existing ADR of that name, or be free."""
+def _check_adr_numbers(text: str, spec_path: Path) -> list[Warning]:
+    """A7 (warn): a cited ADR number should match an existing ADR of that name, or be free.
+
+    A WARN since 0.22.0, by the disposition docs/evidence.md pre-registered: zero fires on 79
+    field candidates across 42 revisions, with the positive control firing.
+    """
     adr_dir = _resolve_base(spec_path) / 'docs' / 'adr'
-    violations: list[Violation] = []
+    warnings: list[Warning] = []
     for match in _ADR_REF_RE.finditer(text):
         rel, number = match.group(1), match.group(2)
         declared = Path(rel).name
         existing = [p.name for p in adr_dir.glob(f'{number}-*.md')] if adr_dir.exists() else []
         if existing and declared not in existing:
-            violations.append(
-                Violation(rel, f'ADR number {number} already used: {existing}.', 'A7')
+            warnings.append(
+                Warning('A7', f'WARN: {rel} — ADR number {number} is already used: {existing}.')
             )
-    return violations
+    return warnings
 
 
 def _symbol_defined(target: Path, symbol: str) -> bool:
