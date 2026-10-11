@@ -158,16 +158,28 @@ uv run pytest
 All green before merge, and run them **unpiped** — a pipe (`| tail -1`) substitutes the filter's
 exit status for the gate's, so a red gate reads green. keel holds itself to the gates it preaches.
 
-Install the commit-time hook once per clone:
+CI runs them through [railform](https://github.com/grimaldost/railform), pinned by commit in
+`.github/workflows/ci.yml`: the `railform` job calls railform's reusable workflow, which runs
+`uv lock --check`, the sync and these four gates on Ubuntu and Windows under Python 3.11 and 3.14,
+plus the commit lane, the hook checks and zizmor. `railform.toml` holds the frame it reads, and
+the caller-level `gate` job is the one required status. `railform adopt --pin <sha>` is the one way
+to move the pin: it rewrites every reference at once, and `railform adopt --check` fails when they
+differ.
+
+Arm the commit-time hooks once per clone (worktrees share the clone's configuration), with the
+commit `ci.yml` pins:
 
 ```bash
-git config core.hooksPath .githooks
+uvx --from git+https://github.com/grimaldost/railform@<pin> railform arm
 ```
 
-That points git at the tracked hooks: `.githooks/pre-commit` runs the first three gates through
-`uv run python -m pre_commit`, and `.githooks/commit-msg` holds the commit subject to
-Conventional Commits (`type: subject`; the types include `release`) and rejects AI-attribution
-trailers. `pre-commit install` is deliberately **not** the instruction: it
+That sets `core.hooksPath` to `.githooks`, the tracked wrappers `railform adopt` writes. Each runs
+one stage of `.pre-commit-config.yaml` through `uv run --frozen python -m pre_commit hook-impl`:
+`pre-commit` runs the first three gates, the hygiene hooks, the wrapper check and the
+private-reference check; `commit-msg` holds the subject to Conventional Commits (the types include
+`release`) and rejects AI-attribution trailers; `pre-push` checks the branch name and runs the
+whitespace, end-of-file and large-file hooks over the pushed files.
+`pre-commit install` is deliberately **not** the instruction: it
 writes a hook that invokes the `pre-commit` console script, and an application-control policy on
 at least one machine this repo is developed on blocks that shim while running git-invoked hooks
 fine — so the shim form would leave the claim below as untrue as no hook at all.
@@ -179,14 +191,14 @@ planned or absent. Turned on the repo itself:
 
 | Invariant | Status | Gate/mechanism |
 |---|---|---|
-| The four DoD gates hold before a merge | enforced | `.github/workflows/ci.yml`, every PR, on two OSes |
-| ruff-format, ruff and `ty check src` hold before a commit lands | enforced | `.githooks/pre-commit` + `.pre-commit-config.yaml`, once `core.hooksPath` is set — a clone that skips that one command is covered by CI only |
+| The four DoD gates hold before a merge | enforced | `.github/workflows/ci.yml`'s `railform` job (railform's reusable workflow at the pin), every PR, on two OSes; `gate` is the required status |
+| ruff-format, ruff and `ty check src` hold before a commit lands | enforced | `.githooks/pre-commit` + `.pre-commit-config.yaml`, once the clone is armed — a clone that skips that one command is covered by CI only |
 | `uv run pytest` before a commit | review-only | CI's by choice: the one gate whose cost belongs on a push. Run it yourself before you push |
 | The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
-| Commit subjects are conventional and carry no AI-attribution trailer | enforced | `.githooks/commit-msg` + the commit-msg stage of `.pre-commit-config.yaml`, once `core.hooksPath` is set — same caveat as the pre-commit lane |
+| Commit subjects are conventional and carry no AI-attribution trailer | enforced | railform's `railform-commit-msg` hook through `.githooks/commit-msg`, once the clone is armed, and its `commit-lane` CI job over every commit and the PR text |
 | The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
-| Every released version carries a tag — annotated from v0.18.0, its section locked once tagged | enforced | `tests/test_release_flow.py`; CI's `check` job checks out full history and tags so the assertions run on every PR, and the skip protects only a genuinely tagless clone |
+| Every released version carries a tag — annotated from v0.18.0, its section locked once tagged | enforced | `tests/test_release_flow.py`; the `railform` job's `checks` checks out full history and tags (`ci.setup.fetch_depth = 0` in `railform.toml`) so the assertions run on every PR, and the skip protects only a genuinely tagless clone |
 | The generated series is reviewed before execution (`keel decompose-check`) | available, operator-run | `keel decompose-check` (D1/D2), tested in `tests/test_decompose_check.py` with its own positive-control corpus — the Decompose phase's exit gate, run at the 3→4 boundary by the operator or the orchestrator, not by this repo's CI (which has no series to review) |
 | All method-binding slots filled (`keel bind-check`) | available, operator-run | `keel bind-check` (ADR-0018), tested in `tests/test_bindings.py` — a CLI gate run at phase start, not wired into this repo's CI |
 | Wave cost drift (`keel budget-drift`) | absent | a documented stub that exits 2; its disposition is removal, sequenced behind a bound orchestrator's live measurement window (backlog KEEL-B30) |
