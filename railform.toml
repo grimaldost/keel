@@ -1,0 +1,34 @@
+# This repository's frame for railform: `railform frame` prints the effective frame and
+# `railform frame --check` judges this file.
+
+# The default globs, plus the kit templates: keel's pre-mortem agent reads
+# src/keel/templates/ at run time, so a change there changes what a session loads.
+session_loaded = [
+    "**/skills/**",
+    "**/agents/**",
+    "**/commands/**",
+    "**/hooks/**",
+    "**/.claude-plugin/**",
+    ".claude/**",
+    "**/CLAUDE.md",
+    "**/AGENTS.md",
+    ".mcp.json",
+    "src/keel/templates/**",
+]
+
+[project]
+type = "python-package"
+
+[python]
+versions = ["3.11", "3.14"]
+package = "keel"
+
+[ci.setup]
+fetch_depth = 0
+
+[[exceptions]]
+key = "ci.setup.fetch_depth"
+value = 0
+reason = """the suite needs full history and the tags: tests/test_release_flow.py asserts every \
+released version's tag and skips in a tagless checkout, and tests/test_check_budget.py diffs \
+against the merge-base with origin/main"""
