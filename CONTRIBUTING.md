@@ -179,6 +179,11 @@ one stage of `.pre-commit-config.yaml` through `uv run --frozen python -m pre_co
 private-reference check; `commit-msg` holds the subject to Conventional Commits (the types include
 `release`) and rejects AI-attribution trailers; `pre-push` checks the branch name and runs the
 whitespace, end-of-file and large-file hooks over the pushed files.
+
+Branch names follow railform's default pattern: a lowercase category, a slash and a slug (for
+example `ci/adopt-railform`), with `dependabot/**` allowed. A GitHub web-edit branch such as
+`<user>-patch-1` has no category, so it turns `gate` red; rename it before opening the pull request.
+
 `pre-commit install` is deliberately **not** the instruction: it
 writes a hook that invokes the `pre-commit` console script, and an application-control policy on
 at least one machine this repo is developed on blocks that shim while running git-invoked hooks
@@ -196,6 +201,9 @@ planned or absent. Turned on the repo itself:
 | `uv run pytest` before a commit | review-only | CI's by choice: the one gate whose cost belongs on a push. Run it yourself before you push |
 | The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
 | Commit subjects are conventional and carry no AI-attribution trailer | enforced | railform's `railform-commit-msg` hook through `.githooks/commit-msg`, once the clone is armed, and its `commit-lane` CI job over every commit and the PR text |
+| Branch names are a lowercase category, a slash and a slug (`dependabot/**` allowed) | enforced | railform's `railform-branch-name` hook through `.githooks/pre-push`, once the clone is armed, and the `commit-lane` CI job |
+| No private reference (name or path) lands in a tracked file | enforced | railform's `railform-private-refs` hook through `.githooks/pre-commit`, once the clone is armed, and the `checks` job in CI |
+| The hook wrappers match what `railform adopt` renders, and the adopted parts have not drifted | enforced | railform's `railform-hooks-check` hook through `.githooks/pre-commit`, once the clone is armed, and the `hooks` job in CI |
 | The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
 | Every released version carries a tag — annotated from v0.18.0, its section locked once tagged | enforced | `tests/test_release_flow.py`; the `railform` job's `checks` checks out full history and tags (`ci.setup.fetch_depth = 0` in `railform.toml`) so the assertions run on every PR, and the skip protects only a genuinely tagless clone |
