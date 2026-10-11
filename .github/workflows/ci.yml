@@ -3,31 +3,35 @@ on:
   push:
     branches: [main]
   pull_request:
-# The default GITHUB_TOKEN grant is wider than anything here needs: both jobs only check the
-# repository out and run local commands (the marker arm's ::warning and step summary need no
+    types: [opened, synchronize, reopened, edited]
+# The `railform` job runs railform's reusable workflow at the pinned commit: the four
+# Definition-of-Done gates plus `uv lock --check` on Ubuntu and Windows, the commit lane, the
+# hook checks and zizmor (railform.toml holds the frame it reads). `changelog-currency` is
+# keel's own job, kept here so that `gate` covers it. `gate` is the one required status.
+# The default GITHUB_TOKEN grant is wider than anything here needs: every job only checks the
+# repository out and runs local commands (the marker arm's ::warning and step summary need no
 # token scope at all). Least privilege, stated once at the top level.
 permissions:
   contents: read
 jobs:
-  check:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  # >>> railform: owned by `railform adopt`; `railform adopt --check` fails on any edit
+  railform:
+    uses: grimaldost/railform/.github/workflows/python-ci.yml@c850db5b8989a2b8152a3b2e918c32d8c20f7197
+    permissions:
+      contents: read
+    with:
+      railform-sha: c850db5b8989a2b8152a3b2e918c32d8c20f7197
+  gate:
+    if: always()
+    needs: [railform, changelog-currency]
+    runs-on: ubuntu-latest
+    permissions: {}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # full history AND tags: the release-flow tag assertions skip a tagless checkout, and the default shallow checkout is exactly that
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      - run: uv lock --check # the committed uv.lock (a version site; CONTRIBUTING, "Release discipline") must be current; a stale lock reds CI
-      - run: uv sync --group dev
-      - run: uv run ruff format --check .
-      - run: uv run ruff check .
-      - run: uv run ty check src
-      - run: uv run pytest
-
+      - name: Fail when a needed job failed or was cancelled
+        if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+        shell: bash
+        run: exit 1
+  # <<< railform
   changelog-currency:
     # CONTRIBUTING step 4, machine-enforced (KEEL-B08): a diff that ships kit or doctrine while
     # CHANGELOG.md stays untouched is an unrecorded promotion — and an unrecorded promotion is
@@ -45,8 +49,9 @@ jobs:
           git diff --name-only "origin/${BASE_REF}...HEAD" \
             | python scripts/changelog_currency.py
       # Version arm: a PR that cuts a new release heading must move the newest version strictly
-      # forward; the version-consistency test in the `check` job holds the version sites to
-      # that same heading (CONTRIBUTING, "Release discipline", owns the enumeration).
+      # forward; the version-consistency test, run by the `railform` job's pipeline, holds the
+      # version sites to that same heading (CONTRIBUTING, "Release discipline", owns the
+      # enumeration).
       - env:
           BASE_REF: ${{ github.base_ref }}
         run: |
@@ -62,16 +67,3 @@ jobs:
           git diff "origin/${BASE_REF}...HEAD" -- CHANGELOG.md > "$RUNNER_TEMP/changelog.diff"
           git diff --name-only "origin/${BASE_REF}...HEAD" \
             | python scripts/changelog_currency.py --marker "$RUNNER_TEMP/changelog.diff" CHANGELOG.md
-
-  zizmor:
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        run: uvx zizmor==1.30.0 --min-severity high .github/workflows

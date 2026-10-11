@@ -13,8 +13,9 @@ docs PRs that shipped between 0.13.0 and 0.13.1. Two halves:
   shipped" is answerable from the repo rather than from memory.
 
 Both are scoped honestly. The tag assertion skips a checkout with no tags at all (the skip
-protects a genuinely tagless or shallow clone; CI's `check` job checks out full history and
-tags precisely so these assertions run there), exempts the newest CHANGELOG heading (a release
+protects a genuinely tagless or shallow clone; CI's `checks` job (railform's, with the full
+history the `ci.setup.fetch_depth` exceptions row gives it) checks out tags precisely so these
+assertions run there), exempts the newest CHANGELOG heading (a release
 in flight is tagged when it merges, not when its section is written), and exempts anything
 below the first public release — 0.2.0/0.2.1/0.3.0 are pre-publication history, squashed into
 the 0.4.0 initial public release commit, and there is no commit to tag.
