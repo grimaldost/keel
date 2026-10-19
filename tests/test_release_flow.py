@@ -195,6 +195,34 @@ def test_a_contract_surface_change_wants_the_marker():
     assert unmarked(['src/keel/check_ready.py'], '', MARKED_HEAD) == [], 'not a contract surface'
 
 
+UNRELEASED_HEAD = (
+    'header prose defining the literal (consumer-affecting) marker.\n'
+    '\n'
+    '## [Unreleased]\n'
+    '\n'
+    '### Changed\n'
+    '\n'
+    '- **A new exit code** (consumer-affecting).\n'
+    '- **A quiet entry.**\n'
+    '\n' + MARKED_HEAD.split('\n', 2)[2]
+)
+
+
+def test_the_marker_arm_reads_the_unreleased_section():
+    # Between releases, entries collect under `## [Unreleased]` (CONTRIBUTING, "Release
+    # discipline"), so that section is where the arm looks; the newest SemVer section is
+    # already released, and an entry added there is an edit to an older section.
+    unmarked = _load_predicate().unmarked_contract_paths
+    marked = '+- **A new exit code** (consumer-affecting).'
+    assert unmarked(['src/keel/cli.py', 'CHANGELOG.md'], marked, UNRELEASED_HEAD) == []
+    quiet = '+- **A quiet entry.**'
+    assert unmarked(['src/keel/cli.py'], quiet, UNRELEASED_HEAD) == ['src/keel/cli.py']
+    released = '+- **The ledger schema moves to v4** (consumer-affecting).'
+    assert unmarked(['src/keel/cli.py'], released, UNRELEASED_HEAD) == ['src/keel/cli.py'], (
+        'an entry added under a released heading must not satisfy the arm'
+    )
+
+
 def test_the_cli_modes_guard_their_operands():
     # A mode flag with missing or extra operands is a usage error (exit 2), never an
     # IndexError over sys.argv.

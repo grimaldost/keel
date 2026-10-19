@@ -20,11 +20,11 @@ Three arms, all run by CI's `changelog-currency` job (the estate's porting sourc
 
 - **Marker arm** (`--marker DIFF_FILE HEAD_FILE`, changed paths on stdin; advisory, always
   exits 0): a diff touching a contract-surface file should carry the literal
-  `(consumer-affecting)` marker on an added `- ` entry line under HEAD_FILE's newest release
-  heading — the header paragraph that defines the marker, and edits to older sections, cannot
-  satisfy it. In CI a miss is a `::warning` annotation and a step-summary line, never a red.
-  Advisory until the convention has a release of practice behind it; the escalation to a hard
-  fail is the recorded next step.
+  `(consumer-affecting)` marker on an added `- ` entry line under HEAD_FILE's `## [Unreleased]`
+  heading, or its newest release heading when it has none — the header paragraph that defines
+  the marker, and edits to older sections, cannot satisfy it. In CI a miss is a `::warning`
+  annotation and a step-summary line, never a red. Advisory until the convention has a release
+  of practice behind it; the escalation to a hard fail is the recorded next step.
 
 Repo-local tooling, deliberately not part of the `keel` package: it enforces this repo's
 release loop, not a consumer's (ADR-0003).
@@ -85,17 +85,28 @@ def heading_regression(base_text: str, head_text: str) -> str | None:
     )
 
 
+UNRELEASED = '## [Unreleased]'
+
+
 def _newest_section_entries(head_text: str) -> set[str]:
-    """The top-level `- ` entry lines under the newest `## [x.y.z]` heading of `head_text`."""
-    newest = _newest_version(head_text)
-    if newest is None:
-        return set()
-    version = '.'.join(map(str, newest))
+    """The top-level `- ` entry lines of the section new entries go to in `head_text`.
+
+    That is the `## [Unreleased]` section when there is one (CONTRIBUTING, "Release
+    discipline": changes merged between releases collect there), else the section under the
+    newest `## [x.y.z]` heading (a release cut renames `[Unreleased]` to that heading).
+    """
+    if any(line == UNRELEASED for line in head_text.splitlines()):
+        opener = UNRELEASED
+    else:
+        newest = _newest_version(head_text)
+        if newest is None:
+            return set()
+        opener = '## [' + '.'.join(map(str, newest)) + ']'
     inside = False
     entries: set[str] = set()
     for line in head_text.splitlines():
         if line.startswith('## '):
-            inside = line.startswith(f'## [{version}]')
+            inside = line.startswith(opener)
             continue
         if inside and line.startswith('- '):
             entries.add(line)
@@ -107,10 +118,11 @@ def unmarked_contract_paths(
 ) -> list[str]:
     """The contract-surface paths in `changed` when no qualifying CHANGELOG line is marked.
 
-    Qualifying: an ADDED `- ` entry line that lives under the newest release heading of
-    `head_text`. The first cut of this arm scanned every added line, and the header paragraph
-    that DEFINES the marker satisfied it on the arm's first real exercise — scoping to
-    newest-section entry lines closes that false OK.
+    Qualifying: an ADDED `- ` entry line that lives under the `[Unreleased]` heading of
+    `head_text`, or under its newest release heading when it has no `[Unreleased]`. The first
+    cut of this arm scanned every added line, and the header paragraph that DEFINES the marker
+    satisfied it on the arm's first real exercise — scoping to newest-section entry lines
+    closes that false OK.
     """
     paths = [path.strip().replace('\\', '/') for path in changed if path.strip()]
     touched = [path for path in paths if path in CONTRACT_FILES]
@@ -156,7 +168,7 @@ def _marker_mode(diff_file: str, head_file: str, changed: list[str]) -> int:
         'mark the entry if the change moves what a consuming tool parses (advisory)'
     )
     print('NOTICE (advisory): contract-surface files changed and no added `- ` entry line')
-    print(f'under the newest release heading carries `{MARKER}`:')
+    print(f'under the `[Unreleased]` (else newest release) heading carries `{MARKER}`:')
     for path in unmarked:
         print(f'  {path}')
     print(
@@ -196,8 +208,8 @@ def main(argv: list[str] | None = None) -> int:
     for path in unrecorded:
         print(f'  {path}')
     print(
-        'Record the promotion in CHANGELOG.md and bump SemVer (CONTRIBUTING, "The loop" step 4). '
-        'An unrecorded promotion is uncountable.'
+        'Record the promotion in CHANGELOG.md under `## [Unreleased]`; the release cut bumps '
+        'SemVer (CONTRIBUTING, "The loop" step 4). An unrecorded promotion is uncountable.'
     )
     return 1
 

@@ -59,8 +59,8 @@ jobs:
           python scripts/changelog_currency.py --headings "$RUNNER_TEMP/base-changelog.md" CHANGELOG.md
       # Marker arm (advisory, never fails): a change to a contract-surface file — the gate
       # ledger's schema, the CLI's exit-code surface — should carry the `(consumer-affecting)`
-      # marker on an added entry line under the newest release heading. Fires as a ::warning
-      # annotation, not a red.
+      # marker on an added entry line under `## [Unreleased]` (else the newest release heading).
+      # Fires as a ::warning annotation, not a red.
       - env:
           BASE_REF: ${{ github.base_ref }}
         run: |
