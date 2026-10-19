@@ -39,9 +39,9 @@ def test_readme_points_at_evidence():
 def test_docs_do_not_call_a_built_command_a_stub():
     # The wave-4 drift class: `bind-check` was built (ADR-0018) and merged CI-green while
     # README, CONTRIBUTING's enforcement table and one cli-reference paragraph still called it
-    # a stub — scripts/changelog_currency.py deliberately excludes those paths, so nothing
-    # fired. The stub set has one home (keel.cli.STUB_COMMANDS); a line in these docs that
-    # says "stub" while naming a command outside that set is the drift.
+    # a stub — the changelog gate's `changelog.records` rows deliberately exclude those paths, so
+    # nothing fired. The stub set has one home (keel.cli.STUB_COMMANDS); a line in these docs
+    # that says "stub" while naming a command outside that set is the drift.
     built = {c.name for c in app.registered_commands if c.name} - STUB_COMMANDS
     assert built, 'no registered commands outside the stub set — parse rot'
     for rel in ('README.md', 'docs/cli-reference.md', 'CONTRIBUTING.md'):
