@@ -140,10 +140,11 @@ def test_changelog_heading_chain_is_intact():
     # 0.12.0's section — and only the blind audit caught it, because the version-consistency test
     # reads the NEWEST heading only and the broken chain was still strictly descending. Three
     # layers, one per failure shape:
-    #   shape — every H2 is a strict `## [x.y.z] - YYYY-MM-DD` heading. This file has never used
-    #     an `## [Unreleased]` heading (a deliberate deviation from Keep a Changelog), and the
-    #     newest-heading version site above assumes the first heading IS the current release, so a
-    #     non-SemVer H2 is a violation, not a form to tolerate.
+    #   shape — every H2 is a strict `## [x.y.z] - YYYY-MM-DD` heading, except one bare
+    #     `## [Unreleased]` allowed as the FIRST H2: changes merged between releases collect there
+    #     without moving a version site, and the release cut renames it. The newest-heading
+    #     version site above reads the first SemVer heading, so it skips that one; any other
+    #     non-SemVer H2, or an `[Unreleased]` below a release, is a violation.
     #   order — strict descending SemVer with no duplicates, comparing parsed integer tuples (not
     #     strings, since '0.10.0' < '0.9.0' lexically) — catches an entry pasted below an older
     #     release, a double-pasted heading, a typo'd version.
@@ -156,6 +157,9 @@ def test_changelog_heading_chain_is_intact():
     section = 'preamble'
     kinds: list[str] = []
     for line in lines:
+        if line == '## [Unreleased]' and not versions and section == 'preamble':
+            section, kinds = 'Unreleased', []
+            continue
         if line.startswith('## '):
             match = heading.match(line)
             assert match is not None, f'malformed release heading: {line!r}'
