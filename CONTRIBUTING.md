@@ -128,8 +128,10 @@ section is written; it also asserts the annotation (from v0.18.0) and that a tag
 entry set never changes after its tag exists — every SemVer tag, with the known historical
 edits exempted by name in the test.
 
-A release bumps **nine version sites**, in one commit with the `## [x.y.z]` CHANGELOG heading
-(inserted above the previous one, never replacing it). Run `uv run python scripts/bump_version.py
+Between releases, merged changes are recorded under a single `## [Unreleased]` heading at the
+top of `CHANGELOG.md`, which moves no version site. A release bumps **nine version sites**, in
+one commit with the `## [x.y.z]` CHANGELOG heading (the `[Unreleased]` heading renamed, or a new
+heading inserted above the previous one, never replacing it). Run `uv run python scripts/bump_version.py
 x.y.z`: it writes every site from `VERSION_SITES`, the registry that lives in the
 version-consistency test itself (`tests/test_plugin_manifest.py`), so the bump and the gate cannot
 hold different lists. Eight sites are in that registry — `.claude-plugin/plugin.json`,

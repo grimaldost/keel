@@ -701,6 +701,10 @@ recorded here explicitly. `[triage]`
   traceable but not yet traced" blocks until traced, which a read-only agent can do. Mechanical rung:
   check-ready reads the artifact's `Unverified-offline: N` and WARNs when N > 0 on a CERTIFIED
   verdict. Consumes a field that already ships.
+- **Status:** **landed** 2026-10-19 under `[Unreleased]`. DoR Part B states the distinction as a
+  checklist item (prose 949/950, displacing the Gate result paragraph's restatement of the pass
+  rule), and W11 warns when a CERTIFIED pass's saved count is above 0. W11 is admitted by a
+  pre-registered row in `docs/evidence.md`; the catalogue holds 29 ids.
 - **Effort:** M · **Source:** `[triage Q6b]`
 
 ### KEEL-B15 — The certification block records what was paid, not only what was owed

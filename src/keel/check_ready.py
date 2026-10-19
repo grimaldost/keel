@@ -380,6 +380,7 @@ def _candidate_counts(
     structure_only: bool,
     requirement_ids: int,
     base_candidates: int,
+    offline_candidates: int,
 ) -> dict[str, int]:
     """How many constructs of each check's own shape this spec presented (KEEL-B07).
 
@@ -444,6 +445,9 @@ def _candidate_counts(
         # `_recorded_base` and `_git_root`, the two reads W10 itself makes. A git that then cannot
         # answer still counts: telling it apart would take a subprocess, and counting runs none.
         'W10': base_candidates,
+        # W11's opportunity is a count line in the saved pass under a CERTIFIED verdict, read once
+        # by the caller with `_unverified_offline_count`, the read W11 itself makes.
+        'W11': offline_candidates,
     }
 
 
@@ -510,6 +514,10 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     # W10 (Part B) asks git only where a commit is recorded and a repository holds the spec.
     base_commit = '' if structure_only else _recorded_base(cert)
     base_repository = _git_root(spec_path) if base_commit else None
+    # W11 (Part B) reads the saved pass's count only under a CERTIFIED verdict.
+    offline_count = (
+        None if structure_only or cert is None else _unverified_offline_count(cert, spec_path)
+    )
     # A12 owns the fold ledger's anchors; A6/A11 must not re-report them under prose semantics.
     # An `Anchor waivers` block is a record about anchors, not prose, and is masked the same way.
     outside_records = _mask_anchor_waivers(_mask_fold_ledger(text))
@@ -539,10 +547,12 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
             warnings += artifact_warnings
         warnings += _status_currency_warning(header, cert)
         warnings += _check_base(base_commit, base_repository)
+        warnings += _check_unverified_offline(offline_count)
 
     candidates = _candidate_counts(
         requirement_ids=requirement_ids,
         base_candidates=int(base_repository is not None),
+        offline_candidates=int(offline_count is not None),
         text=text,
         prose=prose,
         header=header,
@@ -2723,6 +2733,58 @@ def _check_certification_artifact(
                 )
             warnings.append(Warning('W5', warning))
     return violations, warnings
+
+
+# W11 reads the count the directive asks for on the line before the verdict, in the forms saved
+# passes write it: bare, bolded whole (`**Unverified-offline: 5**`), or as a bolded field label
+# (`- **Unverified-offline:** 6`), with trailing prose. A schema quote (`<N>`) carries no digits.
+_UNVERIFIED_OFFLINE_RE = re.compile(
+    r'^[\s>*_-]*unverified-offline[*_]*[ \t]*:[ \t]*[*_]*[ \t]*(\d+)', re.IGNORECASE
+)
+
+
+def _unverified_offline_count(cert_body: str, spec_path: Path) -> int | None:
+    """The saved pass's `Unverified-offline: N` under a CERTIFIED verdict, else None (W11).
+
+    None, and no candidate, when the recorded verdict is anything but CERTIFIED, when no artifact
+    is named or the named file is missing (B2 owns both), or when the artifact carries no count
+    line. Where several count lines appear, the LAST one is the count, as for the verdict line.
+    """
+    if _verdict_head(_field(cert_body, 'verdict')) != 'CERTIFIED':
+        return None
+    ref = _first_path_token(_field(cert_body, 'certification artifact'))
+    if not ref:
+        return None
+    target = _resolve_base(spec_path) / ref
+    if not target.is_file():
+        return None
+    counts = [
+        match.group(1)
+        for line in target.read_text(encoding='utf-8', errors='replace').splitlines()
+        if (match := _UNVERIFIED_OFFLINE_RE.match(line))
+    ]
+    return int(counts[-1]) if counts else None
+
+
+def _check_unverified_offline(count: int | None) -> list[Warning]:
+    """W11 (KEEL-B14): a CERTIFIED pass that left claims needing execution unverified.
+
+    A warning, not a violation: the count cannot tell a claim that needs a live environment, which
+    may ride open, from one a read-only agent could still trace statically, which should have been
+    traced before certifying. The Definition-of-Ready sheet states that distinction for the
+    reviewer; the gate only makes the count visible.
+    """
+    if not count:
+        return []
+    return [
+        Warning(
+            'W11',
+            f'WARN: the certified pass reports Unverified-offline: {count} — claims that needed '
+            'execution its runner could not do. Only a claim that needs a live environment may '
+            'ride open; one a read-only agent can trace statically is traced before certifying '
+            '(definition-of-ready.md Part B).',
+        )
+    ]
 
 
 def _check_premortem(cert_body: str | None) -> tuple[list[Violation], list[Warning]]:
