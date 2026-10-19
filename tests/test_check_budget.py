@@ -117,7 +117,7 @@ def test_the_readers_parse_the_shipped_files():
     # budget vacuously.
     assert catalogue((ROOT / MODELS).read_text(encoding='utf-8')) == DOR_CHECK_IDS
     warns = warn_only((ROOT / DOR_SHEET).read_text(encoding='utf-8'))
-    assert {f'W{n}' for n in range(1, 11)} <= warns, sorted(warns)
+    assert {f'W{n}' for n in range(1, 12)} <= warns, sorted(warns)
     assert warns < DOR_CHECK_IDS, 'the warn reader matched every line, failing checks included'
     assert {'A7', 'A9'} <= preregistered(EVIDENCE.read_text(encoding='utf-8'))
     assert preregistered('| trigger | disposition |\n|---|---|\nA7 in prose, not a row\n') == set()

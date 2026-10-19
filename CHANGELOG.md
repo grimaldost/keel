@@ -28,7 +28,7 @@ Definition-of-Ready prose 949/950; reference-block maximum 61/61 (W11's line is 
   sheets: only a claim needing a live environment rides open, and the reviewer traces a statically
   traceable one before certifying. It displaces the Gate result paragraph's restatement of the
   opening section's pass rule ("Ready only when Part A is well-formed and ... `keel check-ready`
-  enforces both halves"), which now reads "Ready needs both halves"; DoR prose goes from 942 to 949
+  enforces both halves"), which now reads "Ready ✅ needs both halves"; DoR prose goes from 942 to 949
   of 950. The reference block gains a W11 line (57 words, cap 61), identical in both sheets. The
   check budget is paid by pre-registration: `docs/evidence.md` gains two rows naming W11, a cut on
   zero fires at the standing bar and, if W11 fires on most of its candidates, a split of the count
@@ -40,7 +40,9 @@ Definition-of-Ready prose 949/950; reference-block maximum 61/61 (W11's line is 
 - **CHANGELOG.md may carry one `## [Unreleased]` heading above the newest release.** Changes that
   merge between releases collect there, and the release cut renames it to `## [x.y.z] - date`.
   `test_changelog_heading_chain_is_intact` accepts it only as the first H2; the version sites
-  read the first SemVer heading, so they are unchanged.
+  read the first SemVer heading, so they are unchanged. The changelog gate's marker arm reads that
+  section (else the newest release section), and CONTRIBUTING step 4 and `AGENTS.md` say to record
+  there and bump at the release cut.
 
 ## [0.22.0] - 2026-10-08
 
