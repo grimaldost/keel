@@ -11,7 +11,8 @@ keel improves by dogfooding its own "close the loop" principle on itself.
    - a **template / doctrine** edit (`src/keel/templates/`, `docs/doctrine.md`),
    - a **new / upgraded gate** (`src/keel/`, wired in `cli.py`, tested),
    - or an **ADR** (`docs/adr/`).
-4. **Record** in `CHANGELOG.md` and **bump SemVer**. *Machine-enforced:* a PR whose diff touches a
+4. **Record** in `CHANGELOG.md` under `## [Unreleased]`; the release cut **bumps SemVer**
+   ("Release discipline" below). *Machine-enforced:* a PR whose diff touches a
    shipped-kit path (`src/keel/templates/**`, `docs/doctrine.md`, `agents/**`, `skills/**`,
    `commands/**`) while `CHANGELOG.md` stays untouched fails CI's `changelog-currency` job
    (`scripts/changelog_currency.py`). The version lock proves the eight sites agree, never that
