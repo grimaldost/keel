@@ -22,7 +22,9 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 - **CHANGELOG.md may carry one `## [Unreleased]` heading above the newest release.** Changes that
   merge between releases collect there, and the release cut renames it to `## [x.y.z] - date`.
   `test_changelog_heading_chain_is_intact` accepts it only as the first H2; the version sites
-  read the first SemVer heading, so they are unchanged.
+  read the first SemVer heading, so they are unchanged. The changelog gate's marker arm reads that
+  section (else the newest release section), and CONTRIBUTING step 4 and `AGENTS.md` say to record
+  there and bump at the release cut.
 
 ## [0.22.0] - 2026-10-08
 
