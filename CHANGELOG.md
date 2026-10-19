@@ -25,6 +25,15 @@ Tags start at 0.4.0; earlier versions were released before the public history be
   read the first SemVer heading, so they are unchanged. The changelog gate's marker arm reads that
   section (else the newest release section), and CONTRIBUTING step 4 and `AGENTS.md` say to record
   there and bump at the release cut.
+- **The changelog and version gates run from railform.** CI's `railform` job now judges the
+  changelog (record or declare per commit, a release heading that moves the version forward, the
+  advisory `(consumer-affecting)` marker) and the eight version sites, and the release check
+  judges tags from v0.22.0 on. `scripts/changelog_currency.py` and `scripts/bump_version.py` are
+  deleted, along with the tests that loaded them; the sites and the record rows live in
+  `railform.toml`, and `railform version-sites --bump x.y.z` writes the sites at a release.
+  Behaviour that differs from the deleted job: the changelog check reads each commit of a pull
+  request, not the combined diff, so a commit that ships a kit path records it or carries the
+  trailer `Changelog: none (<reason>)`.
 
 ## [0.22.0] - 2026-10-08
 
