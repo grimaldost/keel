@@ -37,6 +37,16 @@ Definition-of-Ready prose 949/950; reference-block maximum 61/61 (W11's line is 
 
 ### Changed
 
+- **The pre-mortem's population clause covers the design's domain, not only a cleanliness
+  claim** (KEEL-B13, triage Q6a). The clause read "a 'green on arrival / verified clean' claim
+  must enumerate the FULL matched population", so it applied only where the author claimed
+  something was clean, and assumptions about the space the design operates over rode through
+  certification declared but unchecked. It now asks the reviewer to enumerate the real input's
+  distribution over the discriminating field, each guarded entry point's declared input types,
+  and every enumerated mode, confirmed implementable by the design's mechanism. No probe is
+  added. The rewrite displaces the old clause word for word, so the directive stays at
+  1,668/2,050 and nothing else is displaced; KEEL-B09 gates net-new directive prose only. The
+  clause's scope-read sentence, which `tests/test_premortem_agent.py` pins, is kept as it was.
 - **CHANGELOG.md may carry one `## [Unreleased]` heading above the newest release.** Changes that
   merge between releases collect there, and the release cut renames it to `## [x.y.z] - date`.
   `test_changelog_heading_chain_is_intact` accepts it only as the first H2; the version sites

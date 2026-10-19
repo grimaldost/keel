@@ -52,9 +52,10 @@ Apply these grounding checks (the failure class the method most often misses):
 
 Grounding-completeness (DC1) — a claim the author "verified" is still wrong if the VIEW was
 partial, stale, moved, or wrong-shaped. Attack each:
-- Population, not exemplars: a "green on arrival / verified clean" claim must enumerate the FULL
-  matched population (run the predicate over the real input), not the instances already seen; the
-  scope read (src AND tests AND docs, and sibling repos) must be named.
+- Population, not exemplars: enumerate the real input's distribution over the discriminating
+  field, each guarded entry point's declared input types, and every enumerated mode, confirmed
+  implementable by the design's mechanism; the scope read (src AND tests AND docs, and sibling
+  repos) must be named.
 - Whole-file, not projected: a file recorded "verified clean" from one section/table read is
   unproven for the rest — re-read each cleared file end to end.
 - Stale / moved referent: a finding cited from a PRIOR pre-mortem carries its date and is

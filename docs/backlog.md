@@ -688,6 +688,8 @@ recorded here explicitly. `[triage]`
   and the audit treat it as unmeasured. This item survives that tension only because it *displaces*
   — it is net-neutral on body size. Net-new directive prose waits for KEEL-B09.
 - **Ordering:** after KEEL-B02 (single-file edit).
+- **Status:** **landed** 2026-10-19 under `[Unreleased]`. The clause now names the three parts
+  of the domain; it replaced the old wording word for word (directive 1,668/2,050, unchanged).
 - **Effort:** S · **Source:** `[triage Q6a]`
 
 ### KEEL-B14 — DoR separates "needs a live environment" from "traceable but not yet traced", and check-ready finally reads the count
