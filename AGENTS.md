@@ -39,5 +39,6 @@ red gate reads green.
 ## How to change keel
 
 Each recurring lesson becomes exactly one of: a template/doctrine edit, a new gate in
-`src/keel/`, or an ADR in `docs/adr/`. Record it in `CHANGELOG.md` and bump the version.
+`src/keel/`, or an ADR in `docs/adr/`. Record it in `CHANGELOG.md` under `## [Unreleased]`;
+the release cut bumps the version.
 See `CONTRIBUTING.md` and `src/keel/templates/reflection-triage.md`.
