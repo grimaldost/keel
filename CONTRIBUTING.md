@@ -153,10 +153,11 @@ by `tests/test_core_variants.py` (every core line appears, in order, in the body
 where a stale stamp fails as a strict-subset error whose message says nothing about versions; it
 is not a consumer-facing site, since `keel init` cannot reach the `core/` subdirectory.
 
-Two of the nine the bump reports rather than writes. The newest CHANGELOG heading arrives with
-its own section, so rewriting its number would rename the previous release. `uv.lock` is the
-ninth — regenerate it with `uv lock` after `pyproject.toml` moves, and CI's `uv lock --check` reds
-a stale committed lock.
+The bump writes seven of the eight registry sites and reports the eighth: the newest CHANGELOG
+heading arrives with its own section, so rewriting its number would rename the previous release,
+and the bump fails with `mismatch` naming that heading until its author has written it. The ninth
+site, `uv.lock`, is not in the registry and the bump knows nothing of it — regenerate it with
+`uv lock` after `pyproject.toml` moves, and CI's `uv lock --check` reds a stale committed lock.
 
 ## Quality gates (Definition of Done)
 
@@ -189,8 +190,8 @@ That sets `core.hooksPath` to `.githooks`, the tracked wrappers `railform adopt`
 one stage of `.pre-commit-config.yaml` through `uv run --frozen python -m pre_commit hook-impl`:
 `pre-commit` runs the first three gates, the hygiene hooks, the wrapper check and the
 private-reference check; `commit-msg` holds the subject to Conventional Commits (the types include
-`release`) and rejects AI-attribution trailers; `pre-push` checks the branch name and runs the
-whitespace, end-of-file and large-file hooks over the pushed files.
+`release`) and rejects AI-attribution trailers; `pre-push` runs only the branch-name check, since
+every hygiene hook is limited to the `pre-commit` stage.
 
 Branch names follow railform's default pattern: a lowercase category, a slash and a slug (for
 example `ci/adopt-railform`), with `dependabot/**` allowed. A GitHub web-edit branch such as
