@@ -136,16 +136,16 @@ any use); the ledger supplies the figures the decision rests on.
 
 | trigger | disposition |
 |---|---|
-| A10 or A14 has ≥40 candidates across ≥15 distinct revisions in ≥3 repos with zero fires, **and** its positive control passes, **and** it has no open reproduced defeat | retire the check: its id leaves `DOR_CHECK_IDS`, its reference-block line, probe, tests and mutants go with it, and the letter is not reused |
+| a check (the two retired here) has ≥40 candidates across ≥15 distinct revisions in ≥3 repos with zero fires, **and** its positive control passes, **and** it has no open reproduced defeat | retire the check: its id leaves `DOR_CHECK_IDS`, its reference-block line, probe, tests and mutants go with it, and the letter is not reused |
 | a retired check's failure class reaches a certified spec or a consumer report | reopen that check as a new, paid-for id (the budget rule, `tests/test_check_budget.py`), not by restoring the letter |
 
 **The figures** are `keel gate-health` on 2026-10-19, field rows only (536 runs, 2026-08-11 to
 2026-10-19; the 2,394 rows the test suite wrote are left out):
 
-| check | applicable runs | candidates | revisions | repos (names) | revisions fired on |
-|---|---|---|---|---|---|
-| A10 | 426 | 1,097 | 208 | 19 | 0 |
-| A14 | 432 | 208 | 208 | 22 | 0 |
+| check | id | applicable runs | candidates | revisions | repos (names) | revisions fired on |
+|---|---|---|---|---|---|---|
+| enforcement-claim honesty | A10 | 426 | 1,097 | 208 | 19 | 0 |
+| declared `Profile:` names a sheet | A14 | 432 | 208 | 208 | 22 | 0 |
 
 A repo name over-counts repositories, because a worktree records under its own directory, so the
 bar was also read on the three names with the most revisions: 178 of A10's 208 revisions and 185 of

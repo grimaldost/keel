@@ -630,8 +630,8 @@ recorded here explicitly. `[triage]`
   words**, the second home gone. What replaced them is four lines of selector, not a pointer in a
   note: the always-on block reads the header's `Profile:` and loads the sheet it names, and
   `test_templates_valid` holds the profiles the spec template lists and the sheets that exist to
-  set equality (it held A14's accepted set until A14 was retired on 2026-10-19), so a lens cannot be selected by memory and a sheet cannot go unreferenced. Waiting on KEEL-B09
-  was a misreading of CONTRIBUTING's own rule, recorded here because it cost two rounds: B09 gates
+  set equality (it held A14's accepted set until A14 was retired on 2026-10-19), so a lens cannot
+  be selected by memory and a sheet cannot go unreferenced. Waiting on KEEL-B09 was a misreading of CONTRIBUTING's own rule, recorded here because it cost two rounds: B09 gates
   *net-new* directive prose, and a deletion is the opposite of that.
 - **Effort:** M · **Source:** `[triage Q7a]` `[review]`
 
@@ -707,7 +707,8 @@ recorded here explicitly. `[triage]`
 - **Status:** **landed** 2026-10-19 under `[Unreleased]`. DoR Part B states the distinction as a
   checklist item (prose 949/950, displacing the Gate result paragraph's restatement of the pass
   rule), and W11 warns when a CERTIFIED pass's saved count is above 0. W11 is admitted by a
-  pre-registered row in `docs/evidence.md`; the catalogue holds 29 ids.
+  pre-registered row in `docs/evidence.md`; the catalogue held 29 ids then (27 after A10 and A14
+  were retired).
 - **Effort:** M · **Source:** `[triage Q6b]`
 
 ### KEEL-B15 — The certification block records what was paid, not only what was owed
