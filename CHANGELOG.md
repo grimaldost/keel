@@ -7,10 +7,31 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 
 ## [Unreleased]
 
-The Definition-of-Ready catalogue holds 29 ids (`DOR_CHECK_IDS`, `src/keel/models.py`): W11 is
-added, admitted by a pre-registered row in `docs/evidence.md`, and none is removed or demoted.
-Body budgets after: directive 1,668/2,050; contract notes 499/500; agent wrapper 546/550;
+The Definition-of-Ready catalogue holds 27 ids (`DOR_CHECK_IDS`, `src/keel/models.py`): W11 is
+added, admitted by a pre-registered row in `docs/evidence.md`, and A10 and A14 are retired, from 29.
+Body budgets after: directive 1,668/2,050; contract notes 468/500; agent wrapper 546/550;
 Definition-of-Ready prose 949/950; reference-block maximum 61/61 (W11's line is 57).
+
+### Removed
+
+- **Checks A10 and A14 are retired** (`(consumer-affecting)`: a spec whose only findings were A10
+  or A14 now exits 0 where it exited 1, and `check-ready`'s probes, the gate ledger's rows and
+  `keel gate-health` no longer carry either letter). The owner's decision of 2026-10-19, on checks
+  that never fired in any use: on the gate ledger's field rows A10 had 1,097 candidates across 208
+  distinct spec revisions in 19 repo names and A14 had 208 across 208 in 22, with 0 fires for
+  both, against the A7 bar of 40 candidates across 15 revisions in 3 repos
+  (`docs/evidence.md`, "A10 and A14 retired", records the figures, the bar and what is given up).
+  A10 failed a spec whose prose claimed an invariant "enforced" against a status-table row marked
+  otherwise; A14 failed a `Profile:` token that names no sheet. Both letters leave `DOR_CHECK_IDS`
+  and are not reused, so **the catalogue holds 27 ids, from 29**; the `definition-of-ready.md`
+  reference block (full and core) drops their two lines, the spec template drops the A10 note, and
+  the check functions, their probes, tests, positive-control mutants and the
+  `test_enforcement_window` module go with them. Old ledger rows that name either letter are left
+  where they are and `gate-health` skips them. The Enforcement-status table and the `Profile:`
+  field stay in the spec template, and `test_templates_valid` now reads the profiles from the
+  template's own note and holds them to the sheets that exist, where it read A14's constant. The
+  spec template's contract notes go from 499 to 468 words, under an unchanged 500 cap. Removing
+  two checks displaces nothing and adds no prose.
 
 ### Added
 

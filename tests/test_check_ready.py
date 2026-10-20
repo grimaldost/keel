@@ -674,7 +674,7 @@ def test_section_ref_quoted_crossdoc_ignored_a8(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
-# --- A10: enforcement-claim honesty lint ------------------------------------
+# --- A10 and A14 are retired (docs/evidence.md, 2026-10-19) -------------------
 
 _ENFORCE_TABLE = """
 ## Enforcement status
@@ -685,27 +685,16 @@ _ENFORCE_TABLE = """
 """
 
 
-def test_enforcement_overclaim_fails_a10(tmp_path):
-    bad = READY_SPEC + _ENFORCE_TABLE + '\nThe boundary-rule is enforced at every commit.\n'
-    result = check_spec_ready(_write(tmp_path, bad))
-    assert not result.passed
-    assert any('boundary-rule' in v.message for v in result.violations)
-
-
-def test_enforcement_honest_prose_passes_a10(tmp_path):
-    good = (
-        READY_SPEC
-        + _ENFORCE_TABLE
-        + '\nThe boundary-rule is NOT enforced yet; the `enforced` token is fine.\n'
-    )
-    result = check_spec_ready(_write(tmp_path, good))
-    assert result.passed, [v.message for v in result.violations]
-
-
-def test_enforcement_no_table_dozes_a10(tmp_path):
-    good = READY_SPEC + '\nThe boundary-rule is enforced at every commit.\n'
-    result = check_spec_ready(_write(tmp_path, good))
-    assert result.passed, [v.message for v in result.violations]
+def test_a_retired_check_no_longer_rejects_or_presents_a_candidate(tmp_path):
+    # A10 failed an "enforced" claim against a non-enforced status row; A14 failed a `Profile:`
+    # token no sheet answers to. Both had 0 fires in the field and were retired by the owner's
+    # decision, so the spec that used to trip each now passes, and neither letter is probed.
+    overclaim = READY_SPEC + _ENFORCE_TABLE + '\nThe boundary-rule is enforced at every commit.\n'
+    bad_profile = READY_SPEC.replace('- **Kit:**', '- **Profile:** pipeline\n- **Kit:**')
+    for spec in (overclaim, bad_profile):
+        result = check_spec_ready(_write(tmp_path, spec))
+        assert result.passed, [(v.check, v.message) for v in result.violations]
+        assert {'A10', 'A14'}.isdisjoint(probe.check for probe in result.probes)
 
 
 # --- A11: anchor-range closes-structure -------------------------------------
@@ -2246,41 +2235,6 @@ def test_vendored_twin_does_not_defeat_the_real_source_match_a6(tmp_path):
     result = check_spec_ready(_write(tmp_path, spec))
     assert result.passed, [(v.where, v.message) for v in result.violations]
     assert any('src/contracts.py:2' in w.message for w in result.warnings), result.warnings
-
-
-def test_an_unknown_profile_fails_naming_the_token_and_the_set_a14(tmp_path):
-    # The sheet said its material was "dispatched only for the kind that needs it" while no
-    # selector existed: `Kind:` declares decomposition shape, not subject, and the two taxonomies
-    # had been collapsed onto one field name.
-    spec = READY_SPEC.replace('- **Kit:**', '- **Profile:** pipeline\n- **Kit:**')
-    result = check_spec_ready(_write(tmp_path, spec))
-    assert not result.passed
-    bad = [v for v in result.violations if v.check == 'A14']
-    assert bad and "'pipeline'" in bad[0].message and 'data-pipeline' in bad[0].message
-
-
-def test_a_known_profile_passes_a14(tmp_path):
-    spec = READY_SPEC.replace('- **Kit:**', '- **Profile:** data-pipeline\n- **Kit:**')
-    result = check_spec_ready(_write(tmp_path, spec))
-    assert result.passed, [(v.check, v.message) for v in result.violations]
-
-
-def test_a_spec_declaring_no_profile_presents_no_candidate_a14(tmp_path):
-    # Verify-when-present: silent is a different fact from declaring `code`.
-    result = check_spec_ready(_write(tmp_path, READY_SPEC))
-    assert result.passed
-    probe = next(p for p in result.probes if p.check == 'A14')
-    assert (probe.candidates, probe.fired) == (0, 0)
-
-
-def test_the_profile_axis_is_independent_of_the_kind_axis_a14(tmp_path):
-    # A0's candidate count is the `Kind:` field alone, which is why this is its own letter: a
-    # Profile-only header would otherwise fire a check with a zero denominator.
-    spec = READY_SPEC.replace('- **Kit:**', '- **Profile:** measurement\n- **Kit:**')
-    result = check_spec_ready(_write(tmp_path, spec))
-    probes = {p.check: p for p in result.probes}
-    assert probes['A14'].candidates == 1
-    assert probes['A0'].candidates == 0
 
 
 def test_a_parent_prefixed_anchor_resolves_when_the_sibling_is_on_disk_a6(tmp_path):

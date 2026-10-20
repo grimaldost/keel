@@ -14,12 +14,12 @@ rewrite that measures wording instead of presence.
 
 | file | dropped | the checks that go unnamed |
 |---|---|---|
-| `spec-template.md` | the A10 enforcement-claim note, the A9 reuse-notation note, the A11 anchor-range note | A9, A10, A11 |
+| `spec-template.md` | the A9 reuse-notation note, the A11 anchor-range note | A9, A11 |
 | `definition-of-ready.md` | the Part-B items beyond the certification requirement and the operator close (invariants named, concepts mapped, ADRs for non-obvious choices, internal consistency, post-fold coherence, the measurement-profile pointer) | none — these are reviewer items, not gate predicates |
 
 A run in which the core matches the full body licenses cutting that **prose**. It licenses nothing
 about the **checks**: a check's value is a question about the check, answered by its positive
-control and its hit rate, not by whether an agent still complied without being told. The three
+control and its hit rate, not by whether an agent still complied without being told. The two
 checks the core stops naming keep running and keep rejecting either way.
 
 ## What changed under this design before it was measured

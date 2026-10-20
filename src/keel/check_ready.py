@@ -65,15 +65,6 @@ _DOC_CUES = frozenset({'doctrine', 'concepts', 'readme', 'adr', 'contributing'})
 # PEP8, ISO8601, or the same with a trailing space before the number, handled by the number-cue).
 _DOC_ID_CUE_RE = re.compile(r'^(?:adr|rfc|pep|iso|sec|section)[-\s]?\d*$', re.IGNORECASE)
 _CUE_STRIP = '\'"`*()[]{}.,;:'  # surrounding punctuation peeled off a preceding cue word
-_CLAIM_RE = re.compile(r'\b(enforced|guaranteed)\b', re.IGNORECASE)
-# A negation/deferral immediately before the claim word (checked against the text right up to the
-# claim, so it survives a hard line-wrap): "not/never/no enforced", "isn't/aren't enforced",
-# "to be / will be / would be enforced", "not yet / planned / once ... enforced". Applied to the
-# words just before the claim, so a real over-claim ("... is fully enforced") still fires.
-_NEG_RE = re.compile(
-    r'\bnot\b|\bnever\b|\bno\b|n[\'’]t\b|\byet\b|\bplanned\b'  # noqa: RUF001 (curly apostrophe intended)
-    r'|\bto\s+be\b|\bwill\s+be\b|\bwould\s+be\b|\bonce\b'
-)
 _FENCE_RE = re.compile(r'^\s{0,3}(`{3,}|~{3,})(.*)$')
 _OPEN = frozenset('([{')
 _CLOSE = frozenset(')]}')
@@ -136,7 +127,7 @@ def _split_cells(line: str) -> list[str]:
 
     A table cell cannot be fenced, so the fence doctrine cannot protect a required cell that carries
     a backticked type union (`` `-> pl.DataFrame | None` ``); this splitter is the one place a
-    cell's own pipes are masked, feeding every table parser (A4/A5/A10/A12). An unclosed backtick
+    cell's own pipes are masked, feeding every table parser (A4/A5/A12). An unclosed backtick
     leaves its pipes as delimiters (fails toward today's behaviour).
     """
     protected = re.sub(
@@ -417,11 +408,9 @@ def _candidate_counts(
         'A7': len(_ADR_REF_RE.findall(text)),
         'A8': len(_SECTION_REF_RE.findall(prose)),
         'A9': len(_MODEL_ON_RE.findall(text)) + len(_REUSE_RE.findall(text)),
-        'A10': len(_non_enforced(sections)),
         'A11': ranges,
         'A12': ledger_rows,
         'A13': requirement_ids,
-        'A14': int(bool(_field(header, 'profile'))),
         'R1': int(cert is not None),
         'B1': 0 if structure_only else 1,
         'B2': certified,
@@ -485,8 +474,6 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     kind, kind_violation = _declared_kind(header)
     if kind_violation is not None:
         violations.append(kind_violation)
-    if (profile_violation := _declared_profile(header)) is not None:
-        violations.append(profile_violation)
     single_change = kind == 'single-change'
     phases = _field(header, 'phases').lower()
     decompose_skipped = 'decompose' in phases and 'skipped' in phases
@@ -532,7 +519,6 @@ def check_spec_ready(spec_path: Path, *, structure_only: bool = False) -> GateRe
     warnings += _check_adr_numbers(text, spec_path)
     violations += _check_references(text, spec_path)
     violations += _check_section_refs(text, prose, section_ids)
-    violations += _check_enforcement_claims(sections, text)
     ledger_violations, ledger_warnings = _check_fold_ledger(cert, spec_path, text)
     violations += ledger_violations
     warnings += ledger_warnings
@@ -749,11 +735,6 @@ def _field(body: str, name: str) -> str:
 
 
 _SPEC_KINDS = ('series', 'single-change')
-# The SUBJECT axis, orthogonal to `Kind:`'s decomposition shape. `pre-mortem-profiles.md`
-# said its material was "dispatched only for the kind that needs it" while no selector
-# existed: two taxonomies had been collapsed onto one field name, and the sheet was
-# selected by the author remembering to read it.
-_SPEC_PROFILES = ('code', 'data-pipeline', 'measurement')
 _DECLARE_SMALLER = (
     'add it, or — when this spec really is one change with nothing to decompose — declare '
     '`- **Kind:** single-change` in the header (KEEL-B01: the declaration relaxes the absent '
@@ -779,32 +760,6 @@ def _declared_kind(header: str) -> tuple[str, Violation | None]:
         f'declared spec kind {token!r} is not one of '
         f'{" | ".join(_SPEC_KINDS)} — it relaxes nothing as written.',
         'A0',
-    )
-
-
-def _declared_profile(header: str) -> Violation | None:
-    """A14: the header's declared subject profile must name a sheet that exists.
-
-    Verify-when-present — a spec declaring no profile is silent and presents no candidate, which
-    is a different fact from declaring `code`. A typo'd profile would otherwise select nothing
-    silently, which is the trap `Kind:` shipped with until its menu was resolved: a declaration
-    the gate cannot read must never look like a declaration it agreed with.
-
-    Its own letter rather than a widening of A0: A0's candidate count is the `Kind:` field alone,
-    so a Profile-only header would fire a check with a zero denominator — and A0's existing mutant
-    would satisfy the new detector's positive-control obligation vacuously.
-    """
-    raw = _field(header, 'profile')
-    if not raw:
-        return None
-    token = raw.split()[0].strip('`*.,;:').lower()
-    if token in _SPEC_PROFILES:
-        return None
-    return Violation(
-        'Profile',
-        f'declared spec profile {token!r} is not one of {" | ".join(_SPEC_PROFILES)} — '
-        'it selects no sheet, so the lenses it would have dispatched are silently absent.',
-        'A14',
     )
 
 
@@ -2457,117 +2412,6 @@ def _check_section_refs(text: str, prose: str, section_ids: list[str]) -> list[V
                         "carries another document's §N goes in a fenced block, which is masked "
                         'before every check.',
                         'A8',
-                    )
-                )
-    return violations
-
-
-def _non_enforced(sections: list[tuple[str, str]]) -> dict[str, str]:
-    """The Enforcement-status rows whose status is not `enforced`, keyed by invariant.
-
-    A10's trigger set, and therefore also A10's candidate count: with no such row the check has no
-    opportunity to fire, which is a different fact from looking and finding nothing. One home, so
-    the count cannot drift from the check.
-    """
-    body = _find_section(sections, 'enforcement')
-    if body is None:
-        return {}
-    rows: dict[str, str] = {}
-    for cells in _table_rows(body):
-        if len(cells) < 2:
-            continue
-        key = re.sub(r'[`*]', '', cells[0]).strip()
-        status = cells[1].strip().lower()
-        if key and 'invariant' not in key.lower() and status and status != 'enforced':
-            rows[key] = status
-    return rows
-
-
-def _unwrap_spans(text: str) -> str:
-    """Backtick spans replaced by their inner text — `key` still reads as key, and nothing is lost.
-
-    Distinct from the deletion used to find the claim word: there, a backticked `enforced` is
-    meta-discussion and must vanish. Everywhere the key or its context is read, deleting a span
-    removes the very words the check is looking for.
-    """
-    return re.sub(r'`([^`]*)`', r'\1', text)
-
-
-def _paragraph_bounds(lines: list[str], i: int) -> tuple[int, int]:
-    """The blank-line-delimited paragraph containing line i, as a [start, end) range.
-
-    The author's own unit, rather than a fixed window: a spec that wraps a claim three lines below
-    its subject is ordinary prose, and a fixed prev/this/next window read it as unrelated. A blank
-    line still separates topics, so a paragraph away stays out of reach.
-    """
-    start, end = i, i + 1
-    while start > 0 and lines[start - 1].strip() and not lines[start - 1].lstrip().startswith('|'):
-        start -= 1
-    while end < len(lines) and lines[end].strip() and not lines[end].lstrip().startswith('|'):
-        end += 1
-    return start, end
-
-
-# A negation only negates the clause it is in. Sentence and clause punctuation ends the lookback,
-# so neither an ordinary aside ("is, once again, enforced") nor a negation in the PREVIOUS
-# sentence ("The row is not optional. `X` is enforced.") reads as a deferral of this claim.
-_CLAUSE_BREAK_RE = re.compile(r'[.,;:()–—]')  # noqa: RUF001 (en/em dash are clause breaks)
-
-
-def _check_enforcement_claims(sections: list[tuple[str, str]], text: str) -> list[Violation]:
-    """A10: no prose claims an invariant 'enforced'/'guaranteed' that its status table denies.
-
-    Keyed off the spec-template 'Enforcement status' table (the convention), not free-text parsing;
-    checked only when that table is present. A claim word inside backticks does not fire (a quoted
-    `enforced` is meta-discussion).
-
-    Three windows, each scoped to what it is for, and each the fix to a reproduced defeat:
-
-    * the invariant KEY is looked for across the claim's whole paragraph, not a prev/this/next
-      line window — a claim three lines below its subject is ordinary wrapping, not a new topic;
-    * the negation LOOKBACK stops at the nearest sentence or clause boundary, so a negation the
-      claim does not belong to no longer suppresses it. That covers both the aside ("is, once
-      again, enforced") and the previous sentence, whose "not" became adjacent to the claim only
-      because the backticked invariant name between them was deleted from this view.
-
-    A genuine deferral puts its negation next to the claim — "not enforced", "not yet enforced",
-    "to be / will be enforced", "planned to be enforced" — and all of those still suppress.
-    """
-    non_enforced = _non_enforced(sections)
-    if not non_enforced:
-        return []
-    lines = text.splitlines()
-    violations: list[Violation] = []
-    for i, line in enumerate(lines):
-        if line.lstrip().startswith('|'):  # a status-table cell IS the status, not a prose claim
-            continue
-        bare = re.sub(r'`[^`]*`', '', line)  # a backticked claim word is not a claim
-        claim = _CLAIM_RE.search(bare)
-        if claim is None:
-            continue
-        # Table rows are excluded from both windows: their keys are the status source, not prose
-        # to match a claim against.
-        start, end = _paragraph_bounds(lines, i)
-        near = [ln for ln in lines[start:end] if not ln.lstrip().startswith('|')]
-        upto = [ln for ln in lines[start : i + 1] if not ln.lstrip().startswith('|')]
-        # Spans are DELETED here, not unwrapped: the claim word was located on the same deleted
-        # view, so a backticked `enforced` elsewhere on the line cannot become the anchor `rfind`
-        # locks onto and shift the lookback off the real claim.
-        before = re.sub(r'`[^`]*`', '', ' '.join(upto))
-        cut = before.rfind(claim.group(0))
-        clause = _CLAUSE_BREAK_RE.split(before[:cut])[-1] if cut != -1 else ''
-        window_before = ' '.join(clause.split()[-4:]).lower()
-        if _NEG_RE.search(window_before):
-            continue
-        window = _unwrap_spans(' '.join(near)).lower()
-        for key, status in non_enforced.items():
-            if key.lower() in window:
-                violations.append(
-                    Violation(
-                        f'line {i + 1}',
-                        f'claims {key!r} is "{claim.group(0)}" but its enforcement status '
-                        f'is {status!r}.',
-                        'A10',
                     )
                 )
     return violations

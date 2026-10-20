@@ -123,6 +123,15 @@ def test_the_readers_parse_the_shipped_files():
     assert preregistered('| trigger | disposition |\n|---|---|\nA7 in prose, not a row\n') == set()
 
 
+def test_a_retired_id_is_neither_live_nor_preregistered():
+    # A10 and A14 were retired on 2026-10-19 and their letters are not reused. Naming them in a
+    # first-cell of docs/evidence.md would pre-register them, so restoring either to the catalogue
+    # would pass the budget gate unpaid.
+    retired = {'A10', 'A14'}
+    assert not retired & DOR_CHECK_IDS
+    assert not retired & preregistered(EVIDENCE.read_text(encoding='utf-8'))
+
+
 def failing_ids(source: str) -> frozenset[str]:
     """Check ids a module passes as a literal to `Violation(...)`: the findings that fail a spec."""
     ids: set[str] = set()

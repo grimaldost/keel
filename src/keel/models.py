@@ -10,11 +10,11 @@ from dataclasses import dataclass
 # gate's reference block, positive-control corpus and candidate counts are per gate: folding the
 # D-letters into the DoR sheet would put a check in a contract that never runs it.
 #
-# A0-A12 and R1 are Part A's structural checks, B1/B2 the certification pair, W1-W11 the warnings:
+# A0-A9, A11-A13 and R1 are Part A's structural checks, B1/B2 the certification pair, W1-W11 the
+# warnings:
 #   W1 kit skew or an unstamped spec · W2 header Status currency · W3 basename expansion
 #   W4 B2's adoption nudge (no artifact named) · W5 B2's spec-hash mismatch
 #   W6 a fold-ledger row whose snippet resolves at one other line — repairable drift
-# A14 is the header's `Profile:` declaration — the SUBJECT axis, which `Kind:` never was.
 #   W7 the hash moved by a DECLARED amendment; the certified content itself is intact
 #   W8 a criterion's grep scope covers a path another section declares it creates
 #   W9 a CONDITIONAL-CERTIFY's `### Conditions` row whose Status is not met or waived
@@ -24,7 +24,8 @@ from dataclasses import dataclass
 # neither be measured nor defended. A13 is the requirements ledger: a spec that declares a
 # register accounts for every order in it, and DEVIATED is the one disposition a session cannot
 # write for itself. A7 keeps its letter but only warns since 0.22.0 (docs/evidence.md's
-# pre-registered demotion). An id added here is paid for: tests/test_check_budget.py.
+# pre-registered demotion). A10 and A14 are retired (docs/evidence.md, 2026-10-19) and their letters
+# are not reused. An id added here is paid for: tests/test_check_budget.py.
 DOR_CHECK_IDS = frozenset(
     {
         'A0',
@@ -37,11 +38,9 @@ DOR_CHECK_IDS = frozenset(
         'A7',
         'A8',
         'A9',
-        'A10',
         'A11',
         'A12',
         'A13',
-        'A14',
         'R1',
         'B1',
         'B2',

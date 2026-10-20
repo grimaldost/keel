@@ -7,8 +7,8 @@ one minimal edit per check that must make exactly that check fire.
 
 The question "can A4 catch a broken bijection inside a real spec?" is a property of
 `_check_manifest`, not of an agent, so it is a pytest run and not a paid trial. Where a mutant does
-NOT fire, that is a reproduced defeat and it is marked `xfail(strict=True)` with the mechanism —
-three of A10's are, and until they pass no disposition may be argued from A10's silence.
+NOT fire, that is a reproduced defeat and it is marked `xfail(strict=True)` with the mechanism,
+and until it passes no disposition may be argued from that check's silence.
 
 Two properties, or the corpus proves nothing:
 

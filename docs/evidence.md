@@ -124,6 +124,50 @@ cancels the demotion and A7 returns to failing.
 **A9 does not clear the bar.** 40 candidates across 40 revisions, all in one repository, 0 fires.
 It stays as it is.
 
+### A10 and A14 retired, 2026-10-19
+
+Nothing above is rewritten. This applies the A7 row's rule to two more checks and records the
+figures it was read on, with the retirement as the disposition instead of a demotion.
+
+**What this is not.** It is not a pre-registration: the ledger's data were in hand when the rule
+was written, so the row below is a record of the rule applied and not a prediction fitted in
+advance. The disposition itself is the owner's decision of 2026-10-19 (retire both, never fired in
+any use); the ledger supplies the figures the decision rests on.
+
+| trigger | disposition |
+|---|---|
+| a check (the two retired here) has ≥40 candidates across ≥15 distinct revisions in ≥3 repos with zero fires, **and** its positive control passes, **and** it has no open reproduced defeat | retire the check: its id leaves `DOR_CHECK_IDS`, its reference-block line, probe, tests and mutants go with it, and the letter is not reused |
+| a retired check's failure class reaches a certified spec or a consumer report | reopen that check as a new, paid-for id (the budget rule, `tests/test_check_budget.py`), not by restoring the letter |
+
+**The figures** are `keel gate-health` on 2026-10-19, field rows only (536 runs, 2026-08-11 to
+2026-10-19; the 2,394 rows the test suite wrote are left out):
+
+| check | id | applicable runs | candidates | revisions | repos (names) | revisions fired on |
+|---|---|---|---|---|---|---|
+| enforcement-claim honesty | A10 | 426 | 1,097 | 208 | 19 | 0 |
+| declared `Profile:` names a sheet | A14 | 432 | 208 | 208 | 22 | 0 |
+
+A repo name over-counts repositories, because a worktree records under its own directory, so the
+bar was also read on the three names with the most revisions: 178 of A10's 208 revisions and 185 of
+A14's 208 sit in them, against a bar of 15. Both clear it by a wide margin on either reading.
+
+**The other two conditions.** A14's positive control (the `A14-unknown-profile` mutant) fired
+before this change. A10's baseline mutant and the three that had been reproduced defeats all fired
+as well: the paragraph-scoped key window, the sentence-bounded negation lookback and the
+clause-bounded negation rule closed them, so the "uninformative until its three reproduced defeats
+are fixed" reading in the first pre-registration section no longer applies, and A10's 0 fires in
+1,097 candidates is evidence and not noise. The mutants and the tests that held them are removed
+with the checks, since a control for a check that no longer exists asserts nothing.
+
+**What is given up.** A10 was the only machine reader of a spec's Enforcement-status table: an
+"enforced" claim in prose against a row marked planned or absent now reaches a reviewer, not the
+gate. A14 refused a `Profile:` token no sheet answers to; an unknown token now selects no sheet and
+stays silent, which is what the pre-mortem prompt already says of `code` and of an absent field.
+The Enforcement-status table and the `Profile:` field stay in the spec template, and
+`tests/test_templates_valid.py` still holds the profiles the template lists to the sheets that
+exist. The 2026-08-11 amendment above recorded A10's false-positive rate as unmeasured; that
+question is moot with the check.
+
 ### The check budget (0.22.0)
 
 The Definition-of-Ready catalogue went from 25 ids to 28 between 0.20.0 and 0.21.0: three

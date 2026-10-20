@@ -19,9 +19,9 @@ stay the source of truth.
   Specify (B1/B2), the second reads the GENERATED series against the spec and closes Decompose
   (D1/D2). Same reviewer contract, different artifact.
 - **dozes** — a verify-when-present check meeting its absent trigger: not skipped by error, asleep
-  by design (e.g. A12 with no fold-ledger rows, A10 with no Enforcement-status table).
+  by design (e.g. A12 with no fold-ledger rows, A13 with no requirements register).
 - **verify-when-present vs. deliberate tightening** — the two retro-compatibility classes: a check
-  that fires only when its structure exists (B2, A10) vs. one that newly requires structure
+  that fires only when its structure exists (B2, A13) vs. one that newly requires structure
   (R1's ledger-on-claimed-fold) and says so.
 - **verdict tokens** — `CERTIFIED` · `CONDITIONAL-CERTIFY` (requires a named `Operator:`) ·
   `NEEDS-REVISION`; parsed leading-token, so trailing prose or an identity suffix is inert. An
