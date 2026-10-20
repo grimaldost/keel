@@ -7,6 +7,34 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 
 ## [Unreleased]
 
+The Definition-of-Ready catalogue holds 29 ids (`DOR_CHECK_IDS`, `src/keel/models.py`): W11 is
+added, admitted by a pre-registered row in `docs/evidence.md`, and none is removed or demoted.
+Body budgets after: directive 1,668/2,050; contract notes 499/500; agent wrapper 546/550;
+Definition-of-Ready prose 949/950; reference-block maximum 61/61 (W11's line is 57).
+
+### Added
+
+- **`keel check-ready` reads the pre-mortem's `Unverified-offline: N` count** (W11, KEEL-B14, triage
+  Q6b). The directive has asked for the count on the line before the verdict since ADR-0014, and no
+  gate read it, so a claim the reviewer could not execute rode to certification looking the same as
+  a traced one. When the recorded verdict is CERTIFIED and the named certification artifact carries
+  a line-anchored count, W11 reads the last one and warns when it is above 0, naming it. It reads
+  the count bare, bolded whole or as a bolded field label, with trailing prose; a `<N>` schema quote
+  is not a count. Any other verdict, no artifact, a missing file and `--structure-only` leave it
+  silent and uncounted; a count of 0 is a candidate that stays silent. It warns rather than fails
+  because the count cannot tell a claim that needs a live environment from one a read-only reviewer
+  could still trace, and exit codes are unchanged, so no spec in flight can newly fail. The
+  Definition-of-Ready sheet's Part B gains the distinction as a checklist item, in the full and core
+  sheets: only a claim needing a live environment rides open, and the reviewer traces a statically
+  traceable one before certifying. It displaces the Gate result paragraph's restatement of the
+  opening section's pass rule ("Ready only when Part A is well-formed and ... `keel check-ready`
+  enforces both halves"), which now reads "Ready ✅ needs both halves"; DoR prose goes from 942 to 949
+  of 950. The reference block gains a W11 line (57 words, cap 61), identical in both sheets. The
+  check budget is paid by pre-registration: `docs/evidence.md` gains two rows naming W11, a cut on
+  zero fires at the standing bar and, if W11 fires on most of its candidates, a split of the count
+  in the directive rather than a promotion to failing. The adversarial corpus's staged artifact now
+  records `Unverified-offline: 0`, and a new mutant sets it to 2 and fires exactly W11.
+
 ### Changed
 
 - **The pre-mortem's population clause covers the design's domain, not only a cleanliness

@@ -85,13 +85,15 @@ def materialize(tmp_path: Path, mutant: dict) -> Path:
 
     The artifact's `Spec-hash:` is computed from the spec as written, so a mutation elsewhere in
     the body never leaks a B2 hash warning into another mutant's result — unless the fixture asks
-    for one (`artifact_hash`).
+    for one (`artifact_hash`). Its `Unverified-offline:` count is 0 unless the fixture sets
+    `artifact_offline`, so every CERTIFIED fixture gives W11 a candidate that stays silent.
     """
     shutil.copytree(FIXTURES / 'tree', tmp_path, dirs_exist_ok=True)
     spec = tmp_path / CLEAN.name
     spec.write_text(_body(mutant).replace(FIXTURE_KIT, f'- **Kit:** {__version__}'), 'utf-8')
     (tmp_path / ARTIFACT).write_text(
         f'# saved pre-mortem pass\n\n'
+        f'Unverified-offline: {mutant.get("artifact_offline", 0)}\n'
         f'PREMORTEM-VERDICT: {mutant.get("artifact_verdict", "CERTIFIED")}\n'
         f'Spec-hash: {_artifact_hash(mutant, spec)}\n',
         encoding='utf-8',
