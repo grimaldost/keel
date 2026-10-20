@@ -74,6 +74,12 @@ Definition-of-Ready prose 949/950; reference-block maximum 61/61 (W11's line is 
   read the first SemVer heading, so they are unchanged. The changelog gate's marker arm reads that
   section (else the newest release section), and CONTRIBUTING step 4 and `AGENTS.md` say to record
   there and bump at the release cut.
+- **`Post-fold coherence:` is named where the deleted `/keel-premortem` duties moved.** The 0.22.0
+  replacement map says `docs/getting-started.md` steps 4 to 6 cover the caller's fold and record
+  steps, but step 6's list of certification fields and the `apply-method` skill's Specify step
+  omitted the field the command had named, and `check-ready` does not read it. Both now name it;
+  the field itself is unchanged in `spec-template.md` and `definition-of-ready.md` Part B. A
+  short clause in each of two uncapped files, no new check and no agent-wrapper words (546/550).
 
 ## [0.22.0] - 2026-10-08
 
