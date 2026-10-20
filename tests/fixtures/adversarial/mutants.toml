@@ -19,6 +19,7 @@
 #   find     literal text in clean-series.md (must match exactly once)
 #   replace  what it becomes; omit both to mutate only the certification artifact
 #   artifact_verdict / artifact_hash   override what the staged pre-mortem artifact records
+#   artifact_offline   the staged artifact's `Unverified-offline:` count (default 0)
 #   repeat   render `replace` N times, with {n} (1-based), {true_line} and {shifted_line}
 #   xfail    a REPRODUCED DEFEAT: the check cannot see this defect today, and the reason why
 #
@@ -393,3 +394,9 @@ replace = """- **Verdict:** CONDITIONAL-CERTIFY
 | Gates | Condition | Status | Evidence |
 |---|---|---|---|
 | §5 | the region display names are confirmed with the data owner before the report renders them | open |  |"""
+
+[[mutant]]
+id = "W11-unverified-offline-on-certified"
+fires = ["W11"]
+why = "the count the directive has asked for since ADR-0014 and no gate read: a CERTIFIED pass that left two claims needing execution unrun. The staged artifact of every other fixture records a count of 0, so the clean spec is a candidate that stays silent"
+artifact_offline = 2

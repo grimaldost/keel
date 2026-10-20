@@ -177,6 +177,19 @@ names the new id in its first cell, which is the disposition the ledger will fir
 before its data arrives. `tests/test_check_budget.py` holds the rule against the merge-base with
 `origin/main`.
 
+### W11, pre-registered (KEEL-B14)
+
+W11 is admitted by the second way: the rows below are written before any ledger data for it.
+Its candidates are specs whose recorded verdict is CERTIFIED and whose saved pass carries an
+`Unverified-offline:` count; it fires when that count is above 0. It only warns, because the
+count lumps together claims that need a live environment, which may ride open, and claims a
+read-only reviewer could still trace, which may not, and the gate cannot tell them apart.
+
+| trigger | disposition |
+|---|---|
+| W11 reaches ≥40 candidates across ≥15 distinct revisions in ≥3 repos with zero fires, **and** its positive control passes | cut W11: certified passes already trace what they can, and the warning is ritual |
+| W11 fires on more than half of its candidate revisions once it has ≥15 | the combined count is too coarse to act on: split it in the directive into the two kinds and warn on the traceable kind only; W11 is never promoted to failing on the combined count |
+
 ## The comparative claim is retired (ADR-0015)
 
 The controlled experiment against a disciplined baseline (designed 2026-06-06, maintainer-local) never

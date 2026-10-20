@@ -53,6 +53,7 @@ W7 (warn) a certified spec whose hash moved, where removing every `## Amendment`
 W8 (warn) a §N acceptance criterion whose backticked `grep`, `rg` or `git grep` command takes a path argument that is, or is a directory or glob covering, a concept-map "to be created" path a different § claims (A5's rule): the scope grows when that section lands. A heuristic over existing structure; a command naming no path is no candidate
 W9 (warn) under a CONDITIONAL-CERTIFY verdict, each row of the certification's `### Conditions` table (`| Gates | Condition | Status | Evidence |`) whose Status does not lead with `met` or `waived` warns, quoting the row verbatim; silent on any other verdict and with no table. The pre-mortem directive's `conditions:` list is not read
 W10 (warn) the certification's `- **Base:**` commit (a hex SHA of 7 to 64 digits) that does not resolve in the spec's git repository, or is not an ancestor of HEAD, warns, naming it: the history the pass reviewed was rewritten or not fetched. A placeholder, a ref name, no repository, or a git that cannot answer is silent
+W11 (warn) under a CERTIFIED verdict, the named artifact's last line-anchored `Unverified-offline: N` with N above 0 warns, naming N: claims needing execution the reviewer could not run. The count cannot tell a live-environment claim from one still statically traceable, so it only warns; silent on any other verdict, with no artifact, or with no count line
 ```
 *(Every finding names its check in a field, never as a `W1: ` message prefix — the id is what
 makes a check's fires countable, and `where` collides across checks by design.)*
@@ -78,6 +79,8 @@ are stateless.
       `keel spec-hash`) and named in the certification's `Certification artifact:` field.
       *(`keel check-ready` verifies a named artifact — B2, verify-when-present: existence, verdict
       agreement, hash currency; forgery cost, not blindness proof.)*
+- [ ] Only an `unverified-offline` claim needing a live environment rides open; the reviewer
+      traces a statically traceable one first. *(W11 warns on a CERTIFIED count above 0.)*
 - [ ] Every invariant the work touches is named in "Invariants touched", each with an ADR.
 - [ ] Every concept maps to a module in the concept→module map.
 - [ ] Every non-obvious design choice has an ADR (alternatives recorded).
@@ -116,9 +119,7 @@ When the final pass returns `CONDITIONAL-CERTIFY` and the named Operator applies
   re-gate IS taken and returns `CERTIFIED`, its saved output becomes the certification artifact
   (latest-wins) and the recorded verdict flips with it — the ordinary close, not this one.
 
-**Gate result:** Ready ✅ only when Part A is well-formed **and** the Part B
-pre-mortem certification is recorded. `keel check-ready` enforces both halves; the
-remaining Part B items are the reviewer's evidence-backed certification, not a
-self-signed checkbox. The gate verifies the certification was *recorded* by a named
-non-author reviewer — not that the reviewer was truly blind or right; that residual
-trust is named, not hidden (ADR-0002).
+**Gate result:** Ready ✅ needs both halves. The other Part B items are the reviewer's
+evidence-backed certification, not a self-signed checkbox; the gate verifies a named non-author
+reviewer *recorded* it, not that they were blind or right — a residual trust named, not hidden
+(ADR-0002).
