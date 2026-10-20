@@ -56,9 +56,9 @@ Follow the phases; the gates are the load-bearing part:
   `pre-mortem-prompt.md` pass with a non-author reviewer — dispatch the bundled
   `pre-mortem-review` subagent — fold the findings back in, save its returned output verbatim
   to `<spec-stem>.premortem.md` with a `Spec-hash:` from `keel spec-hash <spec>` taken after the
-  last fold the pass read, and record the certification block naming that file (B2). The full
-  `keel check-ready` passes only once that certification is recorded (Part A + Part B, B1) — a
-  spec is not ready to decompose until it does.
+  last fold the pass read, and record the certification block, `Post-fold coherence:` included,
+  naming that file (B2). The full `keel check-ready` passes only once that certification is
+  recorded (Part A + Part B, B1) — a spec is not ready to decompose until it does.
 - **Decompose → the series gate.** One PR per spec section (`spec-template.md` has the PR↔section
   manifest). Score each PR → model tier. Then run the SERIES pass: the same `pre-mortem-review`
   agent, pointed at the GENERATED series (the PR prompts and their DAG) read against the spec,
