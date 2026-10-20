@@ -112,7 +112,7 @@ Sharpenings (each one face of the thesis; numbered, not counted in the heading):
    it is folded, since applying a wrong fix verbatim ships the bug it named. The re-read also catches the
    fold's own newly-introduced errors — a multi-finding fold can assert something freshly wrong, and a spec
    that PIVOTS onto a new premise rests on a new linchpin to re-verify against code (0.10.0). `check-ready` mechanizes the slices it can (A8 §-refs,
-   A9 reuse-targets, A10 enforcement-claim honesty); the rest stays a pre-mortem prompt and an
+   A9 reuse-targets); the rest stays a pre-mortem prompt and an
    attested re-read (ADR-0004).
 5. **Ground the verification, model the mechanical consumers, verify the transformation.**
    Sharpening 4 grounds the *referent* and verifies the fold; sharpening 5 extends it one level out,

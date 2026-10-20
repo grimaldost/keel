@@ -2,7 +2,7 @@
 
 A spec declares its `Profile:` in the header — `code`, `data-pipeline` or `measurement`. That is
 the SUBJECT axis, and it is not `Kind:`, which declares decomposition shape; the two were collapsed
-onto one field name until A14 separated them. The material below is dispatched only for the profile
+onto one field name until the `Profile:` field separated them. The material below is dispatched only for the profile
 that names it, so a `code` spec's author and reviewer never pay for any of it. One home per fact:
 what lives here does not also live in `spec-template.md` or `definition-of-ready.md`, which point
 here instead.

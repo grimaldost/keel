@@ -4,7 +4,6 @@ from pathlib import Path
 from keel import __version__
 from keel.check_ready import (
     _ANCHOR_RE,
-    _SPEC_PROFILES,
     _anchor_shaped,
     _declared_kind,
     _field,
@@ -167,7 +166,6 @@ DELETED_PART_A_LINES = {
     'Every cited docs/adr/NNNN- uses a number free on the base': 'A7',
     'Every Model-on / Reuse reference present resolves': 'A9',
     'Every in-text §N reference resolves to a numbered section': 'A8',
-    'No prose claims "enforced" against a non-enforced status row': 'A10',
     'Every path:lo-hi range anchor resolves and closes its brackets': 'A11',
     'A claimed fold carries a resolving Fold ledger row per finding': 'R1',
     'When ledger rows are present each anchor resolves': 'A12',
@@ -205,15 +203,16 @@ def _directive_block() -> str:
     return text.split('## Prompt', 1)[1].split('```')[1]
 
 
-def test_the_directive_selects_a_sheet_for_every_profile_the_gate_accepts():
+def test_the_directive_selects_a_sheet_for_every_profile_the_template_declares():
     """A lens that moved out of the always-on body still reaches the round that needs it.
 
-    Two halves, and a moved lens is only selected when both hold. A14 refuses a `Profile:`
-    token the gate cannot read; this asserts the other direction — every token it DOES accept
-    has a sheet under that name — and that the DISPATCHED directive block names the file, so
-    the sheet is loaded by the pass that reads the header rather than by an author remembering
-    the file exists. Set equality, not membership: a sheet with no profile is as dead as a
-    profile with no sheet.
+    Two halves, and a moved lens is only selected when both hold. The spec template names the
+    `Profile:` tokens an author may declare (no check reads the field since A14 retired, so the
+    template is the one place that lists them); this asserts every token other than `code` has a
+    sheet under that name — and that the DISPATCHED directive block names the file, so the sheet
+    is loaded by the pass that reads the header rather than by an author remembering the file
+    exists. Set equality, not membership: a sheet with no profile is as dead as a profile with no
+    sheet.
     """
     block = _directive_block()
     assert 'pre-mortem-profiles.md' in block, (
@@ -223,10 +222,16 @@ def test_the_directive_selects_a_sheet_for_every_profile_the_gate_accepts():
     assert 'Profile:' in block, 'the directive never tells the pass which header field selects'
     sheet = (templates_root() / 'pre-mortem-profiles.md').read_text(encoding='utf-8')
     sheets = set(re.findall(r'^## Profile: `([a-z-]+)`', sheet, re.MULTILINE))
-    selectable = {profile for profile in _SPEC_PROFILES if profile != 'code'}
+    template = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
+    declared = re.search(r'`Profile:` is subject — (.+?) and selects', template, re.DOTALL)
+    assert declared is not None, 'the spec template no longer lists the Profile: tokens'
+    profiles = set(re.findall(r'`([a-z-]+)`', declared.group(1)))
+    assert 'code' in profiles, profiles
+    selectable = profiles - {'code'}
     assert sheets == selectable, (
-        f'the profiles A14 accepts and the sheets that exist disagree: {sheets ^ selectable} — '
-        '`code` is the one profile that selects nothing and pays for nothing'
+        f'the profiles the template declares and the sheets that exist disagree: '
+        f'{sheets ^ selectable} — `code` is the one profile that selects nothing and pays for '
+        'nothing'
     )
 
 

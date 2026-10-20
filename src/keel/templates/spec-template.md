@@ -47,9 +47,6 @@ the ADR first. *Naming these is a DoR requirement.*
 |---|---|---|
 | <invariant key> | enforced \| review-only \| planned \| absent | <the gate, when enforced> |
 
-*A10: no prose may claim an invariant "enforced" or "guaranteed" unless its row here reads
-`enforced`. Checked only when this table is present; a backticked or negated claim does not fire.*
-
 ## Concept → module map
 
 | Concept introduced/changed | Module / file it lives in |

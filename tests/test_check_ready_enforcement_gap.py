@@ -9,7 +9,7 @@ docs/feedback/2026-07-01-skeptic-panel-fable5.md.
 import pytest
 
 from keel.check_ready import check_spec_ready
-from tests.test_check_ready import _ENFORCE_TABLE, READY_SPEC, _ledger, _write
+from tests.test_check_ready import READY_SPEC, _ledger, _write
 
 
 def test_fenced_certification_cannot_forge_verdict_b1(tmp_path):
@@ -154,22 +154,6 @@ def test_empty_criterion_with_trailing_prose_fails_a2(tmp_path):
     assert any('criterion' in v.message.lower() for v in result.violations)
 
 
-def test_wrapped_overclaim_fires_a10(tmp_path):
-    # C3/G7: a hard-wrapped over-claim (key and 'enforced' on different lines) still fires.
-    bad = READY_SPEC + _ENFORCE_TABLE + '\nThe boundary-rule is fully\nenforced by construction.\n'
-    result = check_spec_ready(_write(tmp_path, bad))
-    assert not result.passed
-    assert any('boundary-rule' in v.message for v in result.violations)
-
-
-def test_backticked_key_overclaim_fires_a10(tmp_path):
-    # C3/CODE-04: a backticked invariant name in the over-claim is still matched.
-    bad = READY_SPEC + _ENFORCE_TABLE + '\nThe `boundary-rule` is enforced at every commit.\n'
-    result = check_spec_ready(_write(tmp_path, bad))
-    assert not result.passed
-    assert any('boundary-rule' in v.message for v in result.violations)
-
-
 def test_reuse_function_local_symbol_fails_a9(tmp_path):
     # C3/G16: a function-local of the reuse name is not an importable top-level symbol.
     (tmp_path / '.git').mkdir()
@@ -254,19 +238,4 @@ def test_anchor_resolves_against_git_root_not_spec_parent(tmp_path):
         encoding='utf-8',
     )
     result = check_spec_ready(spec)
-    assert result.passed, [v.message for v in result.violations]
-
-
-def test_enforced_table_row_does_not_false_fire_a10(tmp_path):
-    # 0.11.0 dogfood self-hit: an 'enforced' status cell adjacent to a review-only row must not
-    # read as a prose over-claim (a table cell is the status, not a claim).
-    table = (
-        '\n## Enforcement status\n\n'
-        '| Invariant | Status | Gate/mechanism |\n'
-        '|---|---|---|\n'
-        '| version consistency | enforced | a test |\n'
-        '| hit-rate tracking | review-only | maintainer discipline |\n'
-    )
-    good = READY_SPEC + table
-    result = check_spec_ready(_write(tmp_path, good))
     assert result.passed, [v.message for v in result.violations]

@@ -338,7 +338,8 @@ recorded here explicitly. `[triage]`
   `hooks.json` deleted (KEEL-B29), and the pre-commit hook installed in the `core.hooksPath` +
   `uv run python -m pre_commit` form the cross-review note names, widened to three of the four
   DoD gates. CONTRIBUTING now carries an enforcement-status table — A10's predicate turned on
-  its author — stating all four. The remaining two are `bind-check` (KEEL-B17) and
+  its author — stating all four. A10 itself was retired on 2026-10-19 (`docs/evidence.md`); the
+  table stays. The remaining two are `bind-check` (KEEL-B17) and
   `budget-drift` (KEEL-B30), both still documented stubs that exit 2.
 - **Effort:** M · **Source:** `[review]` `[research]` `[cross-review]`
 
@@ -628,8 +629,8 @@ recorded here explicitly. `[triage]`
   and the four-probe table — are now deleted from `pre-mortem-prompt.md` too: **2,005 → 1,668
   words**, the second home gone. What replaced them is four lines of selector, not a pointer in a
   note: the always-on block reads the header's `Profile:` and loads the sheet it names, and
-  `test_templates_valid` holds the profiles A14 accepts and the sheets that exist to set equality,
-  so a lens cannot be selected by memory and a sheet cannot go unreferenced. Waiting on KEEL-B09
+  `test_templates_valid` holds the profiles the spec template lists and the sheets that exist to
+  set equality (it held A14's accepted set until A14 was retired on 2026-10-19), so a lens cannot be selected by memory and a sheet cannot go unreferenced. Waiting on KEEL-B09
   was a misreading of CONTRIBUTING's own rule, recorded here because it cost two rounds: B09 gates
   *net-new* directive prose, and a deletion is the opposite of that.
 - **Effort:** M · **Source:** `[triage Q7a]` `[review]`

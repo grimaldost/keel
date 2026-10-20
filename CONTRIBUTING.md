@@ -21,8 +21,8 @@ keel improves by dogfooding its own "close the loop" principle on itself.
 ## Gate health (closing the loop)
 
 So "a bug bites once", these hold. Be honest about which are machine-enforced and which are
-maintainer disciplines — the repo should not claim enforcement it does not ship (its own A10
-gate exists to catch exactly that over-claim in a spec):
+maintainer disciplines — the repo should not claim enforcement it does not ship (A10, retired
+on 2026-10-19, once linted a spec for exactly that over-claim):
 
 1. **Every promoted gate ships a regression test** that fails on the originating defect and
    passes after the fix — no gate lands without the test that proves it bites. *Machine-enforced:*
@@ -52,7 +52,8 @@ gate exists to catch exactly that over-claim in a spec):
    anything. The ledger records the counts; the disposition is still a judgement, and the standing
    bar for a cut is opportunity **and** a positive control **and** no open defeat, all three.
    Where `docs/evidence.md` pre-registered a disposition, the ledger decides it: A7 was demoted to
-   WARN that way in 0.22.0.
+   WARN that way in 0.22.0. A10 and A14, which never fired in any use, were retired on the owner's
+   decision of 2026-10-19 against the same bar (`docs/evidence.md`).
 3b. **The check catalogue grows only when something pays for the new check.** A new
    Definition-of-Ready id lands with an existing id removed or demoted to warn-only in the same
    change, or with a pre-registered row in `docs/evidence.md` naming the disposition the ledger
@@ -175,10 +176,12 @@ writes a hook that invokes the `pre-commit` console script, and an application-c
 at least one machine this repo is developed on blocks that shim while running git-invoked hooks
 fine — so the shim form would leave the claim below as untrue as no hook at all.
 
-### Enforcement status (the same table this repo's A10 gate demands of a spec)
+### Enforcement status (the table the spec template asks of a spec)
 
-A10 fails a spec whose prose claims an invariant "enforced" while its own status table marks it
-planned or absent. Turned on the repo itself:
+The spec template carries an Enforcement-status table, and this repo keeps one of its own. A10,
+which failed a spec whose prose claimed an invariant "enforced" against a row marked planned or
+absent, was retired on 2026-10-19; the table stays as the statement of what is enforced and what
+is not:
 
 | Invariant | Status | Gate/mechanism |
 |---|---|---|
