@@ -5,6 +5,20 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
+## [Unreleased]
+
+### Changed
+
+- **The changelog and version gates run from railform.** CI's `railform` job now judges the
+  changelog (record or declare per commit, a release heading that moves the version forward, the
+  advisory `(consumer-affecting)` marker) and the eight version sites, and the release check
+  judges tags from v0.22.0 on. `scripts/changelog_currency.py` and `scripts/bump_version.py` are
+  deleted, along with the tests that loaded them; the sites and the record rows live in
+  `railform.toml`, and `railform version-sites --bump x.y.z` writes the sites at a release.
+  Behaviour that differs from the deleted job: the changelog check reads each commit of a pull
+  request, not the combined diff, so a commit that ships a kit path records it or carries the
+  trailer `Changelog: none (<reason>)`.
+
 ## [0.23.0] - 2026-10-24
 
 The Definition-of-Ready catalogue holds 27 ids (`DOR_CHECK_IDS`, `src/keel/models.py`): W11 is
@@ -80,15 +94,6 @@ Definition-of-Ready prose 949/950; reference-block maximum 61/61 (W11's line is 
   omitted the field the command had named, and `check-ready` does not read it. Both now name it;
   the field itself is unchanged in `spec-template.md` and `definition-of-ready.md` Part B. A
   short clause in each of two uncapped files, no new check and no agent-wrapper words (546/550).
-- **The changelog and version gates run from railform.** CI's `railform` job now judges the
-  changelog (record or declare per commit, a release heading that moves the version forward, the
-  advisory `(consumer-affecting)` marker) and the eight version sites, and the release check
-  judges tags from v0.22.0 on. `scripts/changelog_currency.py` and `scripts/bump_version.py` are
-  deleted, along with the tests that loaded them; the sites and the record rows live in
-  `railform.toml`, and `railform version-sites --bump x.y.z` writes the sites at a release.
-  Behaviour that differs from the deleted job: the changelog check reads each commit of a pull
-  request, not the combined diff, so a commit that ships a kit path records it or carries the
-  trailer `Changelog: none (<reason>)`.
 
 ## [0.22.0] - 2026-10-08
 
