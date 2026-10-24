@@ -37,7 +37,6 @@ A6 each `path:line` anchor: fail unless file exists, line in range, and any quot
 A7 (warn) each cited `docs/adr/NNNN-...md` whose number a different ADR already holds on the base warns, naming it (a failure until keel 0.22.0, demoted by the ledger rule keel pre-registered for it)
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
-A10 when an Enforcement-status table is present: fail if prose claims an invariant "enforced"/"guaranteed" whose row is not enforced
 A11 each `path:lo-hi` range anchor: the file and `hi` line must resolve; for a `.py`/`.pyi` anchor it must additionally close (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
 A12 each `### Fold ledger` row: fail unless its `artifact:line` (or `artifact:lo-hi`) confirmation, in any cell, resolves; lands on a non-blank line; and, pointing into this spec, lands inside the `§N` the row names (heading included); A11's bracket rule holds for a range cell; a wider-than-header row is a column break; an empty `Sibling sweep` cell fails (`none` passes)
 A13 when the header declares `- **Requirements:** <path>`: that register must resolve, and every `RR-<n>` order it declares needs a `## Requirements ledger` row disposing it to a §N, `DEFERRED — <trigger>`, `OUT-OF-SCOPE`, or `DEVIATED — ratified by <operator>`; silent with no register declared, and a self-ratified DEVIATED fails
@@ -54,7 +53,7 @@ W7 (warn) a certified spec whose hash moved, where removing every `## Amendment`
 W8 (warn) a §N acceptance criterion whose backticked `grep`, `rg` or `git grep` command takes a path argument that is, or is a directory or glob covering, a concept-map "to be created" path a different § claims (A5's rule): the scope grows when that section lands. A heuristic over existing structure; a command naming no path is no candidate
 W9 (warn) under a CONDITIONAL-CERTIFY verdict, each row of the certification's `### Conditions` table (`| Gates | Condition | Status | Evidence |`) whose Status does not lead with `met` or `waived` warns, quoting the row verbatim; silent on any other verdict and with no table. The pre-mortem directive's `conditions:` list is not read
 W10 (warn) the certification's `- **Base:**` commit (a hex SHA of 7 to 64 digits) that does not resolve in the spec's git repository, or is not an ancestor of HEAD, warns, naming it: the history the pass reviewed was rewritten or not fetched. A placeholder, a ref name, no repository, or a git that cannot answer is silent
-A14 the header's `Profile:` declaration, when present, must read `code`, `data-pipeline` or `measurement` — the SUBJECT axis, orthogonal to `Kind:`. An unknown profile is a violation naming the offending token, because a profile the gate cannot read selects no sheet and its lenses go silently absent
+W11 (warn) under a CERTIFIED verdict, the named artifact's last line-anchored `Unverified-offline: N` with N above 0 warns, naming N: claims needing execution the reviewer could not run. The count cannot tell a live-environment claim from one still statically traceable, so it only warns; silent on any other verdict, with no artifact, or with no count line
 ```
 *(Every finding names its check in a field, never as a `W1: ` message prefix — the id is what
 makes a check's fires countable, and `where` collides across checks by design.)*
@@ -77,6 +76,8 @@ are stateless.
       `keel spec-hash`) and named in the certification's `Certification artifact:` field.
       *(`keel check-ready` verifies a named artifact — B2, verify-when-present: existence, verdict
       agreement, hash currency; forgery cost, not blindness proof.)*
+- [ ] Only an `unverified-offline` claim needing a live environment rides open; the reviewer
+      traces a statically traceable one first. *(W11 warns on a CERTIFIED count above 0.)*
 
 ### The operator close (discharging a CONDITIONAL-CERTIFY)
 
@@ -102,9 +103,7 @@ When the final pass returns `CONDITIONAL-CERTIFY` and the named Operator applies
   re-gate IS taken and returns `CERTIFIED`, its saved output becomes the certification artifact
   (latest-wins) and the recorded verdict flips with it — the ordinary close, not this one.
 
-**Gate result:** Ready ✅ only when Part A is well-formed **and** the Part B
-pre-mortem certification is recorded. `keel check-ready` enforces both halves; the
-remaining Part B items are the reviewer's evidence-backed certification, not a
-self-signed checkbox. The gate verifies the certification was *recorded* by a named
-non-author reviewer — not that the reviewer was truly blind or right; that residual
-trust is named, not hidden (ADR-0002).
+**Gate result:** Ready ✅ needs both halves. The other Part B items are the reviewer's
+evidence-backed certification, not a self-signed checkbox; the gate verifies a named non-author
+reviewer *recorded* it, not that they were blind or right — a residual trust named, not hidden
+(ADR-0002).

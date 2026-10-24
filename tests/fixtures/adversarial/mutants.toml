@@ -19,6 +19,7 @@
 #   find     literal text in clean-series.md (must match exactly once)
 #   replace  what it becomes; omit both to mutate only the certification artifact
 #   artifact_verdict / artifact_hash   override what the staged pre-mortem artifact records
+#   artifact_offline   the staged artifact's `Unverified-offline:` count (default 0)
 #   repeat   render `replace` N times, with {n} (1-based), {true_line} and {shifted_line}
 #   xfail    a REPRODUCED DEFEAT: the check cannot see this defect today, and the reason why
 #
@@ -124,40 +125,6 @@ fires = ["A9"]
 why = "A9's R1(b): 12 material units across 7 specs, no genuine fire ever"
 find = "**Reuse:** `src/tinyetl/orders.py::rollup_by_region`"
 replace = "**Reuse:** `src/tinyetl/orders.py::rollup_by_country`"
-
-[[mutant]]
-id = "A10-plain"
-fires = ["A10"]
-why = "A10's baseline: the plain over-claim it was built for, and the control for the three defeats below"
-find = """The status table above gains a row per invariant §3 introduces, with the gate that
-holds it."""
-replace = "The currency codes come from a closed set rule is enforced by the loader today."
-
-[[mutant]]
-id = "A10-wrapped"
-fires = ["A10"]
-why = "reproduced defeat 1, closed: the key was matched over a prev/this/next line window, so a claim three lines below its subject was invisible. The key window is now the paragraph"
-find = """The status table above gains a row per invariant §3 introduces, with the gate that
-holds it."""
-replace = """The rule that currency codes come from a closed set is what §3 lands,
-and every caller depends on it,
-so today it is already enforced."""
-
-[[mutant]]
-id = "A10-backticked"
-fires = ["A10"]
-why = "reproduced defeat 2, closed: deleting the backticked invariant name from the negation lookback made the PREVIOUS sentence's 'not' adjacent to the claim. The lookback now stops at the sentence boundary"
-find = """The status table above gains a row per invariant §3 introduces, with the gate that
-holds it."""
-replace = "The row is not optional. `currency codes come from a closed set` is enforced today."
-
-[[mutant]]
-id = "A10-negated"
-fires = ["A10"]
-why = "reproduced defeat 3, closed: the negation rule matched common words anywhere in the four words before the claim, so an ordinary aside suppressed a real over-claim. It now stops at the clause boundary"
-find = """The status table above gains a row per invariant §3 introduces, with the gate that
-holds it."""
-replace = "The currency codes come from a closed set rule is, once again, enforced today."
 
 [[mutant]]
 id = "A11-truncated-literal"
@@ -294,14 +261,6 @@ replace = """| FM-2 an unknown code was invented | §4 | `src/tinyetl/regions.py
 The currency normaliser is deferred to the next wave; nothing certified here changes."""
 
 [[mutant]]
-id = "A14-unknown-profile"
-fires = ["A14"]
-why = "the sheet said its material was dispatched only for the kind that needed it while no selector existed; a profile the gate cannot read selects nothing and its lenses go silently absent — the trap Kind: shipped with until its menu was resolved"
-find = "- **Kind:** series"
-replace = """- **Kind:** series
-- **Profile:** pipeline"""
-
-[[mutant]]
 id = "A6-absent-sibling"
 fires = ["A6"]
 why = "a citation that leaves the repository, where no sibling resolves: the basename search must NOT expand it, because the twin it would find is an unrelated in-repo file of the same name — the vendored-twin trap reached through a different door"
@@ -435,3 +394,9 @@ replace = """- **Verdict:** CONDITIONAL-CERTIFY
 | Gates | Condition | Status | Evidence |
 |---|---|---|---|
 | §5 | the region display names are confirmed with the data owner before the report renders them | open |  |"""
+
+[[mutant]]
+id = "W11-unverified-offline-on-certified"
+fires = ["W11"]
+why = "the count the directive has asked for since ADR-0014 and no gate read: a CERTIFIED pass that left two claims needing execution unrun. The staged artifact of every other fixture records a count of 0, so the clean spec is a candidate that stays silent"
+artifact_offline = 2

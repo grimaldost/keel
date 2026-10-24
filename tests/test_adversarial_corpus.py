@@ -7,8 +7,8 @@ one minimal edit per check that must make exactly that check fire.
 
 The question "can A4 catch a broken bijection inside a real spec?" is a property of
 `_check_manifest`, not of an agent, so it is a pytest run and not a paid trial. Where a mutant does
-NOT fire, that is a reproduced defeat and it is marked `xfail(strict=True)` with the mechanism —
-three of A10's are, and until they pass no disposition may be argued from A10's silence.
+NOT fire, that is a reproduced defeat and it is marked `xfail(strict=True)` with the mechanism,
+and until it passes no disposition may be argued from that check's silence.
 
 Two properties, or the corpus proves nothing:
 
@@ -85,13 +85,15 @@ def materialize(tmp_path: Path, mutant: dict) -> Path:
 
     The artifact's `Spec-hash:` is computed from the spec as written, so a mutation elsewhere in
     the body never leaks a B2 hash warning into another mutant's result — unless the fixture asks
-    for one (`artifact_hash`).
+    for one (`artifact_hash`). Its `Unverified-offline:` count is 0 unless the fixture sets
+    `artifact_offline`, so every CERTIFIED fixture gives W11 a candidate that stays silent.
     """
     shutil.copytree(FIXTURES / 'tree', tmp_path, dirs_exist_ok=True)
     spec = tmp_path / CLEAN.name
     spec.write_text(_body(mutant).replace(FIXTURE_KIT, f'- **Kit:** {__version__}'), 'utf-8')
     (tmp_path / ARTIFACT).write_text(
         f'# saved pre-mortem pass\n\n'
+        f'Unverified-offline: {mutant.get("artifact_offline", 0)}\n'
         f'PREMORTEM-VERDICT: {mutant.get("artifact_verdict", "CERTIFIED")}\n'
         f'Spec-hash: {_artifact_hash(mutant, spec)}\n',
         encoding='utf-8',

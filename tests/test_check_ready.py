@@ -674,7 +674,7 @@ def test_section_ref_quoted_crossdoc_ignored_a8(tmp_path):
     assert result.passed, [v.message for v in result.violations]
 
 
-# --- A10: enforcement-claim honesty lint ------------------------------------
+# --- A10 and A14 are retired (docs/evidence.md, 2026-10-19) -------------------
 
 _ENFORCE_TABLE = """
 ## Enforcement status
@@ -685,27 +685,16 @@ _ENFORCE_TABLE = """
 """
 
 
-def test_enforcement_overclaim_fails_a10(tmp_path):
-    bad = READY_SPEC + _ENFORCE_TABLE + '\nThe boundary-rule is enforced at every commit.\n'
-    result = check_spec_ready(_write(tmp_path, bad))
-    assert not result.passed
-    assert any('boundary-rule' in v.message for v in result.violations)
-
-
-def test_enforcement_honest_prose_passes_a10(tmp_path):
-    good = (
-        READY_SPEC
-        + _ENFORCE_TABLE
-        + '\nThe boundary-rule is NOT enforced yet; the `enforced` token is fine.\n'
-    )
-    result = check_spec_ready(_write(tmp_path, good))
-    assert result.passed, [v.message for v in result.violations]
-
-
-def test_enforcement_no_table_dozes_a10(tmp_path):
-    good = READY_SPEC + '\nThe boundary-rule is enforced at every commit.\n'
-    result = check_spec_ready(_write(tmp_path, good))
-    assert result.passed, [v.message for v in result.violations]
+def test_a_retired_check_no_longer_rejects_or_presents_a_candidate(tmp_path):
+    # A10 failed an "enforced" claim against a non-enforced status row; A14 failed a `Profile:`
+    # token no sheet answers to. Both had 0 fires in the field and were retired by the owner's
+    # decision, so the spec that used to trip each now passes, and neither letter is probed.
+    overclaim = READY_SPEC + _ENFORCE_TABLE + '\nThe boundary-rule is enforced at every commit.\n'
+    bad_profile = READY_SPEC.replace('- **Kit:**', '- **Profile:** pipeline\n- **Kit:**')
+    for spec in (overclaim, bad_profile):
+        result = check_spec_ready(_write(tmp_path, spec))
+        assert result.passed, [(v.check, v.message) for v in result.violations]
+        assert {'A10', 'A14'}.isdisjoint(probe.check for probe in result.probes)
 
 
 # --- A11: anchor-range closes-structure -------------------------------------
@@ -2248,41 +2237,6 @@ def test_vendored_twin_does_not_defeat_the_real_source_match_a6(tmp_path):
     assert any('src/contracts.py:2' in w.message for w in result.warnings), result.warnings
 
 
-def test_an_unknown_profile_fails_naming_the_token_and_the_set_a14(tmp_path):
-    # The sheet said its material was "dispatched only for the kind that needs it" while no
-    # selector existed: `Kind:` declares decomposition shape, not subject, and the two taxonomies
-    # had been collapsed onto one field name.
-    spec = READY_SPEC.replace('- **Kit:**', '- **Profile:** pipeline\n- **Kit:**')
-    result = check_spec_ready(_write(tmp_path, spec))
-    assert not result.passed
-    bad = [v for v in result.violations if v.check == 'A14']
-    assert bad and "'pipeline'" in bad[0].message and 'data-pipeline' in bad[0].message
-
-
-def test_a_known_profile_passes_a14(tmp_path):
-    spec = READY_SPEC.replace('- **Kit:**', '- **Profile:** data-pipeline\n- **Kit:**')
-    result = check_spec_ready(_write(tmp_path, spec))
-    assert result.passed, [(v.check, v.message) for v in result.violations]
-
-
-def test_a_spec_declaring_no_profile_presents_no_candidate_a14(tmp_path):
-    # Verify-when-present: silent is a different fact from declaring `code`.
-    result = check_spec_ready(_write(tmp_path, READY_SPEC))
-    assert result.passed
-    probe = next(p for p in result.probes if p.check == 'A14')
-    assert (probe.candidates, probe.fired) == (0, 0)
-
-
-def test_the_profile_axis_is_independent_of_the_kind_axis_a14(tmp_path):
-    # A0's candidate count is the `Kind:` field alone, which is why this is its own letter: a
-    # Profile-only header would otherwise fire a check with a zero denominator.
-    spec = READY_SPEC.replace('- **Kit:**', '- **Profile:** measurement\n- **Kit:**')
-    result = check_spec_ready(_write(tmp_path, spec))
-    probes = {p.check: p for p in result.probes}
-    assert probes['A14'].candidates == 1
-    assert probes['A0'].candidates == 0
-
-
 def test_a_parent_prefixed_anchor_resolves_when_the_sibling_is_on_disk_a6(tmp_path):
     # Half of the backlog row's premise was already true: the filesystem resolves the parent
     # segment and the file check succeeds, so this passed before the change and still does.
@@ -2951,3 +2905,125 @@ def test_a_git_that_cannot_run_is_silent_w10(tmp_path, monkeypatch, fault):
     monkeypatch.setattr('keel.check_ready.subprocess.run', broken)
     result = check_spec_ready(_w10_spec(tmp_path, orphaned))
     assert _w10(result) == [], result.warnings
+
+
+# --- KEEL-B14: the pass's `Unverified-offline: N` count on a CERTIFIED verdict (W11) -------------
+#
+# The directive has asked for an `Unverified-offline: <N>` count on the line before the verdict
+# since ADR-0014, and nothing read it: a claim that needed execution the reviewer could not run
+# rode to certification looking the same as a traced one. The count cannot tell a claim that
+# needs a live environment from one a read-only agent could still trace, so W11 warns rather than
+# fails; the Definition-of-Ready sheet holds the distinction for the reviewer.
+
+
+def _w11_spec(tmp_path, count_line: str | None, *, verdict: str = 'CERTIFIED'):
+    """A spec whose saved pass records `verdict` (hash current) and, when given, `count_line`."""
+    if verdict == 'CONDITIONAL-CERTIFY':
+        text = _operator_close_spec('premortem.md')
+    else:
+        text = _with_artifact_field('premortem.md')
+    spec = _write(tmp_path, text)
+    verdict_line = f'PREMORTEM-VERDICT: {verdict}'
+    if count_line is not None:
+        verdict_line = f'{count_line}\n{verdict_line}'
+    (tmp_path / 'premortem.md').write_text(
+        _artifact_text(verdict_line, spec_hash(spec)), encoding='utf-8'
+    )
+    return spec
+
+
+def _w11(result) -> list[str]:
+    return [w.message for w in result.warnings if w.check == 'W11']
+
+
+def _w11_probe(result) -> tuple[int, int]:
+    return next((p.candidates, p.fired) for p in result.probes if p.check == 'W11')
+
+
+def test_a_certified_pass_with_unverified_claims_warns_w11_and_exits_zero(tmp_path):
+    from typer.testing import CliRunner
+
+    from keel.cli import app
+
+    spec = _w11_spec(tmp_path, 'Unverified-offline: 3')
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    assert len(_w11(result)) == 1, result.warnings
+    assert _w11(result)[0].startswith('WARN: ') and ' 3 ' in _w11(result)[0], _w11(result)
+    assert _w11_probe(result) == (1, 1)
+    assert CliRunner().invoke(app, ['check-ready', str(spec)]).exit_code == 0
+
+
+def test_a_zero_count_is_a_candidate_and_silent_w11(tmp_path):
+    result = check_spec_ready(_w11_spec(tmp_path, 'Unverified-offline: 0'))
+    assert _w11(result) == [], result.warnings
+    assert result.warnings == ()
+    assert _w11_probe(result) == (1, 0)
+
+
+@pytest.mark.parametrize(
+    'line',
+    [
+        '**Unverified-offline: 5** — post-parametrize collection counts not run',
+        '- **Unverified-offline:** 6',
+        'Unverified-offline: 2 (the autofixer simulation and one AST enumeration)',
+        '  Unverified-offline: 4  # the generator was not executed',
+    ],
+)
+def test_the_count_is_read_in_the_forms_passes_write_w11(tmp_path, line):
+    count = re.search(r'\d+', line).group(0)  # type: ignore[union-attr]
+    result = check_spec_ready(_w11_spec(tmp_path, line))
+    assert len(_w11(result)) == 1, result.warnings
+    assert f' {count} ' in _w11(result)[0], _w11(result)
+
+
+@pytest.mark.parametrize(
+    'line',
+    [
+        'an `Unverified-offline: <N>` count, as the directive asks',
+        'Unverified-offline: <N>',
+        'The claims tagged unverified-offline: none of them changed the fold.',
+    ],
+)
+def test_a_line_with_no_count_is_not_a_candidate_w11(tmp_path, line):
+    result = check_spec_ready(_w11_spec(tmp_path, line))
+    assert _w11(result) == [], result.warnings
+    assert _w11_probe(result) == (0, 0)
+
+
+def test_the_last_count_in_the_artifact_is_the_one_read_w11(tmp_path):
+    # Like the verdict: a quoted earlier round above the pass's own line is not its count.
+    result = check_spec_ready(
+        _w11_spec(tmp_path, 'Unverified-offline: 4\n\nRe-run after tracing.\nUnverified-offline: 0')
+    )
+    assert _w11(result) == [], result.warnings
+    assert _w11_probe(result) == (1, 0)
+
+
+def test_no_count_line_is_silent_and_uncounted_w11(tmp_path):
+    result = check_spec_ready(_w11_spec(tmp_path, None))
+    assert _w11(result) == [], result.warnings
+    assert _w11_probe(result) == (0, 0)
+
+
+def test_a_conditional_certify_is_not_read_w11(tmp_path):
+    # The backlog row names the CERTIFIED verdict: a CONDITIONAL-CERTIFY already warns (B1) and
+    # carries its open conditions in W9.
+    result = check_spec_ready(
+        _w11_spec(tmp_path, 'Unverified-offline: 2', verdict='CONDITIONAL-CERTIFY')
+    )
+    assert result.passed, [(v.check, v.message) for v in result.violations]
+    assert _w11(result) == [], result.warnings
+    assert _w11_probe(result) == (0, 0)
+
+
+def test_no_artifact_named_is_silent_w11(tmp_path):
+    result = check_spec_ready(_write(tmp_path, READY_SPEC))
+    assert _w11(result) == [], result.warnings
+    assert _w11_probe(result) == (0, 0)
+
+
+def test_structure_only_does_not_read_the_count_w11(tmp_path):
+    result = check_spec_ready(_w11_spec(tmp_path, 'Unverified-offline: 3'), structure_only=True)
+    assert _w11(result) == [], result.warnings
+    assert _w11_probe(result) == (0, 0)

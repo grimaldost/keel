@@ -17,7 +17,7 @@ CORE = ('spec-template.md', 'definition-of-ready.md')
 
 # What each core stops naming — and therefore what a "core matches full" result would license
 # cutting. The checks themselves are untouched: they run and reject in every arm.
-DROPPED_CHECKS = {'spec-template.md': ('A9', 'A10', 'A11')}
+DROPPED_CHECKS = {'spec-template.md': ('A9', 'A11')}
 
 
 def _lines(path) -> list[str]:
@@ -45,7 +45,7 @@ def test_every_core_body_is_actually_smaller():
 
 
 def test_the_core_spec_template_stops_naming_exactly_the_full_only_checks():
-    # The full-only class IS the cut decision: these three letters are named in the full body and
+    # The full-only class IS the cut decision: these two letters are named in the full body and
     # not in the core, so a per-criterion gap on them is what the run is buying.
     full = (templates_root() / 'spec-template.md').read_text(encoding='utf-8')
     core = (templates_root() / 'core' / 'spec-template.md').read_text(encoding='utf-8')

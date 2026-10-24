@@ -117,10 +117,19 @@ def test_the_readers_parse_the_shipped_files():
     # budget vacuously.
     assert catalogue((ROOT / MODELS).read_text(encoding='utf-8')) == DOR_CHECK_IDS
     warns = warn_only((ROOT / DOR_SHEET).read_text(encoding='utf-8'))
-    assert {f'W{n}' for n in range(1, 11)} <= warns, sorted(warns)
+    assert {f'W{n}' for n in range(1, 12)} <= warns, sorted(warns)
     assert warns < DOR_CHECK_IDS, 'the warn reader matched every line, failing checks included'
     assert {'A7', 'A9'} <= preregistered(EVIDENCE.read_text(encoding='utf-8'))
     assert preregistered('| trigger | disposition |\n|---|---|\nA7 in prose, not a row\n') == set()
+
+
+def test_a_retired_id_is_neither_live_nor_preregistered():
+    # A10 and A14 were retired on 2026-10-19 and their letters are not reused. Naming them in a
+    # first-cell of docs/evidence.md would pre-register them, so restoring either to the catalogue
+    # would pass the budget gate unpaid.
+    retired = {'A10', 'A14'}
+    assert not retired & DOR_CHECK_IDS
+    assert not retired & preregistered(EVIDENCE.read_text(encoding='utf-8'))
 
 
 def failing_ids(source: str) -> frozenset[str]:

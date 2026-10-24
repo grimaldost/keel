@@ -338,7 +338,8 @@ recorded here explicitly. `[triage]`
   `hooks.json` deleted (KEEL-B29), and the pre-commit hook installed in the `core.hooksPath` +
   `uv run python -m pre_commit` form the cross-review note names, widened to three of the four
   DoD gates. CONTRIBUTING now carries an enforcement-status table — A10's predicate turned on
-  its author — stating all four. The remaining two are `bind-check` (KEEL-B17) and
+  its author — stating all four. A10 itself was retired on 2026-10-19 (`docs/evidence.md`); the
+  table stays. The remaining two are `bind-check` (KEEL-B17) and
   `budget-drift` (KEEL-B30), both still documented stubs that exit 2.
 - **Effort:** M · **Source:** `[review]` `[research]` `[cross-review]`
 
@@ -628,9 +629,9 @@ recorded here explicitly. `[triage]`
   and the four-probe table — are now deleted from `pre-mortem-prompt.md` too: **2,005 → 1,668
   words**, the second home gone. What replaced them is four lines of selector, not a pointer in a
   note: the always-on block reads the header's `Profile:` and loads the sheet it names, and
-  `test_templates_valid` holds the profiles A14 accepts and the sheets that exist to set equality,
-  so a lens cannot be selected by memory and a sheet cannot go unreferenced. Waiting on KEEL-B09
-  was a misreading of CONTRIBUTING's own rule, recorded here because it cost two rounds: B09 gates
+  `test_templates_valid` holds the profiles the spec template lists and the sheets that exist to
+  set equality (it held A14's accepted set until A14 was retired on 2026-10-19), so a lens cannot
+  be selected by memory and a sheet cannot go unreferenced. Waiting on KEEL-B09 was a misreading of CONTRIBUTING's own rule, recorded here because it cost two rounds: B09 gates
   *net-new* directive prose, and a deletion is the opposite of that.
 - **Effort:** M · **Source:** `[triage Q7a]` `[review]`
 
@@ -703,6 +704,11 @@ recorded here explicitly. `[triage]`
   traceable but not yet traced" blocks until traced, which a read-only agent can do. Mechanical rung:
   check-ready reads the artifact's `Unverified-offline: N` and WARNs when N > 0 on a CERTIFIED
   verdict. Consumes a field that already ships.
+- **Status:** **landed** 2026-10-19 under `[Unreleased]`. DoR Part B states the distinction as a
+  checklist item (prose 949/950, displacing the Gate result paragraph's restatement of the pass
+  rule), and W11 warns when a CERTIFIED pass's saved count is above 0. W11 is admitted by a
+  pre-registered row in `docs/evidence.md`; the catalogue held 29 ids then (27 after A10 and A14
+  were retired).
 - **Effort:** M · **Source:** `[triage Q6b]`
 
 ### KEEL-B15 — The certification block records what was paid, not only what was owed
