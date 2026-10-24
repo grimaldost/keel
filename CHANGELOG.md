@@ -5,7 +5,7 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
-## [Unreleased]
+## [0.23.0] - 2026-10-24
 
 The Definition-of-Ready catalogue holds 27 ids (`DOR_CHECK_IDS`, `src/keel/models.py`): W11 is
 added, admitted by a pre-registered row in `docs/evidence.md`, and A10 and A14 are retired, from 29.
