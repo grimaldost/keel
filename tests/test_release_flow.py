@@ -1,20 +1,15 @@
-"""CONTRIBUTING step 4, machine-enforced (KEEL-B08).
+"""Tag currency for the release loop (KEEL-B08).
 
-The release loop had no machine layer for "record in CHANGELOG and bump": the version lock proves
-the version sites AGREE (CONTRIBUTING's "Release discipline" section owns their enumeration),
-never that any of them MOVED. So a shipped kit or doctrine
-promotion could merge CI-green with no CHANGELOG entry and no bump — and did, twice, in the two
-docs PRs that shipped between 0.13.0 and 0.13.1. Two halves:
+The release loop had no machine layer for "record in CHANGELOG and bump". Railform's changelog
+gate now judges whether a change is recorded (`changelog.records` in `railform.toml`) and
+`railform version-sites` holds the version sites to one version; both run in CI's `railform` job.
+What stays here is the tag half: every released version carries a `vX.Y.Z` tag, so "which
+versions actually shipped" is answerable from the repo rather than from memory.
 
-- **Changelog currency** — the predicate `scripts/changelog_currency.py` runs in CI over a PR's
-  changed-file list: a diff touching a shipped-kit path with `CHANGELOG.md` unchanged fails. The
-  pure part is tested here; the git plumbing is the CI step's.
-- **Tag currency** — every released version carries a `vX.Y.Z` tag, so "which versions actually
-  shipped" is answerable from the repo rather than from memory.
-
-Both are scoped honestly. The tag assertion skips a checkout with no tags at all (the skip
-protects a genuinely tagless or shallow clone; CI's `check` job checks out full history and
-tags precisely so these assertions run there), exempts the newest CHANGELOG heading (a release
+The tag assertions are scoped honestly. The first skips a checkout with no tags at all (the skip
+protects a genuinely tagless or shallow clone; CI's `checks` job (railform's, with the full
+history the `ci.setup.fetch_depth` exceptions row gives it) checks out tags precisely so these
+assertions run there), exempts the newest CHANGELOG heading (a release
 in flight is tagged when it merges, not when its section is written), and exempts anything
 below the first public release — 0.2.0/0.2.1/0.3.0 are pre-publication history, squashed into
 the 0.4.0 initial public release commit, and there is no commit to tag.
@@ -28,14 +23,11 @@ version's CHANGELOG entry set never changes after the tag exists — checked for
 tag, with the known historical edits exempted BY NAME rather than by a silent floor.
 """
 
-import importlib.util
 import re
 import subprocess
 from pathlib import Path
 
 import pytest
-
-from tests.test_plugin_manifest import VERSION_SITES, read_versions
 
 ROOT = Path(__file__).resolve().parents[1]
 FIRST_PUBLIC_RELEASE = (0, 4, 0)
@@ -90,19 +82,6 @@ def _section_entries(changelog_text: str, version: str) -> list[str]:
     return entries
 
 
-def _load(script: str):
-    path = ROOT / 'scripts' / script
-    spec = importlib.util.spec_from_file_location(path.stem, path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _load_predicate():
-    return _load('changelog_currency.py')
-
-
 def _changelog_versions() -> list[tuple[int, int, int]]:
     text = (ROOT / 'CHANGELOG.md').read_text(encoding='utf-8')
     return [
@@ -111,125 +90,6 @@ def _changelog_versions() -> list[tuple[int, int, int]]:
             r'^## \[([0-9]+)\.([0-9]+)\.([0-9]+)\]', text, re.MULTILINE
         )
     ]
-
-
-def test_kit_change_without_a_changelog_entry_is_unrecorded():
-    unrecorded = _load_predicate().unrecorded_kit_paths
-    assert unrecorded(['src/keel/templates/spec-template.md']) == [
-        'src/keel/templates/spec-template.md'
-    ]
-    assert unrecorded(['docs/doctrine.md', 'README.md']) == ['docs/doctrine.md']
-    assert unrecorded(['agents/pre-mortem-review.md']) == ['agents/pre-mortem-review.md']
-    assert unrecorded(['skills/apply-method/SKILL.md']) == ['skills/apply-method/SKILL.md']
-    assert unrecorded(['commands/keel-check-ready.md']) == ['commands/keel-check-ready.md']
-
-
-def test_kit_change_with_a_changelog_entry_is_recorded():
-    unrecorded = _load_predicate().unrecorded_kit_paths
-    assert unrecorded(['src/keel/templates/spec-template.md', 'CHANGELOG.md']) == []
-
-
-def test_non_kit_changes_need_no_changelog_entry():
-    unrecorded = _load_predicate().unrecorded_kit_paths
-    assert unrecorded(['src/keel/check_ready.py', 'tests/test_check_ready.py', 'README.md']) == []
-
-
-BASE_CHANGELOG = '# Changelog\n\n## [0.17.0] - 2026-08-28\n\n### Added\n\n- **A thing.**\n'
-
-
-def test_a_release_cut_moves_the_newest_heading_forward():
-    # The version arm: a PR whose CHANGELOG gains a new newest heading must move the version
-    # strictly forward — the version lock (tests/test_plugin_manifest.py) then holds the
-    # version sites to that same heading in the same CI run.
-    regression = _load_predicate().heading_regression
-    cut = '# Changelog\n\n## [0.18.0] - 2026-08-29\n\n' + BASE_CHANGELOG.split('\n', 2)[2]
-    stale = '# Changelog\n\n## [0.16.0] - 2026-08-29\n\n' + BASE_CHANGELOG.split('\n', 2)[2]
-    assert regression(BASE_CHANGELOG, cut) is None
-    assert regression(BASE_CHANGELOG, BASE_CHANGELOG) is None, 'no cut is not a regression'
-    assert regression(BASE_CHANGELOG, stale) is not None
-    assert regression(BASE_CHANGELOG, '# Changelog\n') is not None, 'losing every heading fails'
-
-
-MARKED_HEAD = (
-    'header prose defining the literal (consumer-affecting) marker.\n'
-    '\n'
-    '## [0.18.0] - 2026-08-29\n'
-    '\n'
-    '### Changed\n'
-    '\n'
-    '- **The ledger schema moves to v4** (consumer-affecting).\n'
-    '- **A quiet entry.**\n'
-    '\n'
-    '## [0.17.0] - 2026-08-28\n'
-    '\n'
-    '- **An old entry** (consumer-affecting).\n'
-)
-
-
-def test_a_contract_surface_change_wants_the_marker():
-    # The marker arm (advisory in CI): a diff touching a file that defines what a consuming
-    # tool parses — the gate ledger's schema, the CLI's exit-code surface — should carry the
-    # literal `(consumer-affecting)` marker on an added `- ` entry line under the NEWEST
-    # heading. The first cut scanned the whole diff and the header paragraph defining the
-    # marker satisfied it — the cases below pin that closed hole.
-    unmarked = _load_predicate().unmarked_contract_paths
-    marked = '+- **The ledger schema moves to v4** (consumer-affecting).'
-    assert unmarked(['src/keel/gate_ledger.py', 'CHANGELOG.md'], marked, MARKED_HEAD) == []
-    quiet = '+- **A quiet entry.**'
-    assert unmarked(['src/keel/gate_ledger.py', 'CHANGELOG.md'], quiet, MARKED_HEAD) == [
-        'src/keel/gate_ledger.py'
-    ]
-    header_only = '+header prose defining the literal (consumer-affecting) marker.'
-    assert unmarked(['src/keel/cli.py'], header_only, MARKED_HEAD) == ['src/keel/cli.py'], (
-        'the header paragraph defining the marker must not satisfy the arm'
-    )
-    old_section = '+- **An old entry** (consumer-affecting).'
-    assert unmarked(['src/keel/cli.py'], old_section, MARKED_HEAD) == ['src/keel/cli.py'], (
-        'an entry added under an older heading must not satisfy the arm'
-    )
-    removed = '-- **The ledger schema moves to v4** (consumer-affecting).'
-    assert unmarked(['src/keel/cli.py'], removed, MARKED_HEAD) == ['src/keel/cli.py'], (
-        'a removed line does not satisfy the marker'
-    )
-    assert unmarked(['src/keel/check_ready.py'], '', MARKED_HEAD) == [], 'not a contract surface'
-
-
-UNRELEASED_HEAD = (
-    'header prose defining the literal (consumer-affecting) marker.\n'
-    '\n'
-    '## [Unreleased]\n'
-    '\n'
-    '### Changed\n'
-    '\n'
-    '- **A new exit code** (consumer-affecting).\n'
-    '- **A quiet entry.**\n'
-    '\n' + MARKED_HEAD.split('\n', 2)[2]
-)
-
-
-def test_the_marker_arm_reads_the_unreleased_section():
-    # Between releases, entries collect under `## [Unreleased]` (CONTRIBUTING, "Release
-    # discipline"), so that section is where the arm looks; the newest SemVer section is
-    # already released, and an entry added there is an edit to an older section.
-    unmarked = _load_predicate().unmarked_contract_paths
-    marked = '+- **A new exit code** (consumer-affecting).'
-    assert unmarked(['src/keel/cli.py', 'CHANGELOG.md'], marked, UNRELEASED_HEAD) == []
-    quiet = '+- **A quiet entry.**'
-    assert unmarked(['src/keel/cli.py'], quiet, UNRELEASED_HEAD) == ['src/keel/cli.py']
-    released = '+- **The ledger schema moves to v4** (consumer-affecting).'
-    assert unmarked(['src/keel/cli.py'], released, UNRELEASED_HEAD) == ['src/keel/cli.py'], (
-        'an entry added under a released heading must not satisfy the arm'
-    )
-
-
-def test_the_cli_modes_guard_their_operands():
-    # A mode flag with missing or extra operands is a usage error (exit 2), never an
-    # IndexError over sys.argv.
-    main = _load_predicate().main
-    assert main(['--headings']) == 2
-    assert main(['--headings', 'only-one']) == 2
-    assert main(['--marker', 'only-one']) == 2
-    assert main(['--bogus']) == 2
 
 
 def test_released_versions_carry_a_tag():
@@ -287,56 +147,3 @@ def test_a_tagged_section_matches_its_tag():
             'closed by its tag; post-tag work belongs under the next heading '
             f'(tagged entries: {len(tagged)}, current: {len(current)})'
         )
-
-
-# --- E9a: the bump reads the list the gate enforces --------------------------
-#
-# The version lock proves the sites AGREE; moving them was hand work, found one site per run.
-# `scripts/bump_version.py` imports the registry from the test that enforces it, so a site added
-# to the gate is a site the bump writes, with no second list to keep in step.
-
-
-def _bump_module():
-    return _load('bump_version.py')
-
-
-def _staged_tree(tmp_path: Path) -> Path:
-    """A copy of every version site, at the paths the registry names."""
-    for site in VERSION_SITES:
-        target = tmp_path / site.path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text((ROOT / site.path).read_text(encoding='utf-8'), encoding='utf-8')
-    return tmp_path
-
-
-def test_the_bump_writes_every_writable_site(tmp_path):
-    tree = _staged_tree(tmp_path)
-    moved, left = _bump_module().bump(tree, '9.9.9')
-    versions = read_versions(tree)
-    authored = {site.label for site in VERSION_SITES if site.authored}
-    assert {label for label, value in versions.items() if value == '9.9.9'} == (
-        set(versions) - authored
-    ), versions
-    assert len(moved) == len(VERSION_SITES) - len(authored)
-    assert any('CHANGELOG' in line for line in left)
-
-
-def test_the_bump_leaves_the_changelog_heading_to_its_author(tmp_path):
-    # Rewriting the newest heading's number renames the PREVIOUS release when no section has been
-    # written yet — the one destructive edit a bump script could make.
-    tree = _staged_tree(tmp_path)
-    before = (tree / 'CHANGELOG.md').read_text(encoding='utf-8')
-    _bump_module().bump(tree, '9.9.9')
-    assert (tree / 'CHANGELOG.md').read_text(encoding='utf-8') == before
-
-
-def test_the_bump_is_idempotent(tmp_path):
-    tree = _staged_tree(tmp_path)
-    _bump_module().bump(tree, '9.9.9')
-    moved, _ = _bump_module().bump(tree, '9.9.9')
-    assert moved == []
-
-
-def test_the_bump_refuses_anything_that_is_not_a_version():
-    assert _bump_module().main(['0.19']) == 2
-    assert _bump_module().main([]) == 2

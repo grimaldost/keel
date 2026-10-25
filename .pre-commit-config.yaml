@@ -1,11 +1,47 @@
 # Three of the four Definition-of-Done gates, at commit time. `uv run pytest` is the fourth
 # and stays in CI: it is the one gate whose cost belongs on a push, not on every commit.
-# The commit-msg stage holds the subject to Conventional Commits and rejects AI-attribution
-# trailers, via the tracked `.githooks/commit-msg`.
-# Installed with `git config core.hooksPath .githooks` (see CONTRIBUTING, "Quality gates").
+# The railform entry, written by `railform adopt` at the pinned commit, holds the commit
+# subject to Conventional Commits and rejects AI-attribution trailers (commit-msg), checks the
+# branch name (pre-push), and checks the hook wrappers and private references (pre-commit);
+# the hygiene entry beside it runs the pre-commit-hooks set. The wrappers in `.githooks/` run
+# each stage; arm a clone once with `railform arm` (see CONTRIBUTING, "Quality gates").
 # ruff and ty run through `uv run`, so the hook uses the version uv.lock pins, the one CI runs;
 # a separately pinned hook repository had drifted a minor version behind it.
+# A hook that names no stage runs only at commit time. Without this, check-merge-conflict
+# (given --assume-in-merge) also judges the commit message, so a message that quotes a conflict
+# marker is refused, and the local ruff and ty hooks would run again on every push. The railform
+# hooks name their own stages in railform's manifest, so this leaves them as they are.
+default_stages: [pre-commit]
 repos:
+  # >>> railform: owned by `railform adopt`; `railform adopt --check` fails on any edit
+  - repo: https://github.com/grimaldost/railform
+    rev: 77784b9f8d7951117e351258c857b8c64e634716
+    hooks:
+      - id: railform-commit-msg
+      - id: railform-branch-name
+      - id: railform-hooks-check
+        files: '^\.githooks/'
+      - id: railform-private-refs
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b  # frozen: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        stages: [pre-commit]
+      - id: end-of-file-fixer
+        stages: [pre-commit]
+      - id: check-merge-conflict
+        args: [--assume-in-merge]
+        stages: [pre-commit]
+      - id: check-added-large-files
+        stages: [pre-commit]
+      - id: check-yaml
+        stages: [pre-commit]
+      - id: check-toml
+        stages: [pre-commit]
+      - id: check-json
+        stages: [pre-commit]
+  # <<< railform
   - repo: local
     hooks:
       - id: ruff
@@ -26,16 +62,3 @@ repos:
         language: system
         pass_filenames: false
         files: ^src/.*\.py$
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.6.0
-    hooks:
-      - id: conventional-pre-commit
-        stages: [commit-msg]
-        args: [feat, fix, docs, style, refactor, perf, test, chore, build, ci, release]
-  - repo: local
-    hooks:
-      - id: no-ai-attribution
-        name: no AI-attribution trailer in the commit message
-        entry: bash -c 'if grep -Ei "^(Co-Authored-By|Signed-off-by|Assisted-by|Generated-by):.*(Claude|GPT|Anthropic|Copilot)|Generated with \[?Claude" "$1"; then echo "The commit message carries an AI-attribution trailer or generation stamp; remove it and re-commit."; exit 1; fi' --
-        language: system
-        stages: [commit-msg]

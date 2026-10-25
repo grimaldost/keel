@@ -12,11 +12,14 @@ keel improves by dogfooding its own "close the loop" principle on itself.
    - a **new / upgraded gate** (`src/keel/`, wired in `cli.py`, tested),
    - or an **ADR** (`docs/adr/`).
 4. **Record** in `CHANGELOG.md` under `## [Unreleased]`; the release cut **bumps SemVer**
-   ("Release discipline" below). *Machine-enforced:* a PR whose diff touches a
-   shipped-kit path (`src/keel/templates/**`, `docs/doctrine.md`, `agents/**`, `skills/**`,
-   `commands/**`) while `CHANGELOG.md` stays untouched fails CI's `changelog-currency` job
-   (`scripts/changelog_currency.py`). The version lock proves the eight sites agree, never that
-   any of them moved — this is the complement, and an unrecorded promotion is uncountable.
+   ("Release discipline" below). *Machine-enforced:* railform's changelog gate, in CI's
+   `railform` job, charges every commit of a PR that touches a shipped-kit path
+   (`src/keel/templates/**`, `docs/doctrine.md`, `agents/**`, `skills/**`, `commands/**`; the
+   rows are `changelog.records` in `railform.toml`) to `CHANGELOG.md`: the commit adds an entry line
+   there, or carries the trailer `Changelog: none (<reason>)`. The version-site check proves the
+   eight sites agree, never that any of them moved — this is the complement, and an unrecorded
+   promotion is uncountable. The check is per commit, so a PR that records its promotion in one
+   commit but ships it in another needs the trailer on the second.
 
 ## Gate health (closing the loop)
 
@@ -26,7 +29,7 @@ on 2026-10-19, once linted a spec for exactly that over-claim):
 
 1. **Every promoted gate ships a regression test** that fails on the originating defect and
    passes after the fix — no gate lands without the test that proves it bites. *Machine-enforced:*
-   the suite (and CI) runs it; the version-consistency and cli-reference-coverage tests are the
+   the suite (and CI) runs it; the version-site check and the cli-reference-coverage test are the
    same idea applied to cross-artifact drift.
 1a. **Every check carries a positive control** — `tests/fixtures/adversarial/` holds one realistic
    spec that fires nothing plus one minimal edit per check that must make exactly that check fire
@@ -128,15 +131,21 @@ and 0.3.0 are pre-publication history squashed into that commit, so there is not
 exempts the newest CHANGELOG heading, which is tagged when its release merges rather than when its
 section is written; it also asserts the annotation (from v0.18.0) and that a tagged section's
 entry set never changes after its tag exists — every SemVer tag, with the known historical
-edits exempted by name in the test.
+edits exempted by name in the test. Railform's release check (`release.since = "v0.22.0"` in
+`railform.toml`, run by `.github/workflows/railform-tag-watch.yml` on a tag push and daily) judges
+the tags from v0.22.0 on: annotated, and on the merge commit of the pull request that released it,
+whose `release:` commit touches only release metadata (the version sites, `CHANGELOG.md`,
+`pyproject.toml` and `uv.lock`). keel's own `tag-watch.yml` still checks that every released
+version is tagged.
 
 Between releases, merged changes are recorded under a single `## [Unreleased]` heading at the
 top of `CHANGELOG.md`, which moves no version site. A release bumps **nine version sites**, in
 one commit with the `## [x.y.z]` CHANGELOG heading (the `[Unreleased]` heading renamed, or a new
-heading inserted above the previous one, never replacing it). Run `uv run python scripts/bump_version.py
-x.y.z`: it writes every site from `VERSION_SITES`, the registry that lives in the
-version-consistency test itself (`tests/test_plugin_manifest.py`), so the bump and the gate cannot
-hold different lists. Eight sites are in that registry — `.claude-plugin/plugin.json`,
+heading inserted above the previous one, never replacing it). Run
+`uvx --from git+https://github.com/grimaldost/railform@<pin> railform version-sites --bump x.y.z`
+(the `<pin>` is the commit `ci.yml` names): it writes every site from `[version].sites` in
+`railform.toml`, the registry that CI's `railform version-sites` check reads too, so the bump and
+the gate cannot hold different lists. Eight sites are in that registry — `.claude-plugin/plugin.json`,
 `pyproject.toml`, `src/keel/__init__.py`, the newest `CHANGELOG.md` heading,
 `agents/pre-mortem-review.md` (the agent identity line), `src/keel/templates/spec-template.md`
 and `src/keel/templates/core/spec-template.md` (the header `- **Kit:**` stamps), and
@@ -145,10 +154,11 @@ by `tests/test_core_variants.py` (every core line appears, in order, in the body
 where a stale stamp fails as a strict-subset error whose message says nothing about versions; it
 is not a consumer-facing site, since `keel init` cannot reach the `core/` subdirectory.
 
-Two of the nine the script reports rather than writes. The newest CHANGELOG heading arrives with
-its own section, so rewriting its number would rename the previous release. `uv.lock` is the
-ninth — regenerate it with `uv lock` after `pyproject.toml` moves, and CI's `uv lock --check` reds
-a stale committed lock.
+The bump writes seven of the eight registry sites and reports the eighth: the newest CHANGELOG
+heading arrives with its own section, so rewriting its number would rename the previous release,
+and the bump fails with `mismatch` naming that heading until its author has written it. The ninth
+site, `uv.lock`, is not in the registry and the bump knows nothing of it — regenerate it with
+`uv lock` after `pyproject.toml` moves, and CI's `uv lock --check` reds a stale committed lock.
 
 ## Quality gates (Definition of Done)
 
@@ -162,16 +172,33 @@ uv run pytest
 All green before merge, and run them **unpiped** — a pipe (`| tail -1`) substitutes the filter's
 exit status for the gate's, so a red gate reads green. keel holds itself to the gates it preaches.
 
-Install the commit-time hook once per clone:
+CI runs them through [railform](https://github.com/grimaldost/railform), pinned by commit in
+`.github/workflows/ci.yml`: the `railform` job calls railform's reusable workflow, which runs
+`uv lock --check`, the sync and these four gates on Ubuntu and Windows under Python 3.11 and 3.14,
+plus the commit lane, the hook checks and zizmor. `railform.toml` holds the frame it reads, and
+the caller-level `gate` job is the one required status. `railform adopt --pin <sha>` is the one way
+to move the pin: it rewrites every reference at once, and `railform adopt --check` fails when they
+differ.
+
+Arm the commit-time hooks once per clone (worktrees share the clone's configuration), with the
+commit `ci.yml` pins:
 
 ```bash
-git config core.hooksPath .githooks
+uvx --from git+https://github.com/grimaldost/railform@<pin> railform arm
 ```
 
-That points git at the tracked hooks: `.githooks/pre-commit` runs the first three gates through
-`uv run python -m pre_commit`, and `.githooks/commit-msg` holds the commit subject to
-Conventional Commits (`type: subject`; the types include `release`) and rejects AI-attribution
-trailers. `pre-commit install` is deliberately **not** the instruction: it
+That sets `core.hooksPath` to `.githooks`, the tracked wrappers `railform adopt` writes. Each runs
+one stage of `.pre-commit-config.yaml` through `uv run --frozen python -m pre_commit hook-impl`:
+`pre-commit` runs the first three gates, the hygiene hooks, the wrapper check and the
+private-reference check; `commit-msg` holds the subject to Conventional Commits (the types include
+`release`) and rejects AI-attribution trailers; `pre-push` runs only the branch-name check, since
+every hygiene hook is limited to the `pre-commit` stage.
+
+Branch names follow railform's default pattern: a lowercase category, a slash and a slug (for
+example `ci/adopt-railform`), with `dependabot/**` allowed. A GitHub web-edit branch such as
+`<user>-patch-1` has no category, so it turns `gate` red; rename it before opening the pull request.
+
+`pre-commit install` is deliberately **not** the instruction: it
 writes a hook that invokes the `pre-commit` console script, and an application-control policy on
 at least one machine this repo is developed on blocks that shim while running git-invoked hooks
 fine — so the shim form would leave the claim below as untrue as no hook at all.
@@ -185,14 +212,19 @@ is not:
 
 | Invariant | Status | Gate/mechanism |
 |---|---|---|
-| The four DoD gates hold before a merge | enforced | `.github/workflows/ci.yml`, every PR, on two OSes |
-| ruff-format, ruff and `ty check src` hold before a commit lands | enforced | `.githooks/pre-commit` + `.pre-commit-config.yaml`, once `core.hooksPath` is set — a clone that skips that one command is covered by CI only |
+| The four DoD gates hold before a merge | enforced | `.github/workflows/ci.yml`'s `railform` job (railform's reusable workflow at the pin), every PR, on two OSes; `gate` is the required status |
+| ruff-format, ruff and `ty check src` hold before a commit lands | enforced | `.githooks/pre-commit` + `.pre-commit-config.yaml`, once the clone is armed — a clone that skips that one command is covered by CI only |
 | `uv run pytest` before a commit | review-only | CI's by choice: the one gate whose cost belongs on a push. Run it yourself before you push |
 | The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
-| Commit subjects are conventional and carry no AI-attribution trailer | enforced | `.githooks/commit-msg` + the commit-msg stage of `.pre-commit-config.yaml`, once `core.hooksPath` is set — same caveat as the pre-commit lane |
+| Commit subjects are conventional and carry no AI-attribution trailer | enforced | railform's `railform-commit-msg` hook through `.githooks/commit-msg`, once the clone is armed, and its `commit-lane` CI job over every commit and the PR text |
+| Branch names are a lowercase category, a slash and a slug (`dependabot/**` allowed) | enforced | railform's `railform-branch-name` hook through `.githooks/pre-push`, once the clone is armed, and the `commit-lane` CI job |
+| No private reference (name or path) lands in a tracked file | enforced | railform's `railform-private-refs` hook through `.githooks/pre-commit`, once the clone is armed, and the `checks` job in CI |
+| The hook wrappers match what `railform adopt` renders, and the adopted parts have not drifted | enforced | railform's `railform-hooks-check` hook through `.githooks/pre-commit`, once the clone is armed, and the `hooks` job in CI |
 | The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
-| A shipped-kit change carries a CHANGELOG entry | enforced | CI's `changelog-currency` job, on every PR |
-| Every released version carries a tag — annotated from v0.18.0, its section locked once tagged | enforced | `tests/test_release_flow.py`; CI's `check` job checks out full history and tags so the assertions run on every PR, and the skip protects only a genuinely tagless clone |
+| A shipped-kit change carries a CHANGELOG entry, a release heading moves the version forward, and a contract-surface change wants the `(consumer-affecting)` marker (advisory) | enforced; the marker is advisory | railform's changelog gate, the `changelog` job of the `railform` job in CI, on every PR (rows in `railform.toml`) |
+| The eight version sites agree | enforced | `railform version-sites`, in the `checks` job on every leg; `tests/test_plugin_manifest.py` checks that the two structured patterns read the field their parser reads |
+| A release tag is annotated and sits on its release PR's merge commit (from v0.22.0) | enforced | railform's release check, through `.github/workflows/railform-tag-watch.yml` on a tag push and daily |
+| Every released version carries a tag — annotated from v0.18.0, its section locked once tagged | enforced | `tests/test_release_flow.py`; the `railform` job's `checks` checks out full history and tags (`ci.setup.fetch_depth = 0` in `railform.toml`) so the assertions run on every PR, and the skip protects only a genuinely tagless clone |
 | The generated series is reviewed before execution (`keel decompose-check`) | available, operator-run | `keel decompose-check` (D1/D2), tested in `tests/test_decompose_check.py` with its own positive-control corpus — the Decompose phase's exit gate, run at the 3→4 boundary by the operator or the orchestrator, not by this repo's CI (which has no series to review) |
 | All method-binding slots filled (`keel bind-check`) | available, operator-run | `keel bind-check` (ADR-0018), tested in `tests/test_bindings.py` — a CLI gate run at phase start, not wired into this repo's CI |
 | Wave cost drift (`keel budget-drift`) | absent | a documented stub that exits 2; its disposition is removal, sequenced behind a bound orchestrator's live measurement window (backlog KEEL-B30) |

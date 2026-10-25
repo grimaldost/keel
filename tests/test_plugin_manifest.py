@@ -1,8 +1,6 @@
 import json
 import re
 import tomllib
-from collections import Counter
-from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
 
@@ -16,128 +14,39 @@ def test_manifests_parse_and_name_keel():
     assert any(p['name'] == 'keel' for p in market['plugins'])
 
 
-@dataclass(frozen=True, slots=True)
-class VersionSite:
-    """One place the release version is written, and the pattern that reads it.
+def declared_version_sites() -> dict[str, str]:
+    """Each version site's path and the pattern that reads it, from `railform.toml`.
 
-    The registry lives HERE, in the test that enforces agreement, and `scripts/bump_version.py`
-    imports it: the bump and the gate then cannot disagree about what a version site is. The
-    release loop used to be a second, hand-kept list — nine sites, a five-round
-    run-test/read-failure/fix-one-site cycle per release — and this is that list deleted rather
-    than duplicated.
-
-    `authored` marks the site whose value is written with its own content: the newest CHANGELOG
-    heading arrives with a section under it, so a script that rewrote the number would rename the
-    PREVIOUS release. It is checked and reported, never written.
+    The registry is `[version].sites` there: `railform version-sites` (run by the `railform` CI job
+    on every leg) holds the sites to one version, and `--bump` writes them. What it cannot see is
+    a pattern that reads the wrong literal, so that is what this module still checks.
     """
-
-    label: str
-    path: str
-    pattern: str
-    authored: bool = False
-
-
-_V = r'([0-9]+\.[0-9]+\.[0-9]+)'
-# 0.12.0 §2 added the bundled agent's identity line as a fifth site (a stale plugin-cache copy
-# then self-announces its lag on every verdict it returns) and §9 the kit stamp and the skill.
-# The core spec-template's stamp joins in 0.19.0: it was the ninth site by CONTRIBUTING's count
-# and the one held only by `test_core_variants`, where a stale stamp fails as a strict-subset
-# error whose message says nothing about versions.
-VERSION_SITES = (
-    VersionSite('plugin.json', '.claude-plugin/plugin.json', rf'"version":\s*"{_V}"'),
-    VersionSite('pyproject.toml', 'pyproject.toml', rf"(?m)^version = ['\"]{_V}['\"]"),
-    VersionSite('src/keel/__init__.py', 'src/keel/__init__.py', rf"__version__ = '{_V}'"),
-    VersionSite('CHANGELOG.md (newest)', 'CHANGELOG.md', rf'(?m)^##\s*\[{_V}\]', authored=True),
-    VersionSite(
-        'agents/pre-mortem-review.md',
-        'agents/pre-mortem-review.md',
-        rf'bundled `pre-mortem-review` agent from keel {_V}',
-    ),
-    VersionSite(
-        'spec-template.md (kit stamp)',
-        'src/keel/templates/spec-template.md',
-        rf'(?m)^-\s*\*\*Kit:\*\*\s*{_V}\s*$',
-    ),
-    VersionSite(
-        'core/spec-template.md (kit stamp)',
-        'src/keel/templates/core/spec-template.md',
-        rf'(?m)^-\s*\*\*Kit:\*\*\s*{_V}\s*$',
-    ),
-    VersionSite(
-        'skills/apply-method/SKILL.md',
-        'skills/apply-method/SKILL.md',
-        rf'ships with keel {_V}',
-    ),
-)
-
-
-def read_versions(root: Path = ROOT) -> dict[str, str | None]:
-    """What each site currently reads, with None for a site whose pattern matched nothing."""
-    found: dict[str, str | None] = {}
-    for site in VERSION_SITES:
-        match = re.search(site.pattern, (root / site.path).read_text(encoding='utf-8'))
-        found[site.label] = match.group(1) if match else None
-    return found
-
-
-def disagreement(versions: dict[str, str | None]) -> str:
-    """'' when every site agrees; otherwise ONE message naming every site that does not.
-
-    One message, because the failure used to be read one site at a time: the test named whichever
-    assertion fired first, the author fixed that site, re-ran, and met the next one — five rounds
-    for a patch bump. What the author needs is the whole disagreement in one read.
-    """
-    readable = {label: value for label, value in versions.items() if value}
-    unreadable = [label for label, value in versions.items() if not value]
-    tally = Counter(readable.values())
-    if not unreadable and len(tally) <= 1:
-        return ''
-    expected = tally.most_common(1)[0][0] if tally else '(nothing readable)'
-    wrong = [f'{label} reads {value}' for label, value in readable.items() if value != expected]
-    wrong += [f'{label} matched no version at all' for label in unreadable]
-    return f'{len(wrong)} of {len(versions)} version sites disagree with {expected}: ' + '; '.join(
-        sorted(wrong)
-    )
-
-
-def test_version_is_consistent_across_all_sites():
-    # F8: every version site and the newest CHANGELOG heading agree, so a partial bump
-    # (pyproject bumped, plugin.json forgotten) fails CI instead of shipping a mislabelled build.
-    assert not (report := disagreement(read_versions())), report
-
-
-def test_the_disagreement_names_every_site_in_one_message():
-    # The property that ends the five-round loop: one run, the whole truth.
-    report = disagreement(
-        {
-            'a': '0.19.0',
-            'b': '0.19.0',
-            'c': '0.18.1',
-            'd': '0.17.0',
-            'e': None,
-        }
-    )
-    assert 'c reads 0.18.1' in report
-    assert 'd reads 0.17.0' in report
-    assert 'e matched no version at all' in report
-    assert report.count(';') == 2, f'not one message: {report}'
+    frame = tomllib.loads((ROOT / 'railform.toml').read_text(encoding='utf-8'))
+    return {site['path']: site['pattern'] for site in frame['version']['sites']}
 
 
 def test_each_patterned_site_reads_the_field_its_parser_would():
     # The registry is regexes, because a bump must WRITE them; a regex that reads the wrong field
-    # would be invisible to every assertion above. The two structured sites are parsed properly
-    # here and compared, so the pattern cannot quietly point at some other version literal.
-    versions = read_versions()
-    plugin = json.loads((ROOT / '.claude-plugin' / 'plugin.json').read_text(encoding='utf-8'))
-    pyproject = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
-    assert versions['plugin.json'] == plugin['version']
-    assert versions['pyproject.toml'] == pyproject['project']['version']
+    # would pass `railform version-sites` as long as every site agreed on the wrong literal. The
+    # two structured sites are parsed properly here and compared, so the pattern cannot quietly
+    # point at some other version literal.
+    sites = declared_version_sites()
+    plugin_text = (ROOT / '.claude-plugin' / 'plugin.json').read_text(encoding='utf-8')
+    pyproject_text = (ROOT / 'pyproject.toml').read_text(encoding='utf-8')
+    plugin = json.loads(plugin_text)
+    pyproject = tomllib.loads(pyproject_text)
+    plugin_match = re.search(sites['.claude-plugin/plugin.json'], plugin_text)
+    pyproject_match = re.search(sites['pyproject.toml'], pyproject_text)
+    assert plugin_match is not None
+    assert pyproject_match is not None
+    assert plugin_match.group(1) == plugin['version']
+    assert pyproject_match.group(1) == pyproject['project']['version']
 
 
 def test_changelog_heading_chain_is_intact():
     # F1 (0.12.0 pre-cut audit; repaired in e5ede82): a release edit REPLACED the previous
     # release's heading instead of inserting above it, so the 0.11.1 entry read as absorbed into
-    # 0.12.0's section — and only the blind audit caught it, because the version-consistency test
+    # 0.12.0's section — and only the blind audit caught it, because the version-site check
     # reads the NEWEST heading only and the broken chain was still strictly descending. Three
     # layers, one per failure shape:
     #   shape — every H2 is a strict `## [x.y.z] - YYYY-MM-DD` heading, except one bare

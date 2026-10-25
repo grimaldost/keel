@@ -1,0 +1,62 @@
+# This repository's frame for railform: `railform frame` prints the effective frame and
+# `railform frame --check` judges this file.
+
+# Added to railform's default session-loaded globs, which stay in force: keel's pre-mortem agent
+# reads src/keel/templates/ at run time, so a change there changes what a session loads.
+session_loaded = ["src/keel/templates/**"]
+
+[project]
+type = "python-package"
+
+[python]
+versions = ["3.11", "3.14"]
+package = "keel"
+
+[ci.setup]
+fetch_depth = 0
+
+[[exceptions]]
+key = "ci.setup.fetch_depth"
+value = 0
+reason = """the suite needs full history and the tags: tests/test_release_flow.py asserts every \
+released version's tag and skips in a tagless checkout, and tests/test_check_budget.py diffs \
+against the merge-base with origin/main"""
+
+# The shipped kit, each path recorded in CHANGELOG.md: what a consumer receives when keel
+# ships is the template kit, the doctrine and the three plugin entry-point directories.
+# `src/keel/*.py` is deliberately not listed: a gate's behaviour change reaches a consumer
+# through a release, and the release's own diff carries the CHANGELOG entry.
+[changelog]
+records = [
+    { prefix = "src/keel/templates/", file = "CHANGELOG.md" },
+    { prefix = "agents/", file = "CHANGELOG.md" },
+    { prefix = "skills/", file = "CHANGELOG.md" },
+    { prefix = "commands/", file = "CHANGELOG.md" },
+    { prefix = "docs/doctrine.md", file = "CHANGELOG.md" },
+]
+# What a consuming tool parses: the gate ledger's schema (its own contract forbids reading a
+# count across a schema version silently) and the CLI's registered surface with its 0/1/2 exit
+# codes. An entry that moves either carries the literal marker `(consumer-affecting)`; the
+# marker stays advisory, as keel's own marker arm was.
+contract_surfaces = ["src/keel/gate_ledger.py", "src/keel/cli.py"]
+
+# keel's earlier release pull requests do not identify as releases to the release check, so it
+# judges tags from v0.22.0 on.
+[release]
+since = "v0.22.0"
+
+# Every place a release version is written; `railform version-sites` checks that they agree and
+# `railform version-sites --bump X.Y.Z` writes them. The newest CHANGELOG heading is authored: it
+# arrives with its own section, so a writer that rewrote the number would rename the previous
+# release. `uv.lock` is regenerated (`uv lock`), not edited.
+[version]
+sites = [
+    { path = ".claude-plugin/plugin.json", pattern = '"version":\s*"([0-9]+\.[0-9]+\.[0-9]+)"' },
+    { path = "pyproject.toml", pattern = "(?m)^version = [\"']([0-9]+\\.[0-9]+\\.[0-9]+)[\"']" },
+    { path = "src/keel/__init__.py", pattern = "__version__ = '([0-9]+\\.[0-9]+\\.[0-9]+)'" },
+    { path = "CHANGELOG.md", pattern = '(?m)^##\s*\[([0-9]+\.[0-9]+\.[0-9]+)\]', authored = true },
+    { path = "agents/pre-mortem-review.md", pattern = 'bundled `pre-mortem-review` agent from keel ([0-9]+\.[0-9]+\.[0-9]+)' },
+    { path = "src/keel/templates/spec-template.md", pattern = '(?m)^-\s*\*\*Kit:\*\*\s*([0-9]+\.[0-9]+\.[0-9]+)\s*$' },
+    { path = "src/keel/templates/core/spec-template.md", pattern = '(?m)^-\s*\*\*Kit:\*\*\s*([0-9]+\.[0-9]+\.[0-9]+)\s*$' },
+    { path = "skills/apply-method/SKILL.md", pattern = 'ships with keel ([0-9]+\.[0-9]+\.[0-9]+)' },
+]
