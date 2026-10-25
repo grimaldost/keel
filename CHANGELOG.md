@@ -9,6 +9,10 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 
 ### Changed
 
+- **railform re-pinned to 0.3.0.** CI, the tag watch and the pre-commit entry now pin railform
+  0.3.0, and `adopt` writes a marked `.gitattributes` region that pins `.githooks/**` to LF, so
+  the hook wrappers keep LF on every checkout. keel's `railform.toml` needed no change: it adds no
+  placeholder and sets none of the keys 0.3.0 classifies as loosening.
 - **The changelog and version gates run from railform.** CI's `railform` job now judges the
   changelog (record or declare per commit, a release heading that moves the version forward, the
   advisory `(consumer-affecting)` marker) and the eight version sites, and the release check
