@@ -9,6 +9,11 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 
 ### Changed
 
+- **`keel init` points the project's AGENTS.md at the method** (`(consumer-affecting)`: init can now
+  write outside `<target>`). It finds the project root (the git top level of `<target>`, else the
+  current directory when the kit is inside it) and, when the root's `AGENTS.md` lacks it, appends one
+  line naming the method and the bindings file relative to that root; with no `AGENTS.md` it creates
+  none and says so. The step also runs when the copy refuses, so a second run leaves the file as it was.
 - **railform re-pinned to 0.3.0.** CI, the tag watch and the pre-commit entry now pin railform
   0.3.0, and `adopt` writes a marked `.gitattributes` region that pins `.githooks/**` to LF, so
   the hook wrappers keep LF on every checkout. keel's `railform.toml` needed no change: it adds no
