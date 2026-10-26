@@ -5,7 +5,11 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
-## [Unreleased]
+## [0.24.0] - 2026-10-26
+
+`keel init` now points the project's AGENTS.md at the method, and the changelog and version gates
+run from railform, re-pinned to 0.3.0. No Definition-of-Ready check changes: the catalogue still
+holds 27 ids, and the budgeted bodies are unchanged from 0.23.0 apart from the version stamps.
 
 ### Changed
 
