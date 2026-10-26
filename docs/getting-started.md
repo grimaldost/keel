@@ -18,6 +18,8 @@ Copies the template kit (spec/ADR templates, the DoR/DoD gate checklists, the re
 reflection-triage, the series skeleton, method-bindings, the requirements register, the pre-mortem
 prompt and its profiles, and the kit's own README — full per-file list:
 `docs/templates-reference.md`).
+When the project root has an `AGENTS.md`, init also appends one line to it naming the method and
+`docs/method/method-bindings.md` (`docs/cli-reference.md`).
 Then fill `docs/method/method-bindings.md`
 — bind each slot (ADR home, spec format, gates, review checklist, reflection sink) to a concrete
 mechanism in YOUR project. keel's own filled sheet is a worked example: `docs/method-bindings.md`.

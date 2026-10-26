@@ -1,5 +1,6 @@
 """The keel CLI: deterministic gates + the init scaffolder."""
 
+import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -361,13 +362,68 @@ def init_cmd(
     target: Path,
     force: bool = typer.Option(False, '--force', help='Overwrite existing files.'),
 ) -> None:
-    """Copy the template kit into a target directory."""
+    """Copy the template kit into a target directory and point AGENTS.md at it."""
     try:
         copied = copy_templates(target, force=force)
     except FileExistsError as exc:
         typer.echo(str(exc))
+        typer.echo(_point_agents_md(target))
         raise typer.Exit(code=2) from exc
     typer.echo(f'Copied {len(copied)} templates to {target}')
+    typer.echo(_point_agents_md(target))
+
+
+def _agents_pointer_line(bindings: str) -> str:
+    """The one line `keel init` adds to a project's AGENTS.md. It names keel only (ADR-0003)."""
+    return f'This project applies the keel method; its bindings are in `{bindings}`.'
+
+
+def _project_root(target: Path) -> Path:
+    """The git top level of `target`, else the current directory."""
+    try:
+        proc = subprocess.run(
+            ['git', '-C', str(target), 'rev-parse', '--show-toplevel'],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            check=False,
+        )
+    except OSError:
+        proc = None
+    if proc is not None and proc.returncode == 0 and proc.stdout.strip():
+        return Path(proc.stdout.strip()).resolve()
+    return Path.cwd().resolve()
+
+
+def _point_agents_md(target: Path) -> str:
+    """Append the method line to the root AGENTS.md when it lacks it; say what was done.
+
+    The kit usually lands in a subdirectory (`keel init docs/method`), so AGENTS.md is looked up
+    at the project root, and the bindings path is written relative to that root. A missing
+    AGENTS.md is reported, never created. Outside git, the current directory is the root only for
+    a kit inside it, so `keel init <scratch dir>` run from a repository leaves its AGENTS.md alone.
+    """
+    root = _project_root(target)
+    agents = root / 'AGENTS.md'
+    try:
+        bindings = (target / 'method-bindings.md').resolve().relative_to(root).as_posix()
+    except ValueError:
+        return f'{target} is in no git repository and outside {root}; no AGENTS.md to point at it.'
+    if not agents.is_file():
+        return f'No AGENTS.md at {root}; nothing written there.'
+    raw = agents.read_bytes()
+    text = raw.decode('utf-8', errors='replace')
+    if any('keel method' in line and bindings in line for line in text.splitlines()):
+        return f'{agents} already names the keel method and {bindings}; unchanged.'
+    newline = b'\r\n' if b'\r\n' in raw else b'\n'
+    addition = _agents_pointer_line(bindings).encode('utf-8') + newline
+    if raw and not raw.endswith(b'\n'):
+        addition = newline + addition
+    with agents.open('ab') as handle:
+        handle.write(addition)
+    return f'Added the keel method line to {agents} (bindings: {bindings}).'
 
 
 @app.command('new-spec')
