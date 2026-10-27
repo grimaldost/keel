@@ -58,7 +58,7 @@ is its reference.
 Fold each finding's `smallest_fix` back into the spec (re-grounding it first — it is a hypothesis),
 record one `### Fold ledger` row per folded finding (`finding · target · path:line · confirmed` —
 optionally with a verified snippet), and save the pass's returned output verbatim to
-`docs/design/my-feature-spec.premortem.md` with a `Spec-hash:` taken after the last fold the final
+`docs/design/my-feature-spec.premortem.md` (round N: `docs/design/my-feature-spec.premortem-r<N>.md`) with a `Spec-hash:` taken after the last fold the final
 pass read (that pass re-reads the folded spec, so the hash matches what ships), from:
 
 ```

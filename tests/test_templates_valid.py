@@ -70,6 +70,8 @@ REQUIRED_SECTIONS = {
         'H1 must NOT begin `# Triage —`',
         'docs/feedback',
         'states its family',
+        'fetched remote ref',
+        'in flight (PR',
     ],
     'spec-template.md': [
         'Non-goals',

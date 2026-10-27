@@ -23,7 +23,10 @@ compounds. A series is not "done reflecting" until recurring traps are promoted.
    mechanism it names is actually absent (or present) and cite the check. A promotion naming a
    mechanism that already exists collapses to already-shipped or a docs gap; catching it here
    keeps a no-op out of the backlog (a CHANGELOG window cannot see work shipped releases ago —
-   only the source can).
+   only the source can). Check existence with `git ls-files` or `git grep` on the fetched remote
+   ref, never the working tree; write a row whose target an open pull request changes as "in
+   flight (PR #n)", read from `gh pr list --state open` and `gh pr diff --name-only`, and list
+   the open pull requests consulted in the doc header beside the commit.
 4. For each grounded cluster that is **recurring or high-cost**, **promote** it to exactly
    one external destination. A promotion states its family (the class of fixes it belongs to) and
    names and audits or schedules the existing members of that family:

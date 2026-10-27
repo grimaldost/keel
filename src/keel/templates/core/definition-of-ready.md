@@ -38,7 +38,7 @@ A7 (warn) each cited `docs/adr/NNNN-...md` whose number a different ADR already 
 A8 each bare intra-spec `§N` reference: fail unless it names a numbered section — detection on the prose view (a backticked `§N` mention is exempt); skips `§N.M`, headings, and doc-cued refs including a joined range (`ADR-0103 §3/§4`, an en-dash range)
 A9 each `**Model-on:**`/`**Reuse:**` reference present: fail unless the path exists (and the symbol, for `path::symbol`)
 A11 each `path:lo-hi` range anchor: the file and `hi` line must resolve; for a `.py`/`.pyi` anchor it must additionally close (string/comment-aware) every bracket it opens (single-line `path:line` anchors stay A6)
-A12 each `### Fold ledger` row: fail unless its `artifact:line` (or `artifact:lo-hi`) confirmation, in any cell, resolves; lands on a non-blank line; and, pointing into this spec, lands inside the `§N` the row names (heading included); A11's bracket rule holds for a range cell; a wider-than-header row is a column break; an empty `Sibling sweep` cell fails (`none` passes)
+A12 each `### Fold ledger` row: fail unless its `artifact:line` (or `artifact:lo-hi`) confirmation, in its first anchor cell, resolves; lands on a non-blank line; and, pointing into this spec, lands inside the `§N` the row names (heading included); A11's bracket rule holds for a range cell; a wider-than-header row is a column break; an empty `Sibling sweep` cell fails (`none` passes)
 A13 when the header declares `- **Requirements:** <path>`: that register must resolve, and every `RR-<n>` order it declares needs a `## Requirements ledger` row disposing it to a §N, `DEFERRED — <trigger>`, `OUT-OF-SCOPE`, or `DEVIATED — ratified by <operator>`; silent with no register declared, and a self-ratified DEVIATED fails
 R1 a certification claiming a non-trivial fold must carry a `### Fold ledger` with >=1 resolving row (a deliberate tightening, not verify-when-present; a clean certify dozes)
 B1 fail unless a "## Pre-mortem certification" block records Verdict: CERTIFIED (or CONDITIONAL-CERTIFY + a named Operator) + a Reviewer
@@ -72,7 +72,7 @@ are stateless.
       block records `Verdict: CERTIFIED` — or `CONDITIONAL-CERTIFY` with a named `Operator:`
       (operator-accepted, ready modulo a named fix; `check-ready` passes with a WARN, not EXIT 1).
       *(`keel check-ready` enforces this — B1.)*
-- [ ] The pass's returned output is saved (`<spec-stem>.premortem.md`, with a `Spec-hash:` from
+- [ ] The pass's returned output is saved (`<spec-stem>.premortem[-r<N>].md`, with a `Spec-hash:` from
       `keel spec-hash`) and named in the certification's `Certification artifact:` field.
       *(`keel check-ready` verifies a named artifact — B2, verify-when-present: existence, verdict
       agreement, hash currency; forgery cost, not blindness proof.)*

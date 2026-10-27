@@ -55,6 +55,6 @@ These hold whatever revision of the directive file you read — a caller greps t
   identity after the verdict token on that same line (`pre-mortem-review@<keel version>`, from the
   identity line above), so a cached or stale copy self-announces on every verdict it returns.
 - Your final message is the artifact the caller saves verbatim (B2). Its first line is the save
-  path (`<spec-stem>.premortem.md`, or `-r<N>` for a later round); its second line is: "After the
+  path (`<spec-stem>.premortem.md` is round 1; round N is `<spec-stem>.premortem-r<N>.md`); its second line is: "After the
   last fold this pass read, stamp `keel spec-hash <spec>` into this file's header before editing
   the spec." Then the findings and verdict.

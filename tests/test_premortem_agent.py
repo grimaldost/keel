@@ -166,3 +166,76 @@ def test_agent_keeps_the_output_contract_tokens():
     agent = AGENT.read_text(encoding='utf-8')
     for token in OUTPUT_CONTRACT:
         assert token in agent, f'agent lost an output-contract token a caller greps: {token!r}'
+
+
+# The saved file's name is one rule, stated by the agent and echoed by the templates: round 1 is the
+# unsuffixed file, round N is `-r<N>`, and the certification field leads with the LATEST round's
+# file because B2 reads the field's leading path token (ADR-0014 section 1).
+TEMPLATES = ROOT / 'src' / 'keel' / 'templates'
+SPEC_TEMPLATES = (TEMPLATES / 'spec-template.md', TEMPLATES / 'core' / 'spec-template.md')
+DOR_SHEETS = (TEMPLATES / 'definition-of-ready.md', TEMPLATES / 'core' / 'definition-of-ready.md')
+ADR_0014 = ROOT / 'docs' / 'adr' / '0014-certification-artifact-and-round-economy.md'
+ROUND_SIBLINGS = (
+    PROMPT,
+    ROOT / 'skills' / 'apply-method' / 'SKILL.md',
+    ROOT / 'docs' / 'getting-started.md',
+    ROOT / 'docs' / 'glossary.md',
+    ROOT / 'docs' / 'method-bindings.md',
+    *DOR_SHEETS,
+)
+
+
+def test_agent_states_the_round_file_rule():
+    agent = _normalized(AGENT)
+    assert (
+        '`<spec-stem>.premortem.md` is round 1; round N is `<spec-stem>.premortem-r<N>.md`'
+    ) in agent
+    assert 'premortem-r1' not in agent, 'round 1 is the unsuffixed file, never -r1'
+
+
+def test_spec_templates_state_the_round_file_rule_and_the_leading_latest_round():
+    for path in SPEC_TEMPLATES:
+        text = _normalized(path)
+        assert 'premortem-r1' not in text, f'{path.name}: round 1 is the unsuffixed file'
+        assert 'premortem-r<N>.md' in text, f'{path.name}: later rounds are -r<N>'
+        assert re.search(r'round 1 is `<stem>\.premortem\.md`', text), path
+        assert 'leads with the latest round' in text.lower(), (
+            f'{path.name}: the field leads with the LATEST round (B2 reads the leading token)'
+        )
+
+
+def test_the_certification_artifact_bullet_is_byte_identical_in_both_templates():
+    bullets = [
+        next(
+            line
+            for line in path.read_text(encoding='utf-8').splitlines()
+            if line.startswith('- **Certification artifact:**')
+        )
+        for path in SPEC_TEMPLATES
+    ]
+    assert bullets[0] == bullets[1]
+
+
+def test_round_file_siblings_name_the_later_round_suffix():
+    for path in ROUND_SIBLINGS:
+        assert '-r<N>' in _normalized(path), f'{path.relative_to(ROOT)} still states one file name'
+
+
+def test_adr_0014_carries_the_dated_round_file_note():
+    text = _normalized(ADR_0014)
+    assert '2026-10-27' in text
+    assert '`<spec-stem>.premortem-r<N>.md`' in text
+
+
+def test_a12_names_its_first_anchor_cell_in_both_definition_of_ready_files():
+    lines = []
+    for path in DOR_SHEETS:
+        a12 = [
+            line
+            for line in path.read_text(encoding='utf-8').splitlines()
+            if line.startswith('A12 ')
+        ]
+        assert len(a12) == 1, path
+        assert 'in its first anchor cell' in a12[0] and 'in any cell' not in a12[0], path
+        lines.append(a12[0])
+    assert lines[0] == lines[1]

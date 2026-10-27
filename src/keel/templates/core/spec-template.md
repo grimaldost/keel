@@ -100,15 +100,15 @@ Concrete, checkable conditions for the whole spec (beyond per-section criteria).
 
 *The externalized correctness pass (`pre-mortem-prompt.md`), certified by a reviewer who did NOT
 author this spec; the gate does not pass until the verdict is `CERTIFIED` (ADR-0002), so a
-freshly-scaffolded spec is correctly not Ready. Save the pass's output to
-`<spec-stem>.premortem.md` with a `Spec-hash:` from `keel spec-hash` and name it below: B2 then
+freshly-scaffolded spec is correctly not Ready. Save each pass's output to
+`<spec-stem>.premortem.md` (round 1) or `<spec-stem>.premortem-r<N>.md` (round N), with a `Spec-hash:` from `keel spec-hash`, and name it below: B2 then
 verifies existence, verdict agreement and hash currency. That raises the cost of forging a
 certification; it does not prove the pass was blind.*
 
 - **Reviewer:**
 - **Verdict:** not yet certified
 - **Operator:** <required only when the Verdict is CONDITIONAL-CERTIFY — the named owner who accepts "ready modulo a named fix"; check-ready then passes with a WARN (B1). If the Operator applies the conditions, the verdict stays CONDITIONAL-CERTIFY with a discharge note — the operator close, definition-of-ready.md Part B>
-- **Certification artifact:** <the saved pass output's path. `check-ready` reads the LEADING path token and ignores what follows, so a prior round belongs right here: `<stem>.premortem.md` (r1 at `<stem>.premortem-r1.md`)>
+- **Certification artifact:** <the saved pass output's path: round 1 is `<stem>.premortem.md`, round N is `<stem>.premortem-r<N>.md`. The field leads with the LATEST round's file, because `check-ready` reads the LEADING path token and ignores what follows, so earlier rounds belong after it>
 - **Date:**
 - **Reviewed against:** <external dependency SHAs/versions reasoned against, if any>
 - **Post-fold coherence:**

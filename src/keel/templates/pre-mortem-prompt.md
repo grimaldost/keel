@@ -138,7 +138,7 @@ You are read-only: RETURN your findings, ending with a machine-greppable last li
 parsing prose — do not write the spec yourself. State your reviewer identity after the verdict
 token on that same line (the bundled agent states `pre-mortem-review@<keel version>` from its
 identity line), so a cached or stale copy self-announces on every verdict it returns. Your final
-message is the artifact the caller saves verbatim (`<spec-stem>.premortem.md`, B2); recording the
+message is the artifact the caller saves verbatim (`<spec-stem>.premortem.md` for round 1, `<spec-stem>.premortem-r<N>.md` for round N; B2); recording the
 `## Pre-mortem certification` block is the caller's step — do not report your own read-only-ness
 as a deviation. The caller folds and records: fold the proposed
 changes back in **from the structured findings list** — apply each `smallest_fix` to its

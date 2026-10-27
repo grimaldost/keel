@@ -31,7 +31,7 @@ stay the source of truth.
   each fix is re-grounded first, and the post-fold re-read hunts the fold's own errors.
 - **fold ledger** — one row per folded finding (`finding · target · path:line · confirmed`,
   optional verified snippet) so the post-fold delta is reviewable (A12/R1).
-- **certification artifact** — the saved pre-mortem output (`<spec-stem>.premortem.md`) the
+- **certification artifact** — the saved pre-mortem output (`<spec-stem>.premortem.md`; round N at `<spec-stem>.premortem-r<N>.md`) the
   certification names; B2 verifies existence, verdict agreement, and `Spec-hash:` currency.
 - **spec-hash** — the canonical hash `keel spec-hash` prints: sha256 of the spec with its
   certification section's lines removed, so recording the certification never invalidates it.
