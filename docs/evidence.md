@@ -41,9 +41,9 @@ Written before any data arrived, so a later reading cannot be fitted to the numb
 
 **What the ledger will show, expected.** Zero fires *with* material: A7, A9, A1, A4, A2. Zero
 *material* until the header stamp and resolved kind reach real specs: A0, W1. Live: A6, A12, R1,
-A5; W2, W3, B2, and B1 as a record rather than a rejecter. Uninformative by construction until
-A10's three reproduced defeats are fixed: A10. Directional: W3 arriving should lower A6 fires per
-run, and cause-grouping should pull violations-per-cause below 3.
+A5; W2, W3, B2, and B1 as a record rather than a rejecter. Directional: W3 arriving should lower A6
+fires per run, and cause-grouping should pull violations-per-cause below 3. (2026-10-27: the A10 entry
+was removed on A10's retirement; see "A10 and A14 retired, 2026-10-19" below.)
 
 **The report-unit criterion, stated before its data.** Cause-grouping ships with the ledger, so
 `fired` and `causes` are recorded separately from the first run. It is judged forward, on two

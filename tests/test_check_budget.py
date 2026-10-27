@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from keel.models import DOR_CHECK_IDS
+from keel.models import DOR_CHECK_IDS, RETIRED_CHECK_IDS
 
 ROOT = Path(__file__).resolve().parents[1]
 MODELS = 'src/keel/models.py'
@@ -117,19 +117,33 @@ def test_the_readers_parse_the_shipped_files():
     # budget vacuously.
     assert catalogue((ROOT / MODELS).read_text(encoding='utf-8')) == DOR_CHECK_IDS
     warns = warn_only((ROOT / DOR_SHEET).read_text(encoding='utf-8'))
-    assert {f'W{n}' for n in range(1, 12)} <= warns, sorted(warns)
+    expected_warns = {check for check in DOR_CHECK_IDS if check.startswith('W')}
+    assert expected_warns <= warns, sorted(expected_warns - warns)
     assert warns < DOR_CHECK_IDS, 'the warn reader matched every line, failing checks included'
     assert {'A7', 'A9'} <= preregistered(EVIDENCE.read_text(encoding='utf-8'))
     assert preregistered('| trigger | disposition |\n|---|---|\nA7 in prose, not a row\n') == set()
 
 
 def test_a_retired_id_is_neither_live_nor_preregistered():
-    # A10 and A14 were retired on 2026-10-19 and their letters are not reused. Naming them in a
-    # first-cell of docs/evidence.md would pre-register them, so restoring either to the catalogue
+    # `RETIRED_CHECK_IDS` holds the letters retired on 2026-10-19, which are not reused. Naming one
+    # in a first-cell of docs/evidence.md would pre-register it, so restoring it to the catalogue
     # would pass the budget gate unpaid.
-    retired = {'A10', 'A14'}
-    assert not retired & DOR_CHECK_IDS
-    assert not retired & preregistered(EVIDENCE.read_text(encoding='utf-8'))
+    assert RETIRED_CHECK_IDS, 'the retired ids are held by a constant, not by a literal in a test'
+    assert RETIRED_CHECK_IDS.isdisjoint(DOR_CHECK_IDS)
+    assert RETIRED_CHECK_IDS.isdisjoint(preregistered(EVIDENCE.read_text(encoding='utf-8')))
+
+
+def test_the_preregistration_paragraph_does_not_call_a_retired_check_uninformative():
+    # The pre-registration paragraph once listed A10 as "uninformative by construction" until its
+    # defeats were fixed; A10 was retired instead, so the clause was removed. The retirement
+    # section may still quote its own history, so only this paragraph is read.
+    text = EVIDENCE.read_text(encoding='utf-8')
+    paragraphs = [' '.join(block.split()) for block in re.split(r'\n\s*\n', text)]
+    (paragraph,) = [
+        p for p in paragraphs if p.startswith('**What the ledger will show, expected.**')
+    ]
+    assert 'Uninformative by construction' not in paragraph
+    assert "A10's three reproduced defeats" not in paragraph
 
 
 def failing_ids(source: str) -> frozenset[str]:

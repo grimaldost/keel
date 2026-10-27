@@ -24,8 +24,8 @@ from dataclasses import dataclass
 # neither be measured nor defended. A13 is the requirements ledger: a spec that declares a
 # register accounts for every order in it, and DEVIATED is the one disposition a session cannot
 # write for itself. A7 keeps its letter but only warns since 0.22.0 (docs/evidence.md's
-# pre-registered demotion). A10 and A14 are retired (docs/evidence.md, 2026-10-19) and their letters
-# are not reused. An id added here is paid for: tests/test_check_budget.py.
+# pre-registered demotion). The letters in `RETIRED_CHECK_IDS` are never reused. An id added here
+# is paid for: tests/test_check_budget.py.
 DOR_CHECK_IDS = frozenset(
     {
         'A0',
@@ -57,6 +57,10 @@ DOR_CHECK_IDS = frozenset(
         'W11',
     }
 )
+# Checks retired from the DoR gate (docs/evidence.md, 2026-10-19): A10 and A14 never fired in the
+# field. Their letters are not reused, are not live in `DOR_CHECK_IDS` and are not pre-registered in
+# docs/evidence.md; tests/test_check_budget.py and tests/test_check_ready.py read this constant.
+RETIRED_CHECK_IDS = frozenset({'A10', 'A14'})
 # The Decompose exit gate: D1 the recorded SERIES review, D2 its saved artifact. The pair mirrors
 # B1/B2 deliberately — the same record-and-verify shape, one boundary later, over the artifact the
 # spec gate structurally cannot see.
