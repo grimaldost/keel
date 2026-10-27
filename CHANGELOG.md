@@ -5,7 +5,10 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
-## [Unreleased]
+## [0.24.2] - 2026-10-27
+
+A patch: the triage template names its ground, the pre-mortem file name is stated once, and A12's text says
+which anchor it holds. No check's behaviour changes, and the catalogue still holds 27 ids.
 
 ### Changed
 
