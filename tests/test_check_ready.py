@@ -1428,6 +1428,24 @@ def test_certification_artifact_reads_the_leading_path_token(tmp_path):
     assert result.passed, [(v.where, v.message) for v in result.violations]
 
 
+def test_certification_naming_a_later_round_first_reads_that_round(tmp_path):
+    # Characterization (passes on the base): the field leads with the LATEST round's file, and B2
+    # reads that leading token. Round 1 is kept at the unsuffixed name and disagrees on purpose,
+    # so a reader that took any other token would fail this spec.
+    spec = _write(
+        tmp_path, _with_artifact_field('`spec.premortem-r2.md` (round 1 at `spec.premortem.md`)')
+    )
+    (tmp_path / 'spec.premortem.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: NEEDS-REVISION'), encoding='utf-8'
+    )
+    (tmp_path / 'spec.premortem-r2.md').write_text(
+        _artifact_text('PREMORTEM-VERDICT: CERTIFIED', spec_hash(spec)), encoding='utf-8'
+    )
+    result = check_spec_ready(spec)
+    assert result.passed, [(v.where, v.message) for v in result.violations]
+    assert result.warnings == ()
+
+
 def test_certification_artifact_missing_file_still_fails_and_names_the_token(tmp_path):
     (tmp_path / '.git').mkdir()
     spec = READY_SPEC.replace(

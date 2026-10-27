@@ -5,6 +5,24 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
+## [Unreleased]
+
+### Changed
+
+- **The triage template names its ground.** `reflection-triage.md` step 3 checks existence with
+  `git ls-files` or `git grep` on the fetched remote ref, never the working tree; a row whose target
+  an open pull request changes is written "in flight (PR #n)", and the doc header lists the open pull
+  requests consulted beside the commit.
+- **The pre-mortem file name is one rule.** `<spec-stem>.premortem.md` is round 1 and round N is
+  `<spec-stem>.premortem-r<N>.md`, stated in the `pre-mortem-review` agent and echoed by both spec
+  templates, whose `Certification artifact:` field now leads with the latest round's file (B2 reads
+  the leading path token). The Definition-of-Ready artifact items, the directive's output handling,
+  `apply-method`, the getting-started guide, the glossary, the method bindings and ADR-0014 follow.
+  No check's behaviour changes.
+- **A12's text says which anchor it holds.** The line reads "in its first anchor cell" instead of
+  "in any cell", in both the full and the core Definition of Ready (59 to 61 words, the line cap). The
+  check's code is unchanged.
+
 ## [0.24.1] - 2026-10-27
 
 A patch: the retired Definition-of-Ready check ids are held by one constant instead of literal sets in

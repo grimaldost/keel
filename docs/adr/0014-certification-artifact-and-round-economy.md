@@ -25,6 +25,11 @@ the pre-mortem pass's returned output verbatim** to a sibling file of the spec:
 and `Spec-hash: <sha256>` of the spec **as reviewed**. The certification block gains an optional
 `Certification artifact:` field naming that file.
 
+*Note (2026-10-27): the file name is one rule. `<spec-stem>.premortem.md` is round 1 and round N is
+`<spec-stem>.premortem-r<N>.md`; the pre-mortem agent states it and both spec templates echo it.
+The `Certification artifact:` field leads with the LATEST round's file, because B2 reads the field's
+leading path token and ignores what follows, so earlier rounds are named after it.*
+
 `check-ready` B2 — **verify-when-present in 0.12.0**: when the certification names an artifact, B2
 fails the gate if the artifact is missing or carries no `PREMORTEM-VERDICT:` line, fails if the
 artifact's verdict token disagrees with the recorded `Verdict:`, and **WARNs** (not fails) when the

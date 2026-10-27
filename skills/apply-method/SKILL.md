@@ -55,7 +55,7 @@ Follow the phases; the gates are the load-bearing part:
   `keel check-ready <spec> --structure-only` (Part A only). Then run the
   `pre-mortem-prompt.md` pass with a non-author reviewer — dispatch the bundled
   `pre-mortem-review` subagent — fold the findings back in, save its returned output verbatim
-  to `<spec-stem>.premortem.md` with a `Spec-hash:` from `keel spec-hash <spec>` taken after the
+  to `<spec-stem>.premortem[-r<N>].md` with a `Spec-hash:` from `keel spec-hash <spec>` taken after the
   last fold the pass read, and record the certification block, `Post-fold coherence:` included,
   naming that file (B2). The full `keel check-ready` passes only once that certification is
   recorded (Part A + Part B, B1) — a spec is not ready to decompose until it does.
