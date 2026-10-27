@@ -5,6 +5,16 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
+## [Unreleased]
+
+### Fixed
+
+- **The retired check ids are held by a constant.** `RETIRED_CHECK_IDS` (`src/keel/models.py`) holds
+  A10 and A14, and the check-budget and `check-ready` tests read it instead of a literal set; the
+  warning ids the reader test expects come from `DOR_CHECK_IDS`. `docs/evidence.md`'s
+  pre-registration paragraph no longer lists A10 as uninformative by construction. No check's
+  behaviour changes.
+
 ## [0.24.0] - 2026-10-26
 
 `keel init` now points the project's AGENTS.md at the method, and the changelog and version gates

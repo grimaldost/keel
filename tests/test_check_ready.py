@@ -7,6 +7,7 @@ import pytest
 
 from keel import __version__
 from keel.check_ready import check_spec_ready, spec_hash
+from keel.models import RETIRED_CHECK_IDS
 from keel.templates import templates_root
 
 # A well-formed, pre-mortem-certified spec in the spec-template.md shape. It carries the header
@@ -694,7 +695,7 @@ def test_a_retired_check_no_longer_rejects_or_presents_a_candidate(tmp_path):
     for spec in (overclaim, bad_profile):
         result = check_spec_ready(_write(tmp_path, spec))
         assert result.passed, [(v.check, v.message) for v in result.violations]
-        assert {'A10', 'A14'}.isdisjoint(probe.check for probe in result.probes)
+        assert RETIRED_CHECK_IDS.isdisjoint(probe.check for probe in result.probes)
 
 
 # --- A11: anchor-range closes-structure -------------------------------------
