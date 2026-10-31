@@ -22,20 +22,21 @@ stay the source of truth.
 - **round** — one repetition of a *pass*, where a pass is a named kind of review (the
   DESIGN pass and the SERIES pass; a triage pass): a pre-mortem round's
   artifact is `<spec-stem>.premortem.md` (round 1) or `<spec-stem>.premortem-r<N>.md`
-  (round N). A *work round* (doctrine §3, *subset of phases*) labels
-  which phases a series or task ran and adds no scope; "the next round" in the doctrine is
-  the next series. Sized by *the round economy*.
+  (round N); how many rounds a pass takes is sized by *the round economy*. A *work round*
+  (doctrine §3, *subset of phases*) labels which phases a series or task ran and adds no
+  scope; "the next round" in the doctrine is the next series.
 - **sibling citation** — the identifier rule for text that names more than one repository,
   already applied in `backlog.md` ("a sibling project's backlog row is cited by its stable
   ID"). A row that carries its owner's token where its repository writes it (`KEEL-B57`,
   `CONV-B52`) is cited verbatim everywhere; a bare identifier (`ADR-0003`) stays bare inside
-  its own repository and takes the owner token and a hyphen outside it (`KEEL-ADR-0003`); a
-  project's `method-bindings.md` holds the closed list of owner tokens. Gate output codes
-  (A0…A13, B1, B2, R1, W1…W5, D1, D2) are not identifiers in this sense and are cited as
+  its own repository and takes the owner token and a hyphen outside it (`KEEL-ADR-0003`); the
+  closed list of owner tokens is kept by the project that uses them (keel's is in
+  `docs/backlog.md`). Gate output codes (A0…A13, B1, B2, R1, W1…W11, D1, D2) are not
+  identifiers in this sense and are cited as
   "check A12", never `KEEL-A12` — `KEEL-B1` would name both a Part-B check and a backlog
   row. Enumerations local to one document (a pre-mortem's FM-n, a triage's T1a or E11a, a
   spec's §n, a round's r3, a plan's Part B) are cited together with their document.
-- **A0…A13, R1, B1, B2, W1…W5** — the individual checks `keel check-ready` runs (the W-letters are
+- **A0…A13, R1, B1, B2, W1…W11** — the individual checks `keel check-ready` runs (the W-letters are
   WARN-only: they report, they never fail the gate); the authoritative list is
   `definition-of-ready.md`'s "Reference: what `check_spec_ready` asserts" block. Every finding the
   gate emits names its check in a field (`Violation.check`, `Warning.check`), never as a message

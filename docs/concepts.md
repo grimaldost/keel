@@ -16,7 +16,7 @@ template's `Wave` column; a wave is not a fourth scope. The eight **phases**
 (`phases-reference.md`) say where in the lifecycle a unit is, and "phase" in keel means one
 of those eight. A **round** is one repetition of a pass (a pre-mortem round; a work round
 through a named subset of the phases, doctrine §3). A project's own nouns and identifiers
-for its programs, periods and decisions are bound in its `method-bindings.md`, never here.
+for its programs, periods and decisions belong to that project's own documents, never here.
 
 keel is the connective doctrine + the gates that live nowhere else (Definition-of-Ready,
 reflection-triage). It links to the three systems; it does not restate their mechanics.
