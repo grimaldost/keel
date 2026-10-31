@@ -6,15 +6,45 @@ stay the source of truth.
 - **Part A / Part B** — the DoR gate's two halves: deterministic well-formedness checks a script
   asserts (A0–A13, R1) vs. correctness externalized to a blind reviewer's recorded certification
   (B1, B2). ADR-0002.
+- **program / series / task; wave** — the three nested scopes of `concepts.md`: a *program*
+  is a named undertaking spanning several series, closed by a written decision; a *series*
+  is the governed set of tasks under one spec and one gate set, whose Decompose artifact is
+  the series file (`series.toml`); a *task* is one briefed, gated unit of work, inside a
+  series one single-concern PR. A *wave* is the batch of a series' tasks that ships
+  together (the spec template's `Wave` column: "the batch it ships with"); it is ordered,
+  it is not a scope, and keel's "wave estimate", "wave budget" and "three governed waves"
+  are the wave's — in that last phrase each wave was a whole series.
+- **phase** — one of the eight lifecycle phases of `phases-reference.md`, and nothing else.
+  A larger stretch of work is a program or a series; a numbered step of one plan or skill
+  is cited with that document ("step 2 of the build plan"); an orchestrator's own keys that
+  happen to be spelled `phase` — a budget role, a check-scope tag — are called by what they
+  do.
+- **round** — one repetition of a *pass*, where a pass is a named kind of review (the
+  DESIGN pass and the SERIES pass; a triage pass): a pre-mortem round is
+  `<spec-stem>.premortem-r<n>.md`. A *work round* (doctrine §3, *subset of phases*) labels
+  which phases a series or task ran and adds no scope; "the next round" in the doctrine is
+  the next series. Sized by *the round economy*.
+- **sibling citation** — the identifier rule for text that names more than one repository,
+  already applied in `backlog.md` ("a sibling project's backlog row is cited by its stable
+  ID"). A row that carries its owner's token where its repository writes it (`KEEL-B57`,
+  `CONV-B52`) is cited verbatim everywhere; a bare identifier (`ADR-0003`) stays bare inside
+  its own repository and takes the owner token and a hyphen outside it (`KEEL-ADR-0003`); a
+  project's `method-bindings.md` holds the closed list of owner tokens. Gate output codes
+  (A0…A13, B1, B2, R1, W1…W5, D1, D2) are not identifiers in this sense and are cited as
+  "check A12", never `KEEL-A12` — `KEEL-B1` would name both a Part-B check and a backlog
+  row. Enumerations local to one document (a pre-mortem's FM-n, a triage's T1a or E11a, a
+  spec's §n, a round's r3, a plan's Part B) are cited together with their document.
 - **A0…A13, R1, B1, B2, W1…W5** — the individual checks `keel check-ready` runs (the W-letters are
   WARN-only: they report, they never fail the gate); the authoritative list is
   `definition-of-ready.md`'s "Reference: what `check_spec_ready` asserts" block. Every finding the
   gate emits names its check in a field (`Violation.check`, `Warning.check`), never as a message
   prefix — `where` is a coordinate and collides across checks, so a count keyed on it fuses them.
+  Cited as `check <code>`; see *sibling citation*.
 - **D1, D2** — the Decompose exit gate's pair, run by `keel decompose-check` at the 3→4 boundary
   over the `### Series review` record: B1/B2's shape applied to the SERIES pass, whose subject is
   the generated series rather than the spec. A separate catalogue from the DoR letters because it
   is a separate gate, at a boundary `check-ready` runs before.
+  Cited as `check <code>`; see *sibling citation*.
 - **DESIGN pass / SERIES pass** — the two blind pre-mortems: the first reads the spec and closes
   Specify (B1/B2), the second reads the GENERATED series against the spec and closes Decompose
   (D1/D2). Same reviewer contract, different artifact.
@@ -54,6 +84,7 @@ stay the source of truth.
   promotion rows (what statuses track). Don't conflate them.
 - **subset of phases** — a round runs a named subset of the 8 phases (`- **Phases:** Decide+Specify
   (Decompose: skipped)`); the unused phases are named-as-skipped, not faked (doctrine §3, A4).
+  A round in this sense is a *work round*; see *round*.
 - **spec kind** — the header's `Kind: series | single-change` declaration. `single-change` relaxes
   the Part-A structural trio to absent-ok and moves the acceptance-criterion floor to the document;
   a present section is still checked in full, and an unreadable kind relaxes nothing.
