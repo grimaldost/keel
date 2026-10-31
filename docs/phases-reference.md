@@ -24,5 +24,5 @@ ADR-0003 — and the phase-8 loop is a template procedure, not a deterministic g
 program or a series (`concepts.md`); a numbered step of one plan or skill is cited with that
 document; an orchestrator's keys spelled `phase` (a budget role, a check-scope tag) are
 called by what they do. A work round may run a named subset of the eight (doctrine §3); the
-unused phases are named as skipped, not renamed. The "wave estimate" and "wave budget" of
+unused phases are named as skipped, not faked. The "wave estimate" and "wave budget" of
 phase 4 are the wave's (`glossary.md`, *wave*).

@@ -20,8 +20,9 @@ stay the source of truth.
   happen to be spelled `phase` — a budget role, a check-scope tag — are called by what they
   do.
 - **round** — one repetition of a *pass*, where a pass is a named kind of review (the
-  DESIGN pass and the SERIES pass; a triage pass): a pre-mortem round is
-  `<spec-stem>.premortem-r<n>.md`. A *work round* (doctrine §3, *subset of phases*) labels
+  DESIGN pass and the SERIES pass; a triage pass): a pre-mortem round's
+  artifact is `<spec-stem>.premortem.md` (round 1) or `<spec-stem>.premortem-r<N>.md`
+  (round N). A *work round* (doctrine §3, *subset of phases*) labels
   which phases a series or task ran and adds no scope; "the next round" in the doctrine is
   the next series. Sized by *the round economy*.
 - **sibling citation** — the identifier rule for text that names more than one repository,
