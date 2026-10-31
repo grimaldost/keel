@@ -6,15 +6,37 @@ stay the source of truth.
 - **Part A / Part B** — the DoR gate's two halves: deterministic well-formedness checks a script
   asserts (A0–A13, R1) vs. correctness externalized to a blind reviewer's recorded certification
   (B1, B2). ADR-0002.
-- **A0…A13, R1, B1, B2, W1…W5** — the individual checks `keel check-ready` runs (the W-letters are
+- **program / series / task; wave** — the three nested scopes of `concepts.md`: a *task* is one
+  briefed, gated unit of work, inside a series one single-concern PR; a *series* is the governed
+  set of tasks under one spec and one gate set, whose Decompose artifact is the series file
+  (`series.toml`); a *program* spans several series. *Wave* has two senses in keel's text: the
+  batch a task ships with, in the full spec template's optional `Wave` column
+  (`src/keel/templates/spec-template.md`; the gate does not read it), and, more often, a whole
+  series, as in the Wave/PR DAG (`series.toml`), the wave estimate and wave budget of phase 4 (one
+  `[budget]` block per series file) and the three governed waves of doctrine §1.
+- **phase** — in this glossary and in `phases-reference.md`, one of the eight lifecycle phases.
+  Some keel text also uses *phase* for a larger stretch of work, a series or a stage of a program
+  (`src/keel/bindings.py`, `src/keel/survey.py`, and some rows of `docs/backlog.md`).
+- **round** — one repetition of a review *pass*. A pass is a named kind of review (the DESIGN
+  pass, the SERIES pass); *the round economy* also calls a single run a pass. A DESIGN-pass
+  round's artifact is `<spec-stem>.premortem.md` (round 1) or `<spec-stem>.premortem-r<N>.md`
+  (round N); the SERIES pass saves `<spec-stem>.series-premortem.md`. How many rounds a pass takes
+  is sized by *the round economy*. A *work round* runs a named subset of the phases, declared in
+  the spec header's `Phases:` line (doctrine §3, *subset of phases*).
+  Among keel's other uses of the word, doctrine §1 calls each of its three governed waves a
+  round, meaning a whole series.
+- **A0…A13, R1, B1, B2, W1…W11** — the individual checks `keel check-ready` runs (the W-letters are
   WARN-only: they report, they never fail the gate); the authoritative list is
   `definition-of-ready.md`'s "Reference: what `check_spec_ready` asserts" block. Every finding the
   gate emits names its check in a field (`Violation.check`, `Warning.check`), never as a message
   prefix — `where` is a coordinate and collides across checks, so a count keyed on it fuses them.
+  keel's text writes these codes bare, as "check <code>", or after the gate command that runs
+  them (`check-ready` B1/B2), never prefixed with a project or tool name.
 - **D1, D2** — the Decompose exit gate's pair, run by `keel decompose-check` at the 3→4 boundary
   over the `### Series review` record: B1/B2's shape applied to the SERIES pass, whose subject is
   the generated series rather than the spec. A separate catalogue from the DoR letters because it
   is a separate gate, at a boundary `check-ready` runs before.
+  These codes are written the same way as those of the entry above.
 - **DESIGN pass / SERIES pass** — the two blind pre-mortems: the first reads the spec and closes
   Specify (B1/B2), the second reads the GENERATED series against the spec and closes Decompose
   (D1/D2). Same reviewer contract, different artifact.
@@ -54,6 +76,7 @@ stay the source of truth.
   promotion rows (what statuses track). Don't conflate them.
 - **subset of phases** — a round runs a named subset of the 8 phases (`- **Phases:** Decide+Specify
   (Decompose: skipped)`); the unused phases are named-as-skipped, not faked (doctrine §3, A4).
+  A round in this sense is a *work round*; see *round*.
 - **spec kind** — the header's `Kind: series | single-change` declaration. `single-change` relaxes
   the Part-A structural trio to absent-ok and moves the acceptance-criterion floor to the document;
   a present section is still checked in full, and an unreadable kind relaxes nothing.

@@ -11,6 +11,14 @@ keel is one method at three nested scopes: **task ⊂ series ⊂ program**.
 - **Cross-series memory** governs across series (journals → meditation → doctrine). *Reference
   binding:* a consolidating memory store; keel's `docs/doctrine.md` is the doctrine tier.
 
+Inside a series, the full spec template's optional `Wave` column names "the batch it ships with";
+elsewhere keel's text more often uses *wave* for a whole series (the Wave/PR DAG in `series.toml`,
+the wave budget). The eight **phases** (`phases-reference.md`) say where in the lifecycle a unit
+is. keel's text uses **round** for one repetition of a review pass and for a work round, which
+runs a named subset of the phases (doctrine §3); the glossary notes others.
+ADR-0003 keeps consumer-specific knowledge in the consuming project; a project's own names for
+its work units are such knowledge.
+
 keel is the connective doctrine + the gates that live nowhere else (Definition-of-Ready,
 reflection-triage). It links to the three systems; it does not restate their mechanics.
 
