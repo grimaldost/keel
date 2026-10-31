@@ -23,18 +23,20 @@ stay the source of truth.
   (round N); the SERIES pass saves `<spec-stem>.series-premortem.md`. How many rounds a pass takes
   is sized by *the round economy*. A *work round* runs a named subset of the phases, declared in
   the spec header's `Phases:` line (doctrine §3, *subset of phases*).
-  Doctrine §1 also calls each of its three governed waves a round, meaning a whole series.
+  Among keel's other uses of the word, doctrine §1 calls each of its three governed waves a
+  round, meaning a whole series.
 - **A0…A13, R1, B1, B2, W1…W11** — the individual checks `keel check-ready` runs (the W-letters are
   WARN-only: they report, they never fail the gate); the authoritative list is
   `definition-of-ready.md`'s "Reference: what `check_spec_ready` asserts" block. Every finding the
   gate emits names its check in a field (`Violation.check`, `Warning.check`), never as a message
   prefix — `where` is a coordinate and collides across checks, so a count keyed on it fuses them.
-  keel's text writes these codes bare or as "check <code>", never with an owner token.
+  keel's text writes these codes bare, as "check <code>", or after the gate command that runs
+  them (`check-ready` B1/B2), never prefixed with a project or tool name.
 - **D1, D2** — the Decompose exit gate's pair, run by `keel decompose-check` at the 3→4 boundary
   over the `### Series review` record: B1/B2's shape applied to the SERIES pass, whose subject is
   the generated series rather than the spec. A separate catalogue from the DoR letters because it
   is a separate gate, at a boundary `check-ready` runs before.
-  keel's text writes these codes bare or as "check <code>", never with an owner token.
+  These codes are written the same way as those of the entry above.
 - **DESIGN pass / SERIES pass** — the two blind pre-mortems: the first reads the spec and closes
   Specify (B1/B2), the second reads the GENERATED series against the spec and closes Decompose
   (D1/D2). Same reviewer contract, different artifact.

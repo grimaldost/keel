@@ -21,7 +21,7 @@ skill's Reflect step runs.
 ADR-0003 — and the phase-8 loop is a template procedure, not a deterministic gate.)
 
 In this reference "phase" means one of these eight; some older keel text uses it for a larger
-stretch of work, which is a series or a program (`concepts.md`). A work round may run a named
+stretch of work, a series or a stage of a program (`concepts.md`). A work round may run a named
 subset of the eight, declared in the spec header's `Phases:` line; the unused phases are named as
 skipped, not faked (doctrine §3). The "wave estimate" and "wave budget" of phase 4 are the
 series' (one `[budget]` block per series file); there *wave* means a whole series (`glossary.md`,
