@@ -20,9 +20,9 @@ skill's Reflect step runs.
 (`keel check-ready` is live as of 0.2.0; `keel budget-drift` is still a stub — deferred,
 ADR-0003 — and the phase-8 loop is a template procedure, not a deterministic gate.)
 
-"Phase" in keel names one of these eight and nothing else. A larger stretch of work is a
-program or a series (`concepts.md`); a numbered step of one plan or skill is cited with that
-document; an orchestrator's keys spelled `phase` (a budget role, a check-scope tag) are
-called by what they do. A work round may run a named subset of the eight (doctrine §3); the
-unused phases are named as skipped, not faked. The "wave estimate" and "wave budget" of
-phase 4 are the wave's (`glossary.md`, *wave*).
+In this reference "phase" means one of these eight; some older keel text uses it for a larger
+stretch of work, which is a series or a program (`concepts.md`). A work round may run a named
+subset of the eight, declared in the spec header's `Phases:` line; the unused phases are named as
+skipped, not faked (doctrine §3). The "wave estimate" and "wave budget" of phase 4 are the
+series' (one `[budget]` block per series file); there *wave* means a whole series (`glossary.md`,
+*program / series / task; wave*).
