@@ -14,9 +14,10 @@ keel is one method at three nested scopes: **task ⊂ series ⊂ program**.
 Inside a series, the full spec template's optional `Wave` column names "the batch it ships with";
 elsewhere keel's text more often uses *wave* for a whole series (the Wave/PR DAG in `series.toml`,
 the wave budget). The eight **phases** (`phases-reference.md`) say where in the lifecycle a unit
-is. A **round** is one repetition of a review pass, and a work round runs a named subset of the
-phases (doctrine §3). A consuming project's own nouns and identifiers for its programs, periods
-and decisions stay in that project's documents (ADR-0003).
+is. keel's text uses **round** for one repetition of a review pass and for a work round, which
+runs a named subset of the phases (doctrine §3); the glossary lists its other use.
+Consumer-specific knowledge, including a consuming project's own names for its work units, stays in
+that project (ADR-0003).
 
 keel is the connective doctrine + the gates that live nowhere else (Definition-of-Ready,
 reflection-triage). It links to the three systems; it does not restate their mechanics.

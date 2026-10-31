@@ -15,32 +15,26 @@ stay the source of truth.
   series, as in the Wave/PR DAG (`series.toml`), the wave estimate and wave budget of phase 4 (one
   `[budget]` block per series file) and the three governed waves of doctrine §1.
 - **phase** — in this glossary and in `phases-reference.md`, one of the eight lifecycle phases.
-  Some older keel text uses *phase* for a larger stretch of work (`src/keel/bindings.py`,
-  `src/keel/survey.py`, `docs/backlog.md`); read it there as a series or a program.
+  Some keel text also uses *phase* for a larger stretch of work, a series or a stage of a program
+  (`src/keel/bindings.py`, `src/keel/survey.py`, and some rows of `docs/backlog.md`).
 - **round** — one repetition of a review *pass*. A pass is a named kind of review (the DESIGN
   pass, the SERIES pass); *the round economy* also calls a single run a pass. A DESIGN-pass
   round's artifact is `<spec-stem>.premortem.md` (round 1) or `<spec-stem>.premortem-r<N>.md`
   (round N); the SERIES pass saves `<spec-stem>.series-premortem.md`. How many rounds a pass takes
   is sized by *the round economy*. A *work round* runs a named subset of the phases, declared in
   the spec header's `Phases:` line (doctrine §3, *subset of phases*).
-- **sibling citation** — how text that names more than one repository cites identifiers.
-  `docs/backlog.md` applies it to backlog rows: a sibling project's row is cited by its stable ID
-  with its owner prefix (`KEEL-B57`; the sibling prefixes are listed there). The gate output codes
-  of the *A0…A13, R1, B1, B2, W1…W11* and *D1, D2* entries are written bare (`A12`) or as "check
-  A12", never with an owner token: `KEEL-B01` is a backlog row, B1 a Part-B check. Enumerations
-  local to one document (a pre-mortem's FM-n, a spec's §n, a round's r3) are cited together with
-  their document.
+  Doctrine §1 also calls each of its three governed waves a round, meaning a whole series.
 - **A0…A13, R1, B1, B2, W1…W11** — the individual checks `keel check-ready` runs (the W-letters are
   WARN-only: they report, they never fail the gate); the authoritative list is
   `definition-of-ready.md`'s "Reference: what `check_spec_ready` asserts" block. Every finding the
   gate emits names its check in a field (`Violation.check`, `Warning.check`), never as a message
   prefix — `where` is a coordinate and collides across checks, so a count keyed on it fuses them.
-  Across repositories: see *sibling citation*.
+  keel's text writes these codes bare or as "check <code>", never with an owner token.
 - **D1, D2** — the Decompose exit gate's pair, run by `keel decompose-check` at the 3→4 boundary
   over the `### Series review` record: B1/B2's shape applied to the SERIES pass, whose subject is
   the generated series rather than the spec. A separate catalogue from the DoR letters because it
   is a separate gate, at a boundary `check-ready` runs before.
-  Across repositories: see *sibling citation*.
+  keel's text writes these codes bare or as "check <code>", never with an owner token.
 - **DESIGN pass / SERIES pass** — the two blind pre-mortems: the first reads the spec and closes
   Specify (B1/B2), the second reads the GENERATED series against the spec and closes Decompose
   (D1/D2). Same reviewer contract, different artifact.
