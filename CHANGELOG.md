@@ -5,6 +5,18 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
+## [Unreleased]
+
+### Changed
+
+- **railform re-pinned to 0.4.0.** CI, the tag watch and the pre-commit entry now pin the
+  railform 0.4.0 release, and `adopt` regenerates the hook wrappers (which gain railform's egress
+  extension point) and rewrites the `gate` job's `runs-on` line. keel's `railform.toml` needed no
+  change: it sets neither `private_refs.names_file_env` nor `private_refs.names_enabled`, which
+  0.4.0 removes. From this pin `railform private-refs`, in the hook and in CI, judges
+  home-directory paths only: no project gate checks names, and that check takes an environment's
+  egress hook, which railform does not ship.
+
 ## [0.24.2] - 2026-10-27
 
 A patch: the triage template names its ground, the pre-mortem file name is stated once, and A12's text says

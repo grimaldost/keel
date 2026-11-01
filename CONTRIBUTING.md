@@ -218,7 +218,8 @@ is not:
 | The pre-mortem directives have one home | enforced | `tests/test_premortem_agent.py` (ADR-0017) |
 | Commit subjects are conventional and carry no AI-attribution trailer | enforced | railform's `railform-commit-msg` hook through `.githooks/commit-msg`, once the clone is armed, and its `commit-lane` CI job over every commit and the PR text |
 | Branch names are a lowercase category, a slash and a slug (`dependabot/**` allowed) | enforced | railform's `railform-branch-name` hook through `.githooks/pre-push`, once the clone is armed, and the `commit-lane` CI job |
-| No private reference (name or path) lands in a tracked file | enforced | railform's `railform-private-refs` hook through `.githooks/pre-commit`, once the clone is armed, and the `checks` job in CI |
+| No home-directory path lands in a tracked file | enforced | railform's `railform-private-refs` hook through `.githooks/pre-commit`, once the clone is armed, and the `checks` job in CI |
+| Private names do not land in a tracked file | absent | not a project gate here: that check takes an environment's egress hook, which railform does not ship |
 | The hook wrappers match what `railform adopt` renders, and the adopted parts have not drifted | enforced | railform's `railform-hooks-check` hook through `.githooks/pre-commit`, once the clone is armed, and the `hooks` job in CI |
 | The four capped bodies stay within budget | enforced | `tests/test_body_budgets.py` |
 | A shipped-kit change carries a CHANGELOG entry, a release heading moves the version forward, and a contract-surface change wants the `(consumer-affecting)` marker (advisory) | enforced; the marker is advisory | railform's changelog gate, the `changelog` job of the `railform` job in CI, on every PR (rows in `railform.toml`) |
