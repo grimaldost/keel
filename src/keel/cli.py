@@ -41,8 +41,10 @@ from keel.vocabulary import (
     nearest_block_dir,
     newline_of,
     place_block,
+    project_file,
     render_block,
     resolve,
+    user_file,
 )
 
 app = typer.Typer(
@@ -211,9 +213,10 @@ _NOTICE_FIX = 'run keel vocabulary --write'
 def _vocabulary_notice(spec: Path) -> list[str]:
     """One WARN line per instruction file beside the nearest block that lacks the current one.
 
-    Silent when no block sits on the spec's walk, when the project binds no vocabulary, and when
-    only keel's own nouns resolve (no project file, no user-level file): such a machine cannot
-    judge a block. Any fault yields one line naming it and nothing else; it never raises.
+    Silent when no project file applies and no user-level file is present (such a machine cannot
+    judge a block that depends on a user-level file), when the project binds no vocabulary, and
+    when no block sits on the spec's walk. Any fault yields one line naming it and nothing else;
+    it never raises.
     """
     try:
         return _judge_vocabulary_blocks(spec)
@@ -222,14 +225,34 @@ def _vocabulary_notice(spec: Path) -> list[str]:
         return [f'WARN: the vocabulary block could not be judged — {defect}']
 
 
+def _declares_not_bound(directory: Path) -> bool:
+    """Whether the project file that applies to `directory` declares the project not bound.
+
+    A malformed file declares nothing: its fault is reported once a block is found, when the
+    vocabulary is resolved there, and a project with no block stays silent.
+    """
+    try:
+        return resolve(directory, assume_scope=True).not_bound is not None
+    except VocabularyError:
+        return False
+
+
 def _judge_vocabulary_blocks(spec: Path) -> list[str]:
-    directory = nearest_block_dir(spec.resolve().parent)
+    start = spec.resolve().parent
+    # The silences that need no instruction file come first, so a repository that never adopted
+    # the vocabulary has none of its instruction files read.
+    project = project_file(start)
+    if project is None or not project.is_file():
+        user = user_file()
+        if user is None or not user.exists():
+            return []
+    elif _declares_not_bound(start):
+        return []
+    directory = nearest_block_dir(start)
     if directory is None:
         return []
     vocab = resolve(directory, assume_scope=True)
     if vocab.not_bound is not None or vocab.digest is None:
-        return []
-    if all(layer.name == 'keel' for layer in vocab.layers):
         return []
     resolved = vocab.digest[:DIGEST_CHARS]
     lines: list[str] = []

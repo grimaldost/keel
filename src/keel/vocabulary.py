@@ -238,6 +238,15 @@ def git_toplevel(directory: Path) -> Path | None:
     return Path(proc.stdout.strip()).resolve()
 
 
+def project_file(directory: Path) -> Path | None:
+    """Where the project file for `directory` would sit (at its git top level); None outside git.
+
+    The path is returned whether or not the file exists.
+    """
+    top = git_toplevel(directory)
+    return top / _PROJECT_FILE if top is not None else None
+
+
 def _carries_block(path: Path) -> bool:
     try:
         text = path.read_bytes().decode('utf-8-sig')
@@ -258,37 +267,24 @@ def _instruction_files(directory: Path) -> list[Path]:
 def in_scope(directory: Path) -> bool:
     """Whether the user-level file's additions apply to `directory`.
 
-    Inside git, every instruction file from the directory up to the top level counts, and any one
-    carrying the block puts the directory in scope. Outside git, the first directory (itself
-    included) holding an instruction file ends the walk, and its files alone decide.
+    In scope when `nearest_block_dir` finds a directory on the walk; see it for the walk.
 
     Raises VocabularyError naming the file when an instruction file on the walk cannot be read or
     decoded as UTF-8.
     """
-    current = directory.resolve()
-    top = git_toplevel(directory)
-    if top is not None:
-        while True:
-            if any(_carries_block(path) for path in _instruction_files(current)):
-                return True
-            if current == top or current.parent == current:
-                return False
-            current = current.parent
-    while True:
-        files = _instruction_files(current)
-        if files:
-            return any(_carries_block(path) for path in files)
-        if current.parent == current:
-            return False
-        current = current.parent
+    return nearest_block_dir(directory) is not None
 
 
 def nearest_block_dir(directory: Path) -> Path | None:
     """The nearest directory on `directory`'s walk whose instruction file carries the block.
 
-    The walk is `in_scope`'s: inside git, from the directory up to the top level; outside git, up
-    to and including the first directory holding an instruction file. None when no file on it
-    carries the block.
+    Inside git, every instruction file from the directory up to the top level counts, and the
+    first directory with one carrying the block is returned. Outside git, the first directory
+    (itself included) holding an instruction file ends the walk, and its files alone decide. None
+    when no file on the walk carries the block.
+
+    Raises VocabularyError naming the file when an instruction file on the walk cannot be read or
+    decoded as UTF-8.
     """
     current = directory.resolve()
     top = git_toplevel(directory)
@@ -598,8 +594,7 @@ def declares_generated(text: str) -> bool:
 def resolve(directory: Path, *, assume_scope: bool = False) -> Vocabulary:
     """Resolve the vocabulary that applies to `directory`, reading every file afresh."""
     scope = True if assume_scope else in_scope(directory)
-    top = git_toplevel(directory)
-    project = top / _PROJECT_FILE if top is not None else None
+    project = project_file(directory)
     if project is not None and project.is_file():
         loaded = _load(project, 'project')
         layers = (Layer('project', str(project), loaded.schema),)
