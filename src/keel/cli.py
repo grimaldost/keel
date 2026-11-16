@@ -28,7 +28,18 @@ from keel.reanchor import CertifiedBodyError, reanchor
 from keel.show import available, body
 from keel.survey import survey
 from keel.templates import copy_templates, stamp_spec
-from keel.vocabulary import Vocabulary, VocabularyError, resolve
+from keel.vocabulary import (
+    INSTRUCTION_FILES,
+    Vocabulary,
+    VocabularyError,
+    declares_generated,
+    find_block,
+    git_toplevel,
+    newline_of,
+    place_block,
+    render_block,
+    resolve,
+)
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -312,14 +323,165 @@ def _vocabulary_text(path: Path, vocab: Vocabulary) -> list[str]:
     return lines
 
 
+def _block_files(root: Path, named: list[str]) -> list[Path]:
+    """The files the block goes in: those named, else the root's AGENTS.md and any CLAUDE.md."""
+    if named:
+        return list(dict.fromkeys(Path(name).resolve() for name in named))
+    first, *others = INSTRUCTION_FILES
+    return [root / first, *(root / name for name in others if (root / name).is_file())]
+
+
+def _read_instruction_file(path: Path) -> str:
+    try:
+        return path.read_bytes().decode('utf-8')
+    except (OSError, UnicodeDecodeError) as exc:
+        raise VocabularyError(
+            format_error(
+                what=f'{path}: the instruction file cannot be read as UTF-8 ({exc})',
+                why='the block is placed only in a file whose every other byte can be kept',
+                fix='save it as UTF-8, or make it readable',
+            )
+        ) from exc
+
+
+def _plan_block(vocab: Vocabulary, path: Path) -> tuple[bytes | None, str]:
+    """The bytes `path` should hold (None: leave it), and the line saying what was done."""
+    digest = (vocab.digest or '')[:12]
+    if not path.exists():
+        if not path.parent.is_dir():
+            raise VocabularyError(
+                format_error(
+                    what=f'{path}: its folder does not exist',
+                    why='keel creates an instruction file, never the folders above it',
+                    fix='create the folder, or name another file with --file',
+                )
+            )
+        block = render_block(vocab)
+        return block.encode('utf-8'), f'created {path} holding the vocabulary block ({digest})'
+    text = _read_instruction_file(path)
+    if declares_generated(text):
+        raise VocabularyError(
+            format_error(
+                what=f'{path}: its first lines declare it generated',
+                why='a block written into a generated file is lost when it is next generated',
+                fix="put the block in that file's generator, or name other files with --file",
+            )
+        )
+    try:
+        had_block = find_block(text) is not None
+        placed = place_block(text, render_block(vocab, newline_of(text)))
+    except ValueError as exc:
+        raise VocabularyError(
+            format_error(
+                what=f'{path}: {exc}',
+                why='keel replaces exactly one block and cannot tell which span is its own',
+                fix='leave one begin and one end marker in the file, or remove both',
+            )
+        ) from exc
+    raw = placed.encode('utf-8')
+    if raw == path.read_bytes():
+        return None, f'{path} already carries the current vocabulary block ({digest}); unchanged'
+    verb = 'replaced the vocabulary block in' if had_block else 'added the vocabulary block to'
+    return raw, f'{verb} {path} ({digest})'
+
+
+def _write_block(vocab: Vocabulary, files: list[Path]) -> None:
+    """Place the block in every file, or, on any refusal, change nothing and exit 2."""
+    if vocab.not_bound is not None:
+        typer.echo(
+            format_error(
+                what=f'not bound — {vocab.not_bound} ({vocab.layers[0].source})',
+                why='a project that binds no vocabulary has no block to place',
+                fix='list the nouns in the project vocabulary file, or leave the files as they are',
+            )
+        )
+        raise typer.Exit(code=2)
+    plans: list[tuple[Path, bytes | None, str]] = []
+    refusals: list[str] = []
+    for path in files:
+        try:
+            plans.append((path, *_plan_block(vocab, path)))
+        except VocabularyError as exc:
+            refusals.append(str(exc))
+    if refusals:
+        typer.echo('\n\n'.join(refusals))
+        typer.echo('nothing written.')
+        raise typer.Exit(code=2)
+    for path, raw, message in plans:
+        if raw is not None:
+            path.write_bytes(raw)
+        typer.echo(message)
+    raise typer.Exit(code=0)
+
+
+def _check_block(vocab: Vocabulary, files: list[Path]) -> None:
+    """Exit 0 when every file carries the current block, 1 when one is missing or stale."""
+    if vocab.not_bound is not None:
+        typer.echo(f'not bound — {vocab.not_bound}')
+        raise typer.Exit(code=0)
+    digest = (vocab.digest or '')[:12]
+    behind = 0
+    for path in files:
+        if not path.exists():
+            behind += 1
+            typer.echo(f'{path}: absent, no vocabulary block (resolved {digest})')
+            continue
+        try:
+            span = find_block(_read_instruction_file(path))
+        except VocabularyError as exc:
+            typer.echo(str(exc))
+            raise typer.Exit(code=2) from exc
+        except ValueError as exc:
+            behind += 1
+            typer.echo(f'{path}: {exc} (resolved {digest})')
+            continue
+        if span is None:
+            behind += 1
+            typer.echo(f'{path}: no vocabulary block (resolved {digest})')
+        elif span.digest != digest:
+            behind += 1
+            typer.echo(f'{path}: stale block {span.digest}, resolved {digest}')
+        else:
+            typer.echo(f'{path}: current ({digest})')
+    if behind:
+        typer.echo('run `keel vocabulary --write` to place the current block.')
+        raise typer.Exit(code=1)
+    typer.echo(f'every file carries the current vocabulary block ({digest}).')
+    raise typer.Exit(code=0)
+
+
+_FILE_OPTION = typer.Option(
+    None,
+    '--file',
+    metavar='FILE',
+    help='With --write or --check: a file to use instead of AGENTS.md and CLAUDE.md; repeatable.',
+)
+
+
 @app.command('vocabulary')
 def vocabulary_cmd(
     path: str = typer.Argument(
         '.', help='The directory whose vocabulary to resolve; default: the current one.'
     ),
     as_json: bool = typer.Option(False, '--json', help='Print one JSON object instead of text.'),
+    write: bool = typer.Option(
+        False, '--write', help="Write the vocabulary block into the root's instruction files."
+    ),
+    check: bool = typer.Option(
+        False, '--check', help='Exit 1 when an instruction file lacks the current block.'
+    ),
+    files: list[str] | None = _FILE_OPTION,
 ) -> None:
     """Print the work-unit vocabulary that applies to a directory, with its layers and digest."""
+    if write and check:
+        typer.echo('--write and --check are exclusive: write the block, or check it.')
+        raise typer.Exit(code=2)
+    if files and not (write or check):
+        typer.echo('--file takes effect with --write or --check.')
+        raise typer.Exit(code=2)
+    if as_json and (write or check):
+        typer.echo('--json prints the vocabulary; it does not combine with --write or --check.')
+        raise typer.Exit(code=2)
     if not Path(path).is_dir():
         typer.echo(
             format_error(
@@ -332,10 +494,13 @@ def vocabulary_cmd(
         raise typer.Exit(code=2)
     resolved = Path(path).resolve()
     try:
-        vocab = resolve(resolved)
+        vocab = resolve(resolved, assume_scope=write or check)
     except VocabularyError as exc:
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
+    if write or check:
+        targets = _block_files(git_toplevel(resolved) or resolved, files or [])
+        (_write_block if write else _check_block)(vocab, targets)
     if as_json:
         payload = {
             'path': str(resolved),

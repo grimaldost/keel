@@ -24,6 +24,17 @@ Tags start at 0.4.0; earlier versions were released before the public history be
   `allowed`, `rule`, `retired`, `notes`, `not_bound` and `digest`. Exit codes: 0 resolved, a
   not-bound project included; 2 a malformed vocabulary file, an unreadable instruction file, or a
   PATH that is not a directory, printing the error that names the file or the path.
+- **`keel vocabulary --write`, `--check` and `--file` (consumer-affecting).** `--write` resolves
+  the vocabulary with scope assumed and writes it as a block between two marker lines, the begin
+  line carrying the digest's first 12 hex digits, rendering the noun names, the rule and a line
+  naming `keel vocabulary`. It writes the root's `AGENTS.md`, creating it when absent and saying
+  so (unlike `keel init`, which never creates one), and the root's `CLAUDE.md` when one exists; the
+  root is PATH's git top level, else PATH itself. An existing block is replaced in place, every
+  byte outside it and the file's newline style kept. It exits 2, changing nothing, on a file whose
+  first lines declare it generated, on a file with a malformed block, and on a not-bound project.
+  `--check` exits 0 when every file carries a block with the resolved digest, 1 when a block is
+  missing or stale (printing both digests), and 2 on a malformed vocabulary file; it judges against
+  the vocabulary as resolved on this machine. `--file FILE`, repeatable, names the files instead.
 
 ### Changed
 

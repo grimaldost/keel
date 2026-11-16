@@ -466,6 +466,93 @@ def _vocabulary(
     )
 
 
+_ANY_BEGIN_LINE = re.compile(r'<!-- keel:vocabulary begin digest=(\S*) -->')
+_GENERATED = 'GENERATED'
+_HAND_EDIT = 'do not hand-edit'
+
+
+def render_block(vocab: Vocabulary, newline: str = '\n') -> str:
+    """The instruction-file block: the noun names, the rule and a pointer, between the markers.
+
+    Each line ends in `newline`. A not-bound vocabulary has no digest and renders no block.
+    """
+    if vocab.digest is None:
+        raise ValueError('a not-bound vocabulary renders no block')
+    lines = [
+        BLOCK_BEGIN.format(digest=vocab.digest[:12]),
+        f'Work-unit nouns: {", ".join(noun.name for noun in vocab.nouns)}.',
+        *vocab.rule.strip('\n').split('\n'),
+        'Senses, allowed terms and sources: run `keel vocabulary`.',
+        BLOCK_END,
+    ]
+    return ''.join(line + newline for line in lines)
+
+
+@dataclass(frozen=True)
+class BlockSpan:
+    """Where a block sits in a text: `start` is its begin line, `end` is past its end line."""
+
+    start: int
+    end: int
+    digest: str
+
+
+def find_block(text: str) -> BlockSpan | None:
+    """Locate the vocabulary block in `text`, or None when it carries none.
+
+    Raises ValueError naming the defect when the text holds more than one begin line, or a begin
+    line with no end line after it.
+    """
+    begins: list[tuple[int, str]] = []
+    ends: list[int] = []
+    offset = 0
+    for line in text.split('\n'):
+        stop = offset + len(line)
+        start = offset + 1 if line.startswith('﻿') else offset
+        content = line.rstrip().lstrip('﻿')
+        if match := _ANY_BEGIN_LINE.fullmatch(content):
+            begins.append((start, match.group(1)))
+        elif content == BLOCK_END:
+            ends.append(min(stop + 1, len(text)))
+        offset = stop + 1
+    if not begins:
+        return None
+    if len(begins) > 1:
+        raise ValueError(f'{len(begins)} vocabulary begin markers, where one block takes one')
+    start, digest = begins[0]
+    end = next((end for end in ends if end > start), None)
+    if end is None:
+        raise ValueError('a vocabulary begin marker with no end marker after it')
+    return BlockSpan(start=start, end=end, digest=digest)
+
+
+def newline_of(text: str) -> str:
+    """The text's newline style: CRLF when it holds one, else LF."""
+    return '\r\n' if '\r\n' in text else '\n'
+
+
+def place_block(text: str, block: str) -> str:
+    """`text` with `block` in place: its existing block replaced, else appended after a blank line.
+
+    Every character outside the replaced span is kept. Raises ValueError as `find_block` does.
+    """
+    span = find_block(text)
+    if span is not None:
+        if not text[: span.end].endswith('\n'):
+            block = block.rstrip('\r\n')
+        return text[: span.start] + block + text[span.end :]
+    if not text:
+        return block
+    newline = newline_of(text)
+    return text + ('' if text.endswith('\n') else newline) + newline + block
+
+
+def declares_generated(text: str) -> bool:
+    """Whether the first five lines declare the text generated (`GENERATED`, `do not hand-edit`)."""
+    head = text.split('\n')[:5]
+    return any(_GENERATED in line or _HAND_EDIT in line.lower() for line in head)
+
+
 def resolve(directory: Path, *, assume_scope: bool = False) -> Vocabulary:
     """Resolve the vocabulary that applies to `directory`, reading every file afresh."""
     scope = True if assume_scope else in_scope(directory)
