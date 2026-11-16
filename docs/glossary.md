@@ -26,9 +26,10 @@ stay the source of truth.
   Among keel's other uses of the word, doctrine §1 calls each of its three governed waves a
   round, meaning a whole series.
 - **vocabulary** — the nouns a directory's work units are named with, as `keel vocabulary`
-  resolves them in three layers: keel's own nouns (the entries above, with *pass* allowed), a
-  user-level `vocabulary.toml` whose additions apply only in scope, and a project file
-  `.keel/vocabulary.toml` that replaces both or declares the project not bound.
+  resolves them in three layers: keel's own nouns (program, series, task, wave, phase and round,
+  with *pass* allowed), a user-level `vocabulary.toml` whose additions apply only in a directory
+  whose instruction files, or a parent directory's, carry the block described below, and a
+  project file `.keel/vocabulary.toml` that replaces both or declares the project not bound.
   `keel vocabulary --write` places the resolved list as a marked block in `AGENTS.md` (and
   `CLAUDE.md` when one exists). The *digest* is a sha256 over exactly what the block renders; the
   block's begin line carries its first 12 hex digits, which `--check` compares. The pre-mortem

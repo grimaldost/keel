@@ -54,18 +54,28 @@ Tags start at 0.4.0; earlier versions were released before the public history be
   egress hook, which railform does not ship.
 - **The pre-mortem reviewer reads unit nouns.** The directive block's profile paragraph now loads
   two lenses before the spec is read: the sheet the header's `Profile:` selects, as before, and,
-  when the dispatch pastes one, the output of `keel vocabulary`. Against it, a unit noun outside
-  the list, or a listed noun in a sense the list does not record, is an advisory finding of
-  severity MINOR at most, never a condition and never by itself a reason for a verdict other than
-  CERTIFIED; an allowed term is never a finding, and with no vocabulary pasted the reviewer infers
-  none and raises no noun findings. A displacing rewrite (CONTRIBUTING, Body budgets): the lens
-  displaced wording compressed elsewhere in the directive block (the source-grounding and
-  generated-artifact checks, the freshness-gate clause, the disconfirming-test and `cleared:`
-  framing, the rising bar, the staged-files and SERIES-pass wording), whose word count did not
-  grow: 1668 words before, 1668 after. The `apply-method` skill's two dispatch steps, the Specify
-  step's pass and the SERIES pass, paste the output of `keel vocabulary` for the spec's folder
-  beside what they send; the glossary gains a `vocabulary` entry (the three layers, the block and
-  the digest), and `concepts.md` names `keel vocabulary` as where a project's own list is resolved.
+  when the dispatch pastes one, the output of `keel vocabulary`. Against it, a unit noun outside the
+  list, or a listed noun in a sense the list does not record, is an advisory finding of severity
+  MINOR at most, never a condition and never by itself a reason for a verdict other than CERTIFIED;
+  an allowed term is never a finding, and with no vocabulary pasted the reviewer infers none and
+  raises no noun findings. A displacing rewrite (CONTRIBUTING, Body budgets): the lens is paid for
+  by wording compressed elsewhere in the directive block, with no directive dropped. The compressed
+  clauses are the source-grounding and generated-artifact checks; the stale-referent check's SHA
+  clause; the word "recorded" repeated in the stress-test check; the staged-files check, where "the
+  orchestrator's file-staging step" became "the orchestrator"; the freshness-gate clause, which
+  loses its two leading "And"s and the restatement "it is not deferrable" and reads "EVERY source
+  change" for "EVERY change to its source"; the disconfirming-test sentence, which leaves "the one
+  observation that would confirm or refute it" to the `disconfirming_test:` field that already says
+  so; the `cleared:` and `conditions:` framing; the `Unverified-offline: <N>` sentence; the
+  convergence rule's "rather than forcing", now "not"; the rising bar's opening "on a re-review the
+  bar for BLOCKER/MAJOR rises"; and the SERIES-pass checklist's opening condition, its word
+  "actually" and its per-PR item's "not just its own PR". The block's word count did not grow: 1668
+  words before, 1667 after. The `apply-method` skill's two dispatch steps, the Specify step's pass
+  and the SERIES pass, paste the output of `keel vocabulary` for the spec's folder beside what they
+  send, unless that output reports `not bound` or an error, in which case they paste nothing and the
+  reviewer raises no noun findings; the glossary gains a `vocabulary` entry (the three layers, the
+  block and the digest), and `concepts.md` names `keel vocabulary` as where a project's own list is
+  resolved.
 
 ## [0.24.2] - 2026-10-27
 

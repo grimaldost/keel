@@ -36,7 +36,7 @@ most likely first. For each:
 Do not propose implementation. Only changes to the spec/manifest/prompts.
 
 Two lenses — load both before you read the spec: the header's `Profile:` field selects one sheet of
-`pre-mortem-profiles.md` (`measurement`, `data-pipeline`); READ it and apply its items as
+`pre-mortem-profiles.md` (`measurement`, `data-pipeline`); READ that sheet and apply its items as
 directives of this pass, naming in your prose which profile you applied and which of its probes
 fired (a `code` profile, or a header declaring none, selects no sheet and pays for none). When the
 dispatch pastes a vocabulary (`keel vocabulary` output), read it too: a unit noun outside its list,
@@ -72,7 +72,7 @@ partial, stale, moved, or wrong-shaped. Attack each:
   artifact — give it the same grounding scrutiny (a column-0 regex blind to indented code, or a
   fence that reads CLEAN on command failure, is the same blind spot one level up).
 - Stress-test recorded predictions: a predicted signal, an expected outcome, or a "this
-  discriminates" claim recorded in the spec is a claim to ATTACK, not a fact — could the quantity
+  discriminates" claim in the spec is a claim to ATTACK, not a fact — could the quantity
   predicted to vary actually floor/ceiling (every arm passes, or every arm fails), so the run
   measures nothing? A spec that MEASURES something carries more of this attack in its profile
   sheet, feasibility first.
@@ -89,7 +89,7 @@ the artifact too:
 - Cross-PR generated artifacts: if a PR regenerates a derived artifact (a generated API-doc mirror,
   an exported-symbol snapshot) from a source surface, check whether a LATER PR mutates that surface —
   if so the regenerator must re-run in/after the last mutating PR, and its freshness test runs on the
-  FULL tree, not a per-domain subset. If a freshness gate asserts that artifact in sync on EVERY source change (a committed mirror/lockfile/golden with a per-change test), regeneration is not deferrable: each PR that perturbs the source regenerates its slice in that same PR. The trigger runs BOTH directions: whenever the series TOUCHES a source surface, enumerate its downstream generated/mirrored/golden artifacts and their freshness gates — a wave that plans no regeneration can still leave a mirror stale, and its freshness gate then fails at execution on a spec every pass certified.
+  FULL tree, not a per-domain subset. If a freshness gate asserts that artifact in sync on EVERY source change (a committed mirror/lockfile/golden with a per-change test), the regenerate-after-the-last-mutating-PR option does not apply to a surface the series' own gates read: each PR that perturbs the source regenerates its slice in that same PR. The trigger runs BOTH directions: whenever the series TOUCHES a source surface, enumerate that surface's downstream generated/mirrored/golden artifacts and their freshness gates — a wave that plans no regeneration can still leave a mirror stale, and its freshness gate then fails at execution on a spec every pass certified.
 
 Cross-artifact consistency (DC4-B) — artifacts that must agree (design, REVIEW command, CHANGELOG):
 - Intent vs. executable: every test or gate the DESIGN names for the reviewer subset must appear in
@@ -105,7 +105,7 @@ Verify the transformation (DC3) — the fold/fix is an unverified, instance-scop
 Counting — does each test-count count pytest ITEMS (post-parametrize), not function defs? Is each
 code construct enumerated by AST, with grep only as a superset pre-filter?
 
-Emit findings as a YAML list, one entry per failure mode, then the prose. Each mode also names its cheapest disconfirming test, the one observation that would confirm or refute it (smallest_fix prevents the mode; the stress-tested predictions above attack the spec's own claims), so a predicted-but-dead risk is closed by evidence, not left as a worry:
+Emit findings as a YAML list, one entry per failure mode, then the prose. Each mode also names its cheapest disconfirming test (unlike smallest_fix, which prevents the mode, and the stress-tested predictions above, which attack the spec's own claims), so a predicted-but-dead risk is closed by evidence, not left as a worry:
   - id: FM-1
     severity: BLOCKER      # BLOCKER | MAJOR | MINOR
     evidence: path/to/file.py:line
@@ -115,17 +115,17 @@ Emit findings as a YAML list, one entry per failure mode, then the prose. Each m
     consumed_input: "<required when the mode predicts a cross-artifact coupling (changing X breaks / drifts / regenerates Y): the concrete input the dependent actually consumes (installed symbols / packaging metadata / a generated file / a gate's scan surface), verified by READING that consumer — a coupling that cannot name its consumed input is a hypothesis to close via its disconfirming_test, not a MUST>"
     target_section: "section N"
 
-Also return, when applicable: an optional `cleared:` list (claims you verified CORRECT, each with its cite), so a cleared risk reads as a confirmation, not an unapplied fix; on CONDITIONAL-CERTIFY, a structured `conditions:` list (each a named fix of at most two lines), so multi-spec synthesis is collation, not interpretation; and an `Unverified-offline: <N>` count on the line immediately preceding the terminal verdict line, N counting the claims left tagged unverified-offline because a directive requiring EXECUTION (the autofixer simulation, post-parametrize collection counting, AST enumeration) could not run on your runner.
+Also return, when applicable: an optional `cleared:` list (claims you verified CORRECT, each with its cite), so a cleared risk reads as a confirmation, not an unapplied fix; on CONDITIONAL-CERTIFY, a structured `conditions:` list (each a named fix of at most two lines), so multi-spec synthesis is collation, not interpretation; and an `Unverified-offline: <N>` count on the line immediately preceding the terminal verdict line: when a directive requires EXECUTION (the autofixer simulation, post-parametrize collection counting, AST enumeration) your runner cannot perform, tag each such claim unverified-offline; N counts them.
 
 Convergence (so hardened verification stays bounded): a pass STOPS when it surfaces zero new
 BLOCKER/MAJOR findings; emit CONDITIONAL-CERTIFY when only named MINOR fixes remain (ready modulo a
-listed <=N-line fix), rather than forcing another full round.
+listed <=N-line fix), not another full round.
 
-Rising bar (round >=2): on a re-review a finding is BLOCKER/MAJOR only if it plausibly corrupts the decision the spec gates, not merely improves the spec. A round that surfaces only nice-to-haves is CERTIFY-with-advisories (fold them as advisories), not another full round; do not manufacture a blocker to justify a pass.
+Rising bar (round >=2): a finding is BLOCKER/MAJOR only if it plausibly corrupts the decision the spec gates, not merely improves the spec. A round that surfaces only nice-to-haves is CERTIFY-with-advisories (fold them as advisories), not another full round; do not manufacture a blocker to justify a pass.
 
 Re-gate posture (round >=2, the resolution audit): inputs are the revised spec plus the prior round's verdict record; FIRST audit each prior finding to RESOLVED / PARTIALLY-RESOLVED / UNRESOLVED with current-text evidence, THEN hunt fold-introduced defects (the second-pass rule above) under the rising bar; a fold that silently narrowed a promoted item is UNRESOLVED, not resolved.
 
-SERIES-pass checklist (the SERIES pass over a decomposed PR set attacks execution reality a DESIGN pass cannot see): base-branch content reality — confirm the base branch actually CONTAINS the infra/symbols the series consumes, not merely that a base exists (a series on the wrong base reads green and builds nothing); per-PR gate x contract-test interactions — a gate or contract test one PR adds may trip every later PR, so simulate it across the series; cross-prompt contract drift — when PR prompts are multi-authored, diff the contract one prompt emits against what the next consumes; decomposition completeness — every headline property and referenced asset the plan asserts is BUILT by a named PR (a "resumable" or "fallback" with no implementing PR ships as prose), and each acceptance test is ABLE to prove its invariant (a stub cannot prove a real-process property).
+SERIES-pass checklist (SERIES pass only, over a decomposed PR set: attack execution reality a DESIGN pass cannot see): base-branch content reality — confirm the base branch CONTAINS the infra/symbols the series consumes, not merely that a base exists (a series on the wrong base reads green and builds nothing); per-PR gate x contract-test interactions — a gate or contract test one PR adds may trip every later PR, so simulate it across the series; cross-prompt contract drift — when PR prompts are multi-authored, diff the contract one prompt emits against what the next consumes; decomposition completeness — every headline property and referenced asset the plan asserts is BUILT by a named PR (a "resumable" or "fallback" with no implementing PR ships as prose), and each acceptance test is ABLE to prove its invariant (a stub cannot prove a real-process property).
 
 <paste: the spec + the PR↔section manifest>
 ```
