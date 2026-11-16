@@ -38,6 +38,7 @@ from keel.vocabulary import (
     declares_generated,
     find_block,
     git_toplevel,
+    nearest_block_dir,
     newline_of,
     place_block,
     render_block,
@@ -196,7 +197,62 @@ def check_ready_cmd(
             "upgrade (uv tool upgrade keel) or run the plugin's copy"
         )
 
+    # Also not a GateResult warning, for the same reason: it judges the instruction files near the
+    # spec, never the spec, and it runs outside `run()` so nothing of it reaches the ledger.
+    for line in _vocabulary_notice(spec):
+        typer.echo(line)
+
     _emit(run, hint=_spec_template_hint)
+
+
+_NOTICE_FIX = 'run keel vocabulary --write'
+
+
+def _vocabulary_notice(spec: Path) -> list[str]:
+    """One WARN line per instruction file beside the nearest block that lacks the current one.
+
+    Silent when no block sits on the spec's walk, when the project binds no vocabulary, and when
+    only keel's own nouns resolve (no project file, no user-level file): such a machine cannot
+    judge a block. Any fault yields one line naming it and nothing else; it never raises.
+    """
+    try:
+        return _judge_vocabulary_blocks(spec)
+    except Exception as exc:  # a notice never breaks the gate, whatever the fault
+        defect = str(exc).split('\n', 1)[0].strip() or type(exc).__name__
+        return [f'WARN: the vocabulary block could not be judged — {defect}']
+
+
+def _judge_vocabulary_blocks(spec: Path) -> list[str]:
+    directory = nearest_block_dir(spec.resolve().parent)
+    if directory is None:
+        return []
+    vocab = resolve(directory, assume_scope=True)
+    if vocab.not_bound is not None or vocab.digest is None:
+        return []
+    if all(layer.name == 'keel' for layer in vocab.layers):
+        return []
+    resolved = vocab.digest[:DIGEST_CHARS]
+    lines: list[str] = []
+    for name in INSTRUCTION_FILES:
+        path = directory / name
+        if not path.is_file():
+            continue
+        _, text = _read_instruction_file(path)
+        try:
+            span = find_block(text)
+        except ValueError as exc:
+            raise VocabularyError(f'{path}: {exc}') from exc
+        if span is None:
+            lines.append(
+                f'WARN: the vocabulary block in {path} is missing (resolved {resolved}) — '
+                + _NOTICE_FIX
+            )
+        elif span.digest != resolved:
+            lines.append(
+                f'WARN: the vocabulary block in {path} is stale '
+                f'(block {span.digest}, resolved {resolved}) — {_NOTICE_FIX}'
+            )
+    return lines
 
 
 @app.command('decompose-check')

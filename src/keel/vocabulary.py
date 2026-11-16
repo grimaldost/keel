@@ -283,6 +283,26 @@ def in_scope(directory: Path) -> bool:
         current = current.parent
 
 
+def nearest_block_dir(directory: Path) -> Path | None:
+    """The nearest directory on `directory`'s walk whose instruction file carries the block.
+
+    The walk is `in_scope`'s: inside git, from the directory up to the top level; outside git, up
+    to and including the first directory holding an instruction file. None when no file on it
+    carries the block.
+    """
+    current = directory.resolve()
+    top = git_toplevel(directory)
+    while True:
+        files = _instruction_files(current)
+        if any(_carries_block(path) for path in files):
+            return current
+        if top is None and files:
+            return None
+        if current == top or current.parent == current:
+            return None
+        current = current.parent
+
+
 def _string(path: Path, where: str, key: str, value: Any) -> str:
     if not isinstance(value, str):
         raise _error(path, f'{where}: `{key}` must be a string', f'write `{key}` as a TOML string')

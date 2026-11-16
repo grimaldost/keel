@@ -42,6 +42,17 @@ Tags start at 0.4.0; earlier versions were released before the public history be
   repeatable, names the files instead. Both exit 2 on a PATH that is not a directory, and
   `--write` with `--check`, `--json` with either, or `--file` without either is a usage error
   (exit 2).
+- **`keel check-ready` warns on a stale vocabulary block (consumer-affecting).** Before the verdict,
+  the gate finds the nearest folder on the spec's walk whose `AGENTS.md` or `CLAUDE.md` carries
+  keel's vocabulary block, resolves the vocabulary there, and judges every instruction file in that
+  folder: one with a block whose digest differs prints `WARN: the vocabulary block in <file> is
+  stale (block <a>, resolved <b>) — run keel vocabulary --write`, and one without a block prints the
+  same line with `is missing (resolved <b>)`. It stays silent with no block, on a not-bound project,
+  and when neither a project file nor the user-level file applies (`KEEL_VOCABULARY=off`
+  included); a project's own noun list is judged on any machine. A fault on this path (a malformed
+  vocabulary file, an unreadable or undecodable instruction file) prints one line naming it and
+  never raises. Like the upgrade notice, the line has no check letter, is not written to the gate
+  ledger, and never changes the exit code.
 
 ### Changed
 
