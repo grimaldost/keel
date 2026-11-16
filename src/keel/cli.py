@@ -1,8 +1,10 @@
 """The keel CLI: deterministic gates + the init scaffolder."""
 
+import json
 import subprocess
 import sys
 from collections.abc import Callable
+from dataclasses import asdict
 from pathlib import Path
 
 import typer
@@ -12,6 +14,7 @@ from keel.bindings import check_bindings
 from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready, spec_hash
 from keel.decompose_check import check_decomposition
+from keel.errors import format_error
 from keel.gate_ledger import (
     is_suite_row,
     ledger_path,
@@ -25,6 +28,7 @@ from keel.reanchor import CertifiedBodyError, reanchor
 from keel.show import available, body
 from keel.survey import survey
 from keel.templates import copy_templates, stamp_spec
+from keel.vocabulary import Vocabulary, VocabularyError, resolve
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -273,6 +277,82 @@ def show_cmd(
     except LookupError as exc:
         typer.echo(str(exc))
         raise typer.Exit(code=2) from exc
+
+
+def _vocabulary_text(path: Path, vocab: Vocabulary) -> list[str]:
+    lines = [f'path: {path}', 'layers:']
+    for layer in vocab.layers:
+        schema = f' ({layer.schema})' if layer.schema else ''
+        lines.append(f'  {layer.name}: {layer.source}{schema}')
+    lines.append(f'scope: {"in scope" if vocab.in_scope else "not in scope"}')
+    if vocab.not_bound is not None:
+        lines.append(f'not bound — {vocab.not_bound}')
+        return lines
+    lines.append('nouns:')
+    for noun in vocab.nouns:
+        lines.append(f'{noun.name} [{noun.layer}] axis: {noun.axis}')
+        for sense in noun.senses:
+            lines.append(f'  sense: {sense.text}')
+            lines.append(f'    glossary: {sense.glossary}')
+        if noun.reading:
+            lines.append(f'  reading: {noun.reading}')
+        if noun.definition:
+            lines.append(f'  definition: {noun.definition}')
+    lines.append('allowed:')
+    lines.extend(f'  {item.term} [{item.layer}]: {item.note}' for item in vocab.allowed)
+    first, *rest = vocab.rule.split('\n')
+    lines.append(f'rule: {first}')
+    lines.extend(f'  {line}' if line else '' for line in rest)
+    lines.append('retired:')
+    lines.extend(f'  {item.noun} -> {item.instead}' for item in vocab.retired)
+    if vocab.notes:
+        lines.append('notes:')
+        lines.extend(f'  {note}' for note in vocab.notes)
+    lines.append(f'digest: {vocab.digest}')
+    return lines
+
+
+@app.command('vocabulary')
+def vocabulary_cmd(
+    path: str = typer.Argument(
+        '.', help='The directory whose vocabulary to resolve; default: the current one.'
+    ),
+    as_json: bool = typer.Option(False, '--json', help='Print one JSON object instead of text.'),
+) -> None:
+    """Print the work-unit vocabulary that applies to a directory, with its layers and digest."""
+    if not Path(path).is_dir():
+        typer.echo(
+            format_error(
+                what=f'{path}: not a directory',
+                why='`keel vocabulary` resolves the vocabulary for a directory, and git answers '
+                'only for one that exists.',
+                fix='Point it at an existing directory, or leave PATH out for the current one.',
+            )
+        )
+        raise typer.Exit(code=2)
+    resolved = Path(path).resolve()
+    try:
+        vocab = resolve(resolved)
+    except VocabularyError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2) from exc
+    if as_json:
+        payload = {
+            'path': str(resolved),
+            'in_scope': vocab.in_scope,
+            'layers': [asdict(layer) for layer in vocab.layers],
+            'nouns': [asdict(noun) for noun in vocab.nouns],
+            'allowed': [asdict(item) for item in vocab.allowed],
+            'rule': vocab.rule,
+            'retired': [asdict(item) for item in vocab.retired],
+            'notes': list(vocab.notes),
+            'not_bound': vocab.not_bound,
+            'digest': vocab.digest,
+        }
+        typer.echo(json.dumps(payload, ensure_ascii=False))
+    else:
+        typer.echo('\n'.join(_vocabulary_text(resolved, vocab)))
+    raise typer.Exit(code=0)
 
 
 @app.command('re-anchor')
