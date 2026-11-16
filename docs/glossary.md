@@ -25,6 +25,14 @@ stay the source of truth.
   the spec header's `Phases:` line (doctrine §3, *subset of phases*).
   Among keel's other uses of the word, doctrine §1 calls each of its three governed waves a
   round, meaning a whole series.
+- **vocabulary** — the nouns a directory's work units are named with, as `keel vocabulary`
+  resolves them in three layers: keel's own nouns (the entries above, with *pass* allowed), a
+  user-level `vocabulary.toml` whose additions apply only in scope, and a project file
+  `.keel/vocabulary.toml` that replaces both or declares the project not bound.
+  `keel vocabulary --write` places the resolved list as a marked block in `AGENTS.md` (and
+  `CLAUDE.md` when one exists). The *digest* is a sha256 over exactly what the block renders; the
+  block's begin line carries its first 12 hex digits, which `--check` compares. The pre-mortem
+  reviewer reads a pasted vocabulary as an advisory lens.
 - **A0…A13, R1, B1, B2, W1…W11** — the individual checks `keel check-ready` runs (the W-letters are
   WARN-only: they report, they never fail the gate); the authoritative list is
   `definition-of-ready.md`'s "Reference: what `check_spec_ready` asserts" block. Every finding the

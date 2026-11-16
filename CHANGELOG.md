@@ -62,7 +62,10 @@ Tags start at 0.4.0; earlier versions were released before the public history be
   displaced wording compressed elsewhere in the directive block (the source-grounding and
   generated-artifact checks, the freshness-gate clause, the disconfirming-test and `cleared:`
   framing, the rising bar, the staged-files and SERIES-pass wording), whose word count did not
-  grow: 1668 words before, 1668 after.
+  grow: 1668 words before, 1668 after. The `apply-method` skill's two dispatch steps, the Specify
+  step's pass and the SERIES pass, paste the output of `keel vocabulary` for the spec's folder
+  beside what they send; the glossary gains a `vocabulary` entry (the three layers, the block and
+  the digest), and `concepts.md` names `keel vocabulary` as where a project's own list is resolved.
 
 ## [0.24.2] - 2026-10-27
 

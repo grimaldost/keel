@@ -17,7 +17,7 @@ the wave budget). The eight **phases** (`phases-reference.md`) say where in the 
 is. keel's text uses **round** for one repetition of a review pass and for a work round, which
 runs a named subset of the phases (doctrine §3); the glossary notes others.
 ADR-0003 keeps consumer-specific knowledge in the consuming project; a project's own names for
-its work units are such knowledge.
+its work units are such knowledge, and `keel vocabulary` resolves that project's list.
 
 keel is the connective doctrine + the gates that live nowhere else (Definition-of-Ready,
 reflection-triage). It links to the three systems; it does not restate their mechanics.
