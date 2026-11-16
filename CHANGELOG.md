@@ -7,6 +7,16 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 
 ## [Unreleased]
 
+### Added
+
+- **A work-unit vocabulary resolver.** `keel.vocabulary` resolves the nouns a directory's work is
+  named with, in three layers: keel's own nouns (each sense resting on a glossary phrase, with
+  `pass` allowed), a user-level `vocabulary.toml` (`KEEL_VOCABULARY`, else the XDG config folder)
+  whose additions apply only to a directory in scope, and a project `.keel/vocabulary.toml` at the
+  git top level that replaces both or declares the project not bound. A directory is in scope when
+  an instruction file on its walk carries keel's vocabulary block, and the digest is a sha256 over
+  exactly what that block renders, the noun names and the rule, so it is the same on every machine.
+
 ### Changed
 
 - **railform re-pinned to 0.4.0.** CI, the tag watch and the pre-commit entry now pin the
