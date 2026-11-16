@@ -70,7 +70,7 @@ Tags start at 0.4.0; earlier versions were released before the public history be
   convergence rule's "rather than forcing", now "not"; the rising bar's opening "on a re-review the
   bar for BLOCKER/MAJOR rises"; and the SERIES-pass checklist's opening condition, its word
   "actually" and its per-PR item's "not just its own PR". The block's word count did not grow: 1668
-  words before, 1667 after. The `apply-method` skill's two dispatch steps, the Specify step's pass
+  words before, 1659 after. The `apply-method` skill's two dispatch steps, the Specify step's pass
   and the SERIES pass, paste the output of `keel vocabulary` for the spec's folder beside what they
   send, unless that output reports `not bound` or an error, in which case they paste nothing and the
   reviewer raises no noun findings; the glossary gains a `vocabulary` entry (the three layers, the
