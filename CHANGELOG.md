@@ -52,6 +52,17 @@ Tags start at 0.4.0; earlier versions were released before the public history be
   0.4.0 removes. From this pin `railform private-refs`, in the hook and in CI, judges
   home-directory paths only: no project gate checks names, and that check takes an environment's
   egress hook, which railform does not ship.
+- **The pre-mortem reviewer reads unit nouns.** The directive block's profile paragraph now loads
+  two lenses before the spec is read: the sheet the header's `Profile:` selects, as before, and,
+  when the dispatch pastes one, the output of `keel vocabulary`. Against it, a unit noun outside
+  the list, or a listed noun in a sense the list does not record, is an advisory finding of
+  severity MINOR at most, never a condition and never by itself a reason for a verdict other than
+  CERTIFIED; an allowed term is never a finding, and with no vocabulary pasted the reviewer infers
+  none and raises no noun findings. A displacing rewrite (CONTRIBUTING, Body budgets): the lens
+  displaced wording compressed elsewhere in the directive block (the source-grounding and
+  generated-artifact checks, the freshness-gate clause, the disconfirming-test and `cleared:`
+  framing, the rising bar, the staged-files and SERIES-pass wording), whose word count did not
+  grow: 1668 words before, 1668 after.
 
 ## [0.24.2] - 2026-10-27
 
