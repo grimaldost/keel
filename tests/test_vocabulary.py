@@ -14,13 +14,16 @@ from keel import __version__
 from keel.vocabulary import (
     BLOCK_BEGIN,
     BLOCK_END,
+    BLOCK_RE,
     DEFAULT_RULE,
+    DIGEST_CHARS,
     INSTRUCTION_FILES,
     SCHEMA,
     TOOL_ALLOWED,
     TOOL_NOUNS,
     Layer,
     VocabularyError,
+    block_marker,
     compute_digest,
     git_toplevel,
     in_scope,
@@ -30,7 +33,7 @@ from keel.vocabulary import (
 
 ROOT = Path(__file__).resolve().parent.parent
 TOOL_NAMES = ['program', 'series', 'task', 'wave', 'phase', 'round']
-BLOCK = BLOCK_BEGIN.format(digest='0123456789ab') + '\n- voyage\n' + BLOCK_END + '\n'
+BLOCK = block_marker('0123456789ab') + '\n- voyage\n' + BLOCK_END + '\n'
 
 
 @pytest.fixture(autouse=True)
@@ -197,6 +200,7 @@ def test_outside_git_the_folders_own_file_decides(tmp_path: Path, monkeypatch) -
     (berth / 'AGENTS.md').write_text('# Berth\n', encoding='utf-8')
 
     assert in_scope(series) is True
+    assert _names(resolve(series)) == [*TOOL_NAMES, 'voyage']
     assert in_scope(berth) is False
     assert _names(resolve(berth)) == TOOL_NAMES
 
@@ -215,6 +219,33 @@ def test_nested_file_without_block_stays_in_scope_inside_git(tmp_path: Path, mon
     assert _names(resolve(leg)) == [*TOOL_NAMES, 'voyage']
 
 
+def test_walk_stops_at_the_git_top_level(tmp_path: Path, monkeypatch) -> None:
+    _user_vocabulary(tmp_path, monkeypatch, USER_VOYAGE)
+    outer = tmp_path / 'outer'
+    outer.mkdir()
+    (outer / 'AGENTS.md').write_text(BLOCK, encoding='utf-8')
+    repo = _git_init(outer / 'repo')
+
+    assert git_toplevel(repo) == repo.resolve()
+    assert in_scope(repo) is False
+    assert _names(resolve(repo)) == TOOL_NAMES
+
+
+def test_outside_git_no_project_file_is_read(tmp_path: Path, monkeypatch) -> None:
+    _user_vocabulary(tmp_path, monkeypatch, USER_VOYAGE)
+    folder = tmp_path / 'voyage-folder'
+    folder.mkdir()
+    (folder / 'AGENTS.md').write_text(BLOCK, encoding='utf-8')
+    _project_vocabulary(
+        folder, f'schema = "{SCHEMA}"\n\n[[nouns]]\nname = "berth"\naxis = "scope"\n'
+    )
+
+    assert git_toplevel(folder) is None
+    vocabulary = resolve(folder)
+    assert _names(vocabulary) == [*TOOL_NAMES, 'voyage']
+    assert [layer.name for layer in vocabulary.layers] == ['keel', 'user']
+
+
 def test_block_with_crlf_line_endings_counts(tmp_path: Path) -> None:
     folder = tmp_path / 'plain'
     folder.mkdir()
@@ -226,8 +257,11 @@ def test_unreadable_instruction_file_names_it(tmp_path: Path) -> None:
     folder = tmp_path / 'plain'
     folder.mkdir()
     (folder / 'AGENTS.md').write_bytes(b'\xff\xfe\xfa not utf-8')
-    with pytest.raises(VocabularyError, match=re.escape('AGENTS.md')):
+    with pytest.raises(VocabularyError, match=re.escape('AGENTS.md')) as caught:
         in_scope(folder)
+    message = str(caught.value)
+    assert 'an instruction file on the scope walk' in message
+    assert 'vocabulary file' not in message
 
 
 # The project file
@@ -303,12 +337,72 @@ def test_project_file_shape_errors(tmp_path: Path, body: str, defect: str) -> No
     assert 'vocabulary.toml' in str(caught.value)
 
 
+@pytest.mark.parametrize(
+    ('body', 'key'),
+    [
+        ('rule = "Ask the bosun."\n', '`rule`'),
+        ('[[allowed]]\nterm = "tally"\nnote = "a count"\n', '[[allowed]]'),
+        ('[[retired]]\nnoun = "leg"\ninstead = "berth"\n', '[[retired]]'),
+    ],
+    ids=['rule', 'allowed', 'retired'],
+)
+def test_not_bound_takes_no_list(tmp_path: Path, body: str, key: str) -> None:
+    repo = _git_init(tmp_path / 'repo')
+    path = _project_vocabulary(
+        repo, f'schema = "{SCHEMA}"\nstatus = "not bound"\nreason = "x"\n{body}'
+    )
+    with pytest.raises(VocabularyError, match=re.escape(f'beside {key}')) as caught:
+        resolve(repo)
+    assert str(path) in str(caught.value)
+
+
 def test_status_is_unknown_in_the_user_file(tmp_path: Path, monkeypatch) -> None:
     path = _user_vocabulary(
         tmp_path, monkeypatch, f'schema = "{SCHEMA}"\nstatus = "not bound"\nreason = "x"\n'
     )
     with pytest.raises(VocabularyError, match='status') as caught:
         resolve(_git_init(tmp_path / 'repo'), assume_scope=True)
+    assert str(path) in str(caught.value)
+
+
+def test_user_noun_repeating_a_keel_noun_keeps_keels(tmp_path: Path, monkeypatch) -> None:
+    path = _user_vocabulary(
+        tmp_path,
+        monkeypatch,
+        f'schema = "{SCHEMA}"\n\n'
+        '[[nouns]]\nname = "series"\naxis = "scope"\n\n'
+        '[[nouns]]\nname = "voyage"\naxis = "scope"\n',
+    )
+
+    vocabulary = resolve(_git_init(tmp_path / 'repo'), assume_scope=True)
+
+    assert _names(vocabulary) == [*TOOL_NAMES, 'voyage']
+    assert next(n for n in vocabulary.nouns if n.name == 'series').layer == 'keel'
+    assert vocabulary.digest == compute_digest([*TOOL_NAMES, 'voyage'], DEFAULT_RULE)
+    assert len(vocabulary.notes) == 1
+    assert '`series`' in vocabulary.notes[0]
+    assert str(path) in vocabulary.notes[0]
+
+
+TWICE = (
+    f'schema = "{SCHEMA}"\n\n'
+    '[[nouns]]\nname = "leg"\naxis = "scope"\n\n'
+    '[[nouns]]\nname = "leg"\naxis = "batch"\n'
+)
+
+
+def test_noun_declared_twice_in_the_user_file_raises(tmp_path: Path, monkeypatch) -> None:
+    path = _user_vocabulary(tmp_path, monkeypatch, TWICE)
+    with pytest.raises(VocabularyError, match='`leg`') as caught:
+        resolve(_git_init(tmp_path / 'repo'), assume_scope=True)
+    assert str(path) in str(caught.value)
+
+
+def test_noun_declared_twice_in_the_project_file_raises(tmp_path: Path) -> None:
+    repo = _git_init(tmp_path / 'repo')
+    path = _project_vocabulary(repo, TWICE)
+    with pytest.raises(VocabularyError, match='`leg`') as caught:
+        resolve(repo)
     assert str(path) in str(caught.value)
 
 
@@ -455,3 +549,28 @@ def test_user_file_resolution_order(tmp_path: Path, monkeypatch) -> None:
 def test_instruction_files_and_block_markers() -> None:
     assert INSTRUCTION_FILES == ('AGENTS.md', 'CLAUDE.md')
     assert BLOCK_END == '<!-- keel:vocabulary end -->'
+
+
+def test_block_marker_carries_the_digest_prefix() -> None:
+    digest = compute_digest(['leg'], 'r')
+    marker = block_marker(digest)
+    assert DIGEST_CHARS == 12
+    assert marker == BLOCK_BEGIN.format(digest=digest[:DIGEST_CHARS])
+    assert marker == f'<!-- keel:vocabulary begin digest={digest[:12]} -->'
+    found = BLOCK_RE.match(marker)
+    assert found is not None
+    assert found.group('digest') == digest[:DIGEST_CHARS]
+    for wrong in (digest[:11], digest[:13], 'ABCDEF012345'):
+        assert BLOCK_RE.match(BLOCK_BEGIN.format(digest=wrong)) is None
+    assert BLOCK_RE.match(f'  {marker}') is None
+    assert BLOCK_RE.match(f'{marker} trailing') is None
+
+
+def test_block_marker_round_trips_through_the_scope_check(tmp_path: Path) -> None:
+    folder = tmp_path / 'plain'
+    folder.mkdir()
+    digest = resolve(folder, assume_scope=True).digest
+    assert digest is not None
+    marker = block_marker(digest)
+    (folder / 'AGENTS.md').write_text(f'{marker}\n- voyage\n{BLOCK_END}\n', encoding='utf-8')
+    assert in_scope(folder) is True

@@ -28,8 +28,14 @@ DEFAULT_RULE = (
     'When no listed noun fits, use the nearest listed noun with a description and ask whoever '
     "owns the project's vocabulary."
 )
+# The begin marker carries this many leading hex digits of the digest.
+DIGEST_CHARS = 12
 
-_BLOCK_LINE = re.compile(r'<!-- keel:vocabulary begin digest=[0-9a-f]{12} -->')
+_MARKER_HEAD, _MARKER_TAIL = BLOCK_BEGIN.split('{digest}')
+# A whole begin-marker line, built from BLOCK_BEGIN so the two cannot drift apart.
+BLOCK_RE = re.compile(
+    f'^{re.escape(_MARKER_HEAD)}(?P<digest>[0-9a-f]{{{DIGEST_CHARS}}}){re.escape(_MARKER_TAIL)}$'
+)
 _PROJECT_FILE = Path('.keel') / 'vocabulary.toml'
 _NOT_BOUND = 'not bound'
 _DIALECT = 'python-re'
@@ -167,14 +173,15 @@ class VocabularyError(Exception):
     """A vocabulary or instruction file keel cannot use; the message names the file and defect."""
 
 
-def _error(path: Path, defect: str, fix: str) -> VocabularyError:
-    return VocabularyError(
-        format_error(
-            what=f'{path}: {defect}',
-            why='a defective vocabulary file is never treated as absent',
-            fix=fix,
-        )
-    )
+_VOCABULARY_WHY = 'a defective vocabulary file is never treated as absent'
+_INSTRUCTION_WHY = (
+    'an instruction file on the scope walk that cannot be read or decoded leaves the scope '
+    'undecided, so it is never skipped'
+)
+
+
+def _error(path: Path, defect: str, fix: str, why: str = _VOCABULARY_WHY) -> VocabularyError:
+    return VocabularyError(format_error(what=f'{path}: {defect}', why=why, fix=fix))
 
 
 def _normalize_rule(rule: str) -> str:
@@ -192,6 +199,11 @@ def compute_digest(names: Sequence[str], rule: str) -> str:
         ensure_ascii=False,
     )
     return hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+
+def block_marker(digest: str) -> str:
+    """The begin-marker line for a block whose vocabulary has `digest`."""
+    return BLOCK_BEGIN.format(digest=digest[:DIGEST_CHARS])
 
 
 def user_file() -> Path | None:
@@ -234,8 +246,9 @@ def _carries_block(path: Path) -> bool:
             path,
             f'the instruction file cannot be read as UTF-8 ({exc})',
             'save it as UTF-8, or make it readable',
+            _INSTRUCTION_WHY,
         ) from exc
-    return any(_BLOCK_LINE.fullmatch(line.rstrip()) for line in text.split('\n'))
+    return any(BLOCK_RE.match(line.rstrip()) for line in text.split('\n'))
 
 
 def _instruction_files(directory: Path) -> list[Path]:
@@ -248,6 +261,9 @@ def in_scope(directory: Path) -> bool:
     Inside git, every instruction file from the directory up to the top level counts, and any one
     carrying the block puts the directory in scope. Outside git, the first directory (itself
     included) holding an instruction file ends the walk, and its files alone decide.
+
+    Raises VocabularyError naming the file when an instruction file on the walk cannot be read or
+    decoded as UTF-8.
     """
     current = directory.resolve()
     top = git_toplevel(directory)
@@ -363,6 +379,15 @@ def _load(path: Path, layer: str) -> _File:
     if rule is not None:
         rule = _string(path, 'the top level', 'rule', rule)
     nouns = _tables(path, data, 'nouns')
+    seen: set[str] = set()
+    for entry in nouns:
+        if entry['name'] in seen:
+            raise _error(
+                path,
+                f'noun `{entry["name"]}` is declared twice',
+                f'keep one [[nouns]] entry named `{entry["name"]}`',
+            )
+        seen.add(entry['name'])
     allowed = _tables(path, data, 'allowed')
     retired = _tables(path, data, 'retired')
     _check_patterns(path, _tables(path, data, 'patterns'))
@@ -379,12 +404,14 @@ def _load(path: Path, layer: str) -> _File:
                 'status = "not bound" needs a non-empty `reason`',
                 'say why the project binds no vocabulary',
             )
-        if 'nouns' in data:
-            raise _error(
-                path,
-                'status = "not bound" beside [[nouns]]',
-                'keep either the noun list or the status, not both',
-            )
+        for key in ('rule', 'nouns', 'allowed', 'retired'):
+            if key in data:
+                label = '`rule`' if key == 'rule' else f'[[{key}]]'
+                raise _error(
+                    path,
+                    f'status = "not bound" beside {label}',
+                    f'keep either {label} or the status, not both',
+                )
         not_bound = reason
     elif 'reason' in data:
         raise _error(path, '`reason` without status = "not bound"', 'remove `reason`')
@@ -492,12 +519,19 @@ def resolve(directory: Path, *, assume_scope: bool = False) -> Vocabulary:
             scope=scope,
         )
     loaded = _load(path, 'user')
+    keel_names = {noun.name for noun in TOOL_NOUNS}
+    added = tuple(noun for noun in loaded.nouns if noun.name not in keel_names)
+    notes = tuple(
+        f"user-level noun `{noun.name}` in {path} repeats a keel noun; keel's is kept"
+        for noun in loaded.nouns
+        if noun.name in keel_names
+    )
     return _vocabulary(
         layers=(*keel_layer, Layer('user', str(path), loaded.schema)),
-        nouns=(*TOOL_NOUNS, *loaded.nouns),
+        nouns=(*TOOL_NOUNS, *added),
         allowed=(*TOOL_ALLOWED, *loaded.allowed),
         rule=loaded.rule or DEFAULT_RULE,
         retired=loaded.retired,
-        notes=(),
+        notes=notes,
         scope=scope,
     )
