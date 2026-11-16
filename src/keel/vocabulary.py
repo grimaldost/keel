@@ -466,7 +466,10 @@ def _vocabulary(
     )
 
 
-_ANY_BEGIN_LINE = re.compile(r'<!-- keel:vocabulary begin digest=(\S*) -->')
+# Any begin-marker line whatever its digest, so a malformed one is found and named; built from
+# BLOCK_BEGIN, as BLOCK_RE is.
+_ANY_BEGIN_LINE = re.compile(f'{re.escape(_MARKER_HEAD)}(\\S*){re.escape(_MARKER_TAIL)}')
+_BOM = '\ufeff'
 _GENERATED = 'GENERATED'
 _HAND_EDIT = 'do not hand-edit'
 
@@ -479,7 +482,7 @@ def render_block(vocab: Vocabulary, newline: str = '\n') -> str:
     if vocab.digest is None:
         raise ValueError('a not-bound vocabulary renders no block')
     lines = [
-        BLOCK_BEGIN.format(digest=vocab.digest[:12]),
+        block_marker(vocab.digest),
         f'Work-unit nouns: {", ".join(noun.name for noun in vocab.nouns)}.',
         *vocab.rule.strip('\n').split('\n'),
         'Senses, allowed terms and sources: run `keel vocabulary`.',
@@ -500,7 +503,8 @@ class BlockSpan:
 def find_block(text: str) -> BlockSpan | None:
     """Locate the vocabulary block in `text`, or None when it carries none.
 
-    Raises ValueError naming the defect when the text holds more than one begin line, or a begin
+    Raises ValueError naming the defect when the text holds more than one begin line, a begin line
+    whose digest is not `DIGEST_CHARS` lowercase hex digits (one `BLOCK_RE` rejects), or a begin
     line with no end line after it.
     """
     begins: list[tuple[int, str]] = []
@@ -508,8 +512,8 @@ def find_block(text: str) -> BlockSpan | None:
     offset = 0
     for line in text.split('\n'):
         stop = offset + len(line)
-        start = offset + 1 if line.startswith('﻿') else offset
-        content = line.rstrip().lstrip('﻿')
+        start = offset + 1 if line.startswith(_BOM) else offset
+        content = line.rstrip().lstrip(_BOM)
         if match := _ANY_BEGIN_LINE.fullmatch(content):
             begins.append((start, match.group(1)))
         elif content == BLOCK_END:
@@ -520,6 +524,11 @@ def find_block(text: str) -> BlockSpan | None:
     if len(begins) > 1:
         raise ValueError(f'{len(begins)} vocabulary begin markers, where one block takes one')
     start, digest = begins[0]
+    if not BLOCK_RE.match(BLOCK_BEGIN.format(digest=digest)):
+        raise ValueError(
+            f'a vocabulary begin marker whose digest {digest!r} is not {DIGEST_CHARS} lowercase '
+            'hex digits'
+        )
     end = next((end for end in ends if end > start), None)
     if end is None:
         raise ValueError('a vocabulary begin marker with no end marker after it')
@@ -548,8 +557,21 @@ def place_block(text: str, block: str) -> str:
 
 
 def declares_generated(text: str) -> bool:
-    """Whether the first five lines declare the text generated (`GENERATED`, `do not hand-edit`)."""
-    head = text.split('\n')[:5]
+    """Whether the first five lines declare the text generated (`GENERATED`, `do not hand-edit`).
+
+    The vocabulary block's own lines, begin marker through end marker, are left out first: a rule
+    that says those words is not a banner.
+    """
+    head: list[str] = []
+    inside = False
+    for line in text.split('\n'):
+        content = line.rstrip().lstrip(_BOM)
+        if inside:
+            inside = content != BLOCK_END
+        elif _ANY_BEGIN_LINE.fullmatch(content):
+            inside = True
+        elif len(head) < 5:
+            head.append(line)
     return any(_GENERATED in line or _HAND_EDIT in line.lower() for line in head)
 
 

@@ -5,7 +5,9 @@ discovery stopped at the fixture. The nouns are invented.
 """
 
 import json
+import os
 import re
+import stat
 import subprocess
 from dataclasses import asdict
 from pathlib import Path
@@ -15,7 +17,17 @@ from typer.testing import CliRunner
 
 import keel
 from keel.cli import app
-from keel.vocabulary import BLOCK_BEGIN, BLOCK_END, SCHEMA, TOOL_NOUNS, resolve
+from keel.vocabulary import (
+    BLOCK_BEGIN,
+    BLOCK_END,
+    BLOCK_RE,
+    DIGEST_CHARS,
+    SCHEMA,
+    TOOL_NOUNS,
+    block_marker,
+    render_block,
+    resolve,
+)
 
 runner = CliRunner()
 
@@ -64,6 +76,12 @@ reason = "the crew names its own work"
 def _no_git_above(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Stop git's discovery at the fixture, so a folder outside git stays outside git."""
     monkeypatch.setenv('GIT_CEILING_DIRECTORIES', str(tmp_path.resolve().parent))
+
+
+@pytest.fixture(autouse=True)
+def _away_from_the_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run every test from its own folder, so a root regression cannot write this checkout."""
+    monkeypatch.chdir(tmp_path)
 
 
 def _plain(value):
@@ -429,11 +447,15 @@ def test_reference_row_states_the_exit_codes() -> None:
     assert cells[2] == (
         'Print and `--json`: 0 resolved, a not-bound project included; 2 a malformed vocabulary '
         'file, an unreadable instruction file, or a PATH that is not a directory. `--write`: 0 '
-        'written or unchanged; 2 refused (a generated file, a malformed block, a not-bound '
-        'project, a malformed vocabulary file, a PATH that is not a directory) or a usage error. '
-        '`--check`: 0 every file current, a not-bound project included; 1 a file absent, without '
-        'a block, or with a stale one; 2 a malformed vocabulary file, a PATH that is not a '
-        'directory, or a usage error'
+        'written or unchanged; 2 refused, changing nothing (a generated file, a malformed block, '
+        'a file that cannot be written, an unreadable or undecodable instruction file, a `--file` '
+        'whose folder does not exist, a not-bound project, a malformed vocabulary file, a PATH '
+        'that is not a directory). `--check`: 0 every file current, a not-bound project '
+        'included; 1 a file absent, without a block, with a stale one, or with a malformed one '
+        '(two begin markers, a begin marker without an end, or a digest that is not 12 lowercase '
+        'hex digits); 2 a malformed vocabulary file, an unreadable or undecodable instruction '
+        'file, a `--file` whose folder does not exist, or a PATH that is not a directory. Usage '
+        'errors, each 2: `--write` with `--check`, `--json` with either, `--file` without either'
     )
 
 
@@ -474,7 +496,7 @@ def _bare_repo(path: Path) -> Path:
 def _digest12(path: Path) -> str:
     digest = resolve(path, assume_scope=True).digest
     assert digest is not None
-    return digest[:12]
+    return digest[:DIGEST_CHARS]
 
 
 def _begins(path: Path) -> list[str]:
@@ -494,7 +516,7 @@ def test_write_creates_agents_md_with_one_block_and_says_so(tmp_path: Path, monk
     # scope is assumed: the user-level noun is in the block although no block existed before
     vocabulary = resolve(repo, assume_scope=True)
     assert vocabulary.digest is not None
-    assert _begins(agents) == [vocabulary.digest[:12]]
+    assert _begins(agents) == [vocabulary.digest[:DIGEST_CHARS]]
     text = agents.read_bytes().decode('utf-8')
     names = ', '.join(noun.name for noun in vocabulary.nouns)
     assert f'Work-unit nouns: {names}.' in text
@@ -864,6 +886,196 @@ def test_file_names_the_files_instead(tmp_path: Path, monkeypatch) -> None:
 
     checked = runner.invoke(app, ['vocabulary', str(repo), '--check', '--file', 'docs/crew.md'])
     assert checked.exit_code == 0, checked.output
+
+
+_REPAIR = 'leave exactly one begin and one end marker'
+_WRITE_HINT = 'run `keel vocabulary --write`'
+
+
+def test_an_unwritable_file_is_refused_before_anything_is_written(tmp_path: Path) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    claude = repo / 'CLAUDE.md'
+    claude.write_bytes(b'# Claude\n')
+    os.chmod(claude, stat.S_IREAD)
+    try:
+        result = runner.invoke(app, ['vocabulary', str(repo), '--write'])
+    finally:
+        os.chmod(claude, stat.S_IREAD | stat.S_IWRITE)
+
+    assert result.exit_code == 2, result.output
+    assert 'Traceback' not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert str(claude) in result.output
+    assert not (repo / 'AGENTS.md').exists()
+    assert claude.read_bytes() == b'# Claude\n'
+
+
+def test_a_failing_write_exits_two_and_undoes_the_earlier_ones(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    claude = repo / 'CLAUDE.md'
+    claude.write_bytes(b'# Claude\n')
+    real_write = Path.write_bytes
+
+    def failing_write(self: Path, data: bytes) -> int:
+        if self.name == 'CLAUDE.md':
+            raise PermissionError(13, 'Permission denied', str(self))
+        return real_write(self, data)
+
+    monkeypatch.setattr(Path, 'write_bytes', failing_write)
+
+    result = runner.invoke(app, ['vocabulary', str(repo), '--write'])
+
+    assert result.exit_code == 2, result.output
+    assert 'Traceback' not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert str(claude) in result.output
+    assert 'Why:' in result.output
+    assert not (repo / 'AGENTS.md').exists()
+    assert claude.read_bytes() == b'# Claude\n'
+
+
+def test_a_rule_naming_the_banner_words_does_not_block_the_next_write(tmp_path: Path) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(
+        repo,
+        PROJECT_FLEET.replace(
+            'Say leg between two ports.',
+            'GENERATED tallies are not legs.\\nDo not hand-edit the log.',
+        ),
+    )
+    agents = repo / 'AGENTS.md'
+
+    first = runner.invoke(app, ['vocabulary', str(repo), '--write'])
+    second = runner.invoke(app, ['vocabulary', str(repo), '--write'])
+
+    assert first.exit_code == 0, first.output
+    assert second.exit_code == 0, second.output
+    text = agents.read_bytes().decode('utf-8')
+    assert any('GENERATED tallies' in line for line in text.split('\n')[:5])
+    assert _begins(agents) == [_digest12(repo)]
+
+
+def test_the_rendered_begin_line_is_the_resolver_marker(tmp_path: Path) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    vocabulary = resolve(repo, assume_scope=True)
+    assert vocabulary.digest is not None
+
+    first = render_block(vocabulary).split('\n')[0]
+
+    assert first == block_marker(vocabulary.digest)
+    assert BLOCK_RE.match(first)
+
+
+@pytest.mark.parametrize('digest', ['0123456789AB', 'abc', '', '0123456789abc'])
+def test_a_begin_line_with_a_bad_digest_is_a_malformed_block(tmp_path: Path, digest: str) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    agents = repo / 'AGENTS.md'
+    body = BLOCK_BEGIN.format(digest=digest) + '\n- voyage\n' + BLOCK_END + '\n'
+    agents.write_bytes(body.encode('utf-8'))
+
+    written = runner.invoke(app, ['vocabulary', str(repo), '--write'])
+    checked = runner.invoke(app, ['vocabulary', str(repo), '--check'])
+
+    assert written.exit_code == 2, written.output
+    assert str(agents) in written.output
+    assert agents.read_bytes() == body.encode('utf-8')
+    assert checked.exit_code == 1, checked.output
+    assert _REPAIR in checked.output
+    assert _WRITE_HINT not in checked.output
+    assert 'stale' not in checked.output
+
+
+@pytest.mark.parametrize(
+    'body',
+    [
+        BLOCK + '\n' + BLOCK,
+        BLOCK_BEGIN.format(digest='0123456789ab') + '\n- voyage\n',
+    ],
+    ids=['two-begins', 'no-end'],
+)
+def test_check_prints_the_repair_for_a_malformed_block(tmp_path: Path, body: str) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    agents = repo / 'AGENTS.md'
+    agents.write_bytes(body.encode('utf-8'))
+
+    result = runner.invoke(app, ['vocabulary', str(repo), '--check'])
+
+    assert result.exit_code == 1, result.output
+    assert str(agents) in result.output
+    assert _REPAIR in result.output
+    assert _WRITE_HINT not in result.output
+    assert agents.read_bytes() == body.encode('utf-8')
+
+
+@pytest.mark.parametrize('mode', ['--write', '--check'])
+def test_a_file_in_a_missing_folder_exits_two(tmp_path: Path, mode: str) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    missing = repo / 'nowhere' / 'HELM.md'
+
+    result = runner.invoke(app, ['vocabulary', str(repo), mode, '--file', str(missing)])
+
+    assert result.exit_code == 2, result.output
+    assert str(missing) in result.output
+    assert 'Traceback' not in result.output
+    assert not missing.parent.exists()
+
+
+@pytest.mark.parametrize('mode', ['--write', '--check'])
+def test_an_undecodable_file_exits_two(tmp_path: Path, mode: str) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    agents = repo / 'AGENTS.md'
+    agents.write_bytes(b'# Agents\n\xff\xfe not utf-8\n')
+
+    result = runner.invoke(app, ['vocabulary', str(repo), mode])
+
+    assert result.exit_code == 2, result.output
+    assert str(agents) in result.output
+    assert 'Traceback' not in result.output
+    assert agents.read_bytes() == b'# Agents\n\xff\xfe not utf-8\n'
+
+
+@pytest.mark.parametrize(
+    'flags',
+    [['--write', '--check'], ['--json', '--write'], ['--json', '--check'], ['--file', 'HELM.md']],
+)
+def test_usage_errors_exit_two_and_write_nothing(tmp_path: Path, flags: list[str]) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+
+    result = runner.invoke(app, ['vocabulary', str(repo), *flags])
+
+    assert result.exit_code == 2, result.output
+    assert not (repo / 'AGENTS.md').exists()
+    assert not (repo / 'HELM.md').exists()
+    assert not (tmp_path / 'HELM.md').exists()
+
+
+def test_a_bom_file_keeps_its_bom_and_every_byte_outside_the_block(tmp_path: Path) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    agents = repo / 'AGENTS.md'
+    tail = b'\n# Crew\n\nKeep the log.\n'
+    agents.write_bytes(b'\xef\xbb\xbf' + BLOCK.encode('utf-8') + tail)
+
+    written = runner.invoke(app, ['vocabulary', str(repo), '--write'])
+    checked = runner.invoke(app, ['vocabulary', str(repo), '--check'])
+
+    assert written.exit_code == 0, written.output
+    assert checked.exit_code == 0, checked.output
+    raw = agents.read_bytes()
+    assert raw.startswith(b'\xef\xbb\xbf' + block_marker(_digest12(repo)).encode('utf-8'))
+    assert raw.count(b'\xef\xbb\xbf') == 1
+    assert raw.endswith(BLOCK_END.encode('utf-8') + b'\n' + tail)
+    assert _begins(agents) == [_digest12(repo)]
 
 
 def test_reference_row_names_write_check_and_file() -> None:

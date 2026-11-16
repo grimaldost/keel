@@ -1,11 +1,13 @@
 """The keel CLI: deterministic gates + the init scaffolder."""
 
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
+from typing import NamedTuple
 
 import typer
 
@@ -29,6 +31,7 @@ from keel.show import available, body
 from keel.survey import survey
 from keel.templates import copy_templates, stamp_spec
 from keel.vocabulary import (
+    DIGEST_CHARS,
     INSTRUCTION_FILES,
     Vocabulary,
     VocabularyError,
@@ -331,9 +334,48 @@ def _block_files(root: Path, named: list[str]) -> list[Path]:
     return [root / first, *(root / name for name in others if (root / name).is_file())]
 
 
-def _read_instruction_file(path: Path) -> str:
+_BLOCK_REPAIR = (
+    'leave exactly one begin and one end marker in the file, the begin marker carrying '
+    f'{DIGEST_CHARS} lowercase hex digits, or remove both'
+)
+
+
+class _Plan(NamedTuple):
+    """What `--write` does to one file, decided before any file is written."""
+
+    path: Path
+    raw: bytes | None  # the bytes to write; None leaves the file as it is
+    original: bytes | None  # the bytes the file holds now; None when it does not exist
+    message: str
+
+
+def _missing_folder(path: Path) -> VocabularyError:
+    return VocabularyError(
+        format_error(
+            what=f'{path}: its folder does not exist',
+            why='keel creates an instruction file, never the folders above it, and a missing '
+            'folder is most often a mistyped path',
+            fix='create the folder, or name another file with --file',
+        )
+    )
+
+
+def _unwritable(path: Path, reason: str) -> VocabularyError:
+    return VocabularyError(
+        format_error(
+            what=f'{path}: cannot be written ({reason})',
+            why='the block is placed in every file or in none, so one file keel cannot write '
+            'stops them all',
+            fix='make it writable, or name other files with --file',
+        )
+    )
+
+
+def _read_instruction_file(path: Path) -> tuple[bytes, str]:
+    """The file's bytes and their text, or a VocabularyError naming the file."""
     try:
-        return path.read_bytes().decode('utf-8')
+        raw = path.read_bytes()
+        return raw, raw.decode('utf-8')
     except (OSError, UnicodeDecodeError) as exc:
         raise VocabularyError(
             format_error(
@@ -344,21 +386,17 @@ def _read_instruction_file(path: Path) -> str:
         ) from exc
 
 
-def _plan_block(vocab: Vocabulary, path: Path) -> tuple[bytes | None, str]:
-    """The bytes `path` should hold (None: leave it), and the line saying what was done."""
-    digest = (vocab.digest or '')[:12]
+def _plan_block(vocab: Vocabulary, path: Path) -> _Plan:
+    """What `path` should hold, or a VocabularyError naming why it cannot take the block."""
+    digest = (vocab.digest or '')[:DIGEST_CHARS]
     if not path.exists():
         if not path.parent.is_dir():
-            raise VocabularyError(
-                format_error(
-                    what=f'{path}: its folder does not exist',
-                    why='keel creates an instruction file, never the folders above it',
-                    fix='create the folder, or name another file with --file',
-                )
-            )
-        block = render_block(vocab)
-        return block.encode('utf-8'), f'created {path} holding the vocabulary block ({digest})'
-    text = _read_instruction_file(path)
+            raise _missing_folder(path)
+        if not os.access(path.parent, os.W_OK):
+            raise _unwritable(path, 'its folder is not writable')
+        raw = render_block(vocab).encode('utf-8')
+        return _Plan(path, raw, None, f'created {path} holding the vocabulary block ({digest})')
+    original, text = _read_instruction_file(path)
     if declares_generated(text):
         raise VocabularyError(
             format_error(
@@ -375,18 +413,35 @@ def _plan_block(vocab: Vocabulary, path: Path) -> tuple[bytes | None, str]:
             format_error(
                 what=f'{path}: {exc}',
                 why='keel replaces exactly one block and cannot tell which span is its own',
-                fix='leave one begin and one end marker in the file, or remove both',
+                fix=_BLOCK_REPAIR,
             )
         ) from exc
     raw = placed.encode('utf-8')
-    if raw == path.read_bytes():
-        return None, f'{path} already carries the current vocabulary block ({digest}); unchanged'
+    if raw == original:
+        message = f'{path} already carries the current vocabulary block ({digest}); unchanged'
+        return _Plan(path, None, original, message)
+    if not os.access(path, os.W_OK):
+        raise _unwritable(path, 'it is read-only')
     verb = 'replaced the vocabulary block in' if had_block else 'added the vocabulary block to'
-    return raw, f'{verb} {path} ({digest})'
+    return _Plan(path, raw, original, f'{verb} {path} ({digest})')
+
+
+def _undo(written: list[_Plan]) -> list[Path]:
+    """Put back what each written file held before; return the files that could not be."""
+    left: list[Path] = []
+    for plan in reversed(written):
+        try:
+            if plan.original is None:
+                plan.path.unlink()
+            else:
+                plan.path.write_bytes(plan.original)
+        except OSError:
+            left.append(plan.path)
+    return left
 
 
 def _write_block(vocab: Vocabulary, files: list[Path]) -> None:
-    """Place the block in every file, or, on any refusal, change nothing and exit 2."""
+    """Place the block in every file, or, on any refusal or failed write, change nothing; exit 2."""
     if vocab.not_bound is not None:
         typer.echo(
             format_error(
@@ -396,44 +451,63 @@ def _write_block(vocab: Vocabulary, files: list[Path]) -> None:
             )
         )
         raise typer.Exit(code=2)
-    plans: list[tuple[Path, bytes | None, str]] = []
+    plans: list[_Plan] = []
     refusals: list[str] = []
     for path in files:
         try:
-            plans.append((path, *_plan_block(vocab, path)))
+            plans.append(_plan_block(vocab, path))
         except VocabularyError as exc:
             refusals.append(str(exc))
     if refusals:
         typer.echo('\n\n'.join(refusals))
         typer.echo('nothing written.')
         raise typer.Exit(code=2)
-    for path, raw, message in plans:
-        if raw is not None:
-            path.write_bytes(raw)
-        typer.echo(message)
+    written: list[_Plan] = []
+    for plan in plans:
+        if plan.raw is None:
+            continue
+        try:
+            plan.path.write_bytes(plan.raw)
+        except OSError as exc:
+            left = _undo(written)
+            typer.echo(str(_unwritable(plan.path, str(exc))))
+            if left:
+                typer.echo('could not restore: ' + ', '.join(str(path) for path in left))
+            else:
+                typer.echo('nothing written.')
+            raise typer.Exit(code=2) from exc
+        written.append(plan)
+    for plan in plans:
+        typer.echo(plan.message)
     raise typer.Exit(code=0)
 
 
 def _check_block(vocab: Vocabulary, files: list[Path]) -> None:
-    """Exit 0 when every file carries the current block, 1 when one is missing or stale."""
+    """Exit 0 when every file's block is current, 1 when one is missing, stale or malformed."""
     if vocab.not_bound is not None:
         typer.echo(f'not bound — {vocab.not_bound}')
         raise typer.Exit(code=0)
-    digest = (vocab.digest or '')[:12]
+    digest = (vocab.digest or '')[:DIGEST_CHARS]
     behind = 0
+    malformed = 0
     for path in files:
         if not path.exists():
+            if not path.parent.is_dir():
+                typer.echo(str(_missing_folder(path)))
+                raise typer.Exit(code=2)
             behind += 1
             typer.echo(f'{path}: absent, no vocabulary block (resolved {digest})')
             continue
         try:
-            span = find_block(_read_instruction_file(path))
+            _, text = _read_instruction_file(path)
         except VocabularyError as exc:
             typer.echo(str(exc))
             raise typer.Exit(code=2) from exc
+        try:
+            span = find_block(text)
         except ValueError as exc:
-            behind += 1
-            typer.echo(f'{path}: {exc} (resolved {digest})')
+            malformed += 1
+            typer.echo(f'{path}: malformed vocabulary block: {exc} (resolved {digest})')
             continue
         if span is None:
             behind += 1
@@ -445,6 +519,9 @@ def _check_block(vocab: Vocabulary, files: list[Path]) -> None:
             typer.echo(f'{path}: current ({digest})')
     if behind:
         typer.echo('run `keel vocabulary --write` to place the current block.')
+    if malformed:
+        typer.echo(f'repair each malformed block by hand: {_BLOCK_REPAIR}.')
+    if behind or malformed:
         raise typer.Exit(code=1)
     typer.echo(f'every file carries the current vocabulary block ({digest}).')
     raise typer.Exit(code=0)
