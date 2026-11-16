@@ -14,6 +14,7 @@ from keel.bindings import check_bindings
 from keel.budget_drift import check_budget_drift
 from keel.check_ready import check_spec_ready, spec_hash
 from keel.decompose_check import check_decomposition
+from keel.errors import format_error
 from keel.gate_ledger import (
     is_suite_row,
     ledger_path,
@@ -278,8 +279,8 @@ def show_cmd(
         raise typer.Exit(code=2) from exc
 
 
-def _vocabulary_text(vocab: Vocabulary) -> list[str]:
-    lines = ['layers:']
+def _vocabulary_text(path: Path, vocab: Vocabulary) -> list[str]:
+    lines = [f'path: {path}', 'layers:']
     for layer in vocab.layers:
         schema = f' ({layer.schema})' if layer.schema else ''
         lines.append(f'  {layer.name}: {layer.source}{schema}')
@@ -290,14 +291,18 @@ def _vocabulary_text(vocab: Vocabulary) -> list[str]:
     lines.append('nouns:')
     for noun in vocab.nouns:
         lines.append(f'{noun.name} [{noun.layer}] axis: {noun.axis}')
-        lines.extend(f'  sense: {sense.text}' for sense in noun.senses)
+        for sense in noun.senses:
+            lines.append(f'  sense: {sense.text}')
+            lines.append(f'    glossary: {sense.glossary}')
         if noun.reading:
             lines.append(f'  reading: {noun.reading}')
         if noun.definition:
             lines.append(f'  definition: {noun.definition}')
     lines.append('allowed:')
     lines.extend(f'  {item.term} [{item.layer}]: {item.note}' for item in vocab.allowed)
-    lines.append(f'rule: {vocab.rule}')
+    first, *rest = vocab.rule.split('\n')
+    lines.append(f'rule: {first}')
+    lines.extend(f'  {line}' if line else '' for line in rest)
     lines.append('retired:')
     lines.extend(f'  {item.noun} -> {item.instead}' for item in vocab.retired)
     if vocab.notes:
@@ -315,6 +320,16 @@ def vocabulary_cmd(
     as_json: bool = typer.Option(False, '--json', help='Print one JSON object instead of text.'),
 ) -> None:
     """Print the work-unit vocabulary that applies to a directory, with its layers and digest."""
+    if not Path(path).is_dir():
+        typer.echo(
+            format_error(
+                what=f'{path}: not a directory',
+                why='`keel vocabulary` resolves the vocabulary for a directory, and git answers '
+                'only for one that exists.',
+                fix='Point it at an existing directory, or leave PATH out for the current one.',
+            )
+        )
+        raise typer.Exit(code=2)
     resolved = Path(path).resolve()
     try:
         vocab = resolve(resolved)
@@ -336,7 +351,7 @@ def vocabulary_cmd(
         }
         typer.echo(json.dumps(payload, ensure_ascii=False))
     else:
-        typer.echo('\n'.join(_vocabulary_text(vocab)))
+        typer.echo('\n'.join(_vocabulary_text(resolved, vocab)))
     raise typer.Exit(code=0)
 
 

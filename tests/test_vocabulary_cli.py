@@ -13,10 +13,13 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+import keel
 from keel.cli import app
 from keel.vocabulary import BLOCK_BEGIN, BLOCK_END, SCHEMA, TOOL_NOUNS, resolve
 
 runner = CliRunner()
+
+CLI_REFERENCE = Path(__file__).resolve().parents[1] / 'docs' / 'cli-reference.md'
 
 BLOCK = BLOCK_BEGIN.format(digest='0123456789ab') + '\n- voyage\n' + BLOCK_END + '\n'
 
@@ -68,6 +71,10 @@ def _plain(value):
     return json.loads(json.dumps(value))
 
 
+def _noun(vocabulary, name: str):
+    return next(noun for noun in vocabulary.nouns if noun.name == name)
+
+
 def _repo(tmp_path: Path, *, block: bool = True) -> Path:
     repo = tmp_path / 'repo'
     repo.mkdir()
@@ -103,15 +110,15 @@ def test_text_prints_every_item_for_a_user_file_in_scope(tmp_path: Path, monkeyp
     assert vocabulary.digest is not None
     assert re.fullmatch(r'[0-9a-f]{64}', vocabulary.digest)
     assert vocabulary.digest in out
-    for layer in vocabulary.layers:
-        assert layer.source in out
-    assert str(user) in out
-    assert SCHEMA in out
+    lines = out.splitlines()
+    assert f'  keel: {keel.__version__}' in lines
+    assert f'  user: {user} ({SCHEMA})' in lines
     for noun in vocabulary.nouns:
-        assert noun.name in out
-        assert f'axis: {noun.axis}' in out
+        assert f'{noun.name} [{noun.layer}] axis: {noun.axis}' in lines
         for sense in noun.senses:
-            assert sense.text in out
+            assert f'  sense: {sense.text}' in lines
+    wave = lines.index(f'wave [keel] axis: {_noun(vocabulary, "wave").axis}')
+    assert lines[wave + 1] == '  sense: the batch a task ships with'
     assert 'a crossing' in out
     assert 'every leg between two ports' in out
     assert 'tally' in out
@@ -207,7 +214,7 @@ def test_json_parses_back_to_the_resolved_values(tmp_path: Path, monkeypatch) ->
     assert data['layers'] == [asdict(layer) for layer in vocabulary.layers]
     assert data['layers'][0] == {
         'name': 'keel',
-        'source': data['layers'][0]['source'],
+        'source': keel.__version__,
         'schema': '',
     }
     assert data['layers'][1]['schema'] == SCHEMA
@@ -245,8 +252,8 @@ def test_project_file_replaces_the_lower_layers(tmp_path: Path, monkeypatch) -> 
     result = runner.invoke(app, ['vocabulary', str(repo)])
 
     assert result.exit_code == 0, result.output
-    assert str(project) in result.output
-    assert re.search(r'^berth \[project\]', result.output, re.MULTILINE)
+    assert f'  project: {project} ({SCHEMA})' in result.output.splitlines()
+    assert 'berth [project] axis: place' in result.output.splitlines()
     assert 'a mooring' in result.output
     assert 'where a vessel ties up' in result.output
     assert not re.search(r'^voyage ', result.output, re.MULTILINE)
@@ -260,8 +267,9 @@ def test_not_bound_prints_its_reason_and_exits_zero(tmp_path: Path, monkeypatch)
     result = runner.invoke(app, ['vocabulary', str(repo)])
 
     assert result.exit_code == 0, result.output
-    assert 'not bound — the crew names its own work' in result.output
-    assert str(project) in result.output
+    lines = result.output.splitlines()
+    assert 'not bound — the crew names its own work' in lines
+    assert f'  project: {project} ({SCHEMA})' in lines
     assert 'nouns:' not in result.output
     assert not re.search(r'[0-9a-f]{64}', result.output)
 
@@ -301,3 +309,123 @@ def test_malformed_project_file_exits_two_in_json_mode_too(tmp_path: Path, monke
     assert str(project) in result.output
     assert 'Traceback' not in result.output
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_text_first_line_is_the_resolved_path(tmp_path: Path, monkeypatch) -> None:
+    _user_file(tmp_path, monkeypatch, USER_VOYAGE)
+    repo = _repo(tmp_path)
+
+    result = runner.invoke(app, ['vocabulary', str(repo)])
+
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines()[0] == f'path: {repo.resolve()}'
+
+
+def test_text_not_bound_first_line_is_the_resolved_path(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _project_file(repo, PROJECT_NOT_BOUND)
+
+    result = runner.invoke(app, ['vocabulary', str(repo)])
+
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines()[0] == f'path: {repo.resolve()}'
+
+
+def test_text_prints_each_sense_with_its_glossary_phrase(tmp_path: Path, monkeypatch) -> None:
+    _user_file(tmp_path, monkeypatch, USER_VOYAGE)
+    repo = _repo(tmp_path)
+    vocabulary = resolve(repo)
+
+    lines = runner.invoke(app, ['vocabulary', str(repo)]).output.splitlines()
+
+    for noun in vocabulary.nouns:
+        if not noun.senses:
+            continue
+        start = lines.index(f'{noun.name} [{noun.layer}] axis: {noun.axis}')
+        body = lines[start + 1 : start + 1 + 2 * len(noun.senses)]
+        expected = []
+        for sense in noun.senses:
+            expected += [f'  sense: {sense.text}', f'    glossary: {sense.glossary}']
+        assert body == expected
+    wave = lines.index(f'wave [keel] axis: {_noun(vocabulary, "wave").axis}')
+    assert lines[wave + 4] == '    glossary: more often, a whole series'
+
+
+def test_text_indents_a_multi_line_rule(tmp_path: Path, monkeypatch) -> None:
+    body = USER_VOYAGE.replace(
+        'rule = "Say voyage for the whole crossing."',
+        'rule = """Say voyage for the whole crossing.\nAsk the purser when unsure.\nKeep a log."""',
+    )
+    _user_file(tmp_path, monkeypatch, body)
+    repo = _repo(tmp_path)
+
+    result = runner.invoke(app, ['vocabulary', str(repo)])
+
+    assert result.exit_code == 0, result.output
+    lines = result.output.splitlines()
+    start = lines.index('rule: Say voyage for the whole crossing.')
+    assert lines[start + 1 : start + 4] == [
+        '  Ask the purser when unsure.',
+        '  Keep a log.',
+        'retired:',
+    ]
+
+
+@pytest.mark.parametrize('as_json', [False, True])
+def test_missing_path_exits_two(tmp_path: Path, as_json: bool) -> None:
+    missing = tmp_path / 'missing'
+    args = ['vocabulary', str(missing), *(['--json'] if as_json else [])]
+
+    result = runner.invoke(app, args)
+
+    assert result.exit_code == 2, result.output
+    assert f'{missing}: not a directory' in result.output.splitlines()
+    assert 'Traceback' not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_file_path_exits_two(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    file = repo / 'AGENTS.md'
+
+    result = runner.invoke(app, ['vocabulary', str(file)])
+
+    assert result.exit_code == 2, result.output
+    assert f'{file}: not a directory' in result.output.splitlines()
+    assert 'Traceback' not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_undecodable_instruction_file_exits_two_and_names_it(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, block=False)
+    claude = repo / 'CLAUDE.md'
+    claude.write_bytes(b'# Agents\n\xff\xfe\xfa not utf-8\n')
+
+    result = runner.invoke(app, ['vocabulary', str(repo)])
+
+    assert result.exit_code == 2, result.output
+    assert str(claude) in result.output
+    assert 'Traceback' not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def _reference_row() -> str:
+    rows = [
+        line
+        for line in CLI_REFERENCE.read_text(encoding='utf-8').splitlines()
+        if line.startswith('| `keel vocabulary ')
+    ]
+    assert len(rows) == 1, rows
+    return rows[0]
+
+
+def test_reference_row_names_the_json_flag() -> None:
+    assert '--json' in _reference_row()
+
+
+def test_reference_row_states_the_exit_codes() -> None:
+    cells = [cell.strip() for cell in _reference_row().strip('|').split(' | ')]
+    assert cells[2] == (
+        '0 resolved, a not-bound project included; 2 a malformed vocabulary file, an unreadable '
+        'instruction file, or a PATH that is not a directory'
+    )
