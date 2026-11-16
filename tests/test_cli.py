@@ -4,11 +4,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from keel import __version__
 from keel.cli import app
 from keel.models import DOR_CHECK_IDS
+from keel.vocabulary import BLOCK_END, DIGEST_CHARS, block_marker
 
 runner = CliRunner()
 _CLI_REFERENCE = Path(__file__).resolve().parents[1] / 'docs' / 'cli-reference.md'
@@ -490,3 +492,308 @@ def test_the_default_test_ledger_is_not_the_developers_real_one(tmp_path):
 
     path = ledger_path()
     assert path is not None and path != Path.home() / '.keel' / 'gate-ledger.jsonl'
+
+
+# The stale-block notice: `keel check-ready` judges the vocabulary block nearest the spec. Every
+# fixture is a git repository inside `tmp_path`, with git's discovery stopped above it.
+
+_NOTICE = 'WARN: the vocabulary block'
+_OLD_DIGEST = '0123456789ab'
+_STALE_BLOCK = f'{block_marker(_OLD_DIGEST)}\n- voyage\n{BLOCK_END}\n'
+_SCHEMA_LINE = 'schema = "work-vocabulary/v1"\n'
+_USER_VOYAGE = _SCHEMA_LINE + '\n[[nouns]]\nname = "voyage"\naxis = "scope"\n'
+_PROJECT_BERTH = _SCHEMA_LINE + '\n[[nouns]]\nname = "berth"\naxis = "place"\n'
+_PROJECT_NOT_BOUND = _SCHEMA_LINE + 'status = "not bound"\nreason = "the crew names its own work"\n'
+
+
+def _vocabulary_repo(tmp_path, monkeypatch, agents: str | bytes = _STALE_BLOCK) -> Path:
+    monkeypatch.setenv('GIT_CEILING_DIRECTORIES', str(tmp_path.resolve().parent))
+    repo = tmp_path / 'repo'
+    (repo / 'docs').mkdir(parents=True)
+    subprocess.run(['git', 'init', '-q', str(repo)], check=True, capture_output=True)
+    path = repo / 'AGENTS.md'
+    if isinstance(agents, bytes):
+        path.write_bytes(agents)
+    else:
+        path.write_text(agents, encoding='utf-8')
+    return repo.resolve()
+
+
+def _user_vocabulary(tmp_path, monkeypatch, body: str = _USER_VOYAGE) -> Path:
+    path = tmp_path / 'config' / 'vocabulary.toml'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding='utf-8')
+    monkeypatch.setenv('KEEL_VOCABULARY', str(path))
+    return path
+
+
+def _project_vocabulary(repo: Path, body: str) -> Path:
+    path = repo / '.keel' / 'vocabulary.toml'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding='utf-8')
+    return path
+
+
+def _repo_spec(repo: Path, *, ready: bool) -> Path:
+    spec = repo / 'docs' / 'spec.md'
+    text = READY_SPEC if ready else READY_SPEC.replace('**Verdict:** CERTIFIED', '**Verdict:** no')
+    spec.write_text(text, encoding='utf-8')
+    return spec
+
+
+def _resolved_head(repo: Path) -> str:
+    from keel.vocabulary import resolve
+
+    digest = resolve(repo, assume_scope=True).digest
+    assert digest is not None
+    return digest[:DIGEST_CHARS]
+
+
+def _notice_lines(output: str) -> list[str]:
+    return [line for line in output.splitlines() if line.startswith(_NOTICE)]
+
+
+def _exit_without_block(spec: Path, repo: Path) -> int:
+    """The same spec's exit code once no instruction file carries a block."""
+    (repo / 'AGENTS.md').write_text('# Agents\n', encoding='utf-8')
+    (repo / 'CLAUDE.md').unlink(missing_ok=True)
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert not _notice_lines(result.output), result.output
+    return result.exit_code
+
+
+def test_check_ready_warns_on_a_stale_vocabulary_block(tmp_path, monkeypatch):
+    for ready in (True, False):
+        case = tmp_path / ('ready' if ready else 'failing')
+        case.mkdir()
+        repo = _vocabulary_repo(case, monkeypatch)
+        _user_vocabulary(case, monkeypatch)
+        spec = _repo_spec(repo, ready=ready)
+        result = runner.invoke(app, ['check-ready', str(spec)])
+        expected = (
+            f'WARN: the vocabulary block in {repo / "AGENTS.md"} is stale '
+            f'(block {_OLD_DIGEST}, resolved {_resolved_head(repo)}) — run keel vocabulary --write'
+        )
+        assert _notice_lines(result.output) == [expected], result.output
+        assert result.exit_code == (0 if ready else 1), result.output
+        assert result.exit_code == _exit_without_block(spec, repo)
+
+
+def test_the_stale_block_notice_is_not_ledgered(tmp_path, monkeypatch):
+    ledger = tmp_path / 'ledger.jsonl'
+    monkeypatch.setenv('KEEL_GATE_LEDGER', str(ledger))
+    repo = _vocabulary_repo(tmp_path, monkeypatch)
+    _user_vocabulary(tmp_path, monkeypatch)
+    spec = _repo_spec(repo, ready=True)
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert _notice_lines(result.output), result.output
+    with_notice = json.loads(ledger.read_text(encoding='utf-8').splitlines()[-1])
+    _exit_without_block(spec, repo)
+    rows = ledger.read_text(encoding='utf-8').splitlines()
+    assert len(rows) == 2
+    without_block = json.loads(rows[-1])
+    # The notice adds no GateResult warning: the run's counts match the same spec with no block.
+    assert with_notice['warns'] == without_block['warns']
+    assert with_notice['probes'] == without_block['probes']
+
+
+def test_check_ready_warns_on_a_stale_block_under_a_project_list_without_a_user_file(
+    tmp_path, monkeypatch
+):
+    repo = _vocabulary_repo(tmp_path, monkeypatch)
+    _project_vocabulary(repo, _PROJECT_BERTH)
+    result = runner.invoke(app, ['check-ready', str(_repo_spec(repo, ready=True))])
+    expected = (
+        f'WARN: the vocabulary block in {repo / "AGENTS.md"} is stale '
+        f'(block {_OLD_DIGEST}, resolved {_resolved_head(repo)}) — run keel vocabulary --write'
+    )
+    assert _notice_lines(result.output) == [expected], result.output
+    assert result.exit_code == 0
+
+
+def test_check_ready_is_silent_with_no_vocabulary_block(tmp_path, monkeypatch):
+    repo = _vocabulary_repo(tmp_path, monkeypatch, agents='# Agents\n')
+    _user_vocabulary(tmp_path, monkeypatch)
+    _project_vocabulary(repo, _PROJECT_BERTH)
+    result = runner.invoke(app, ['check-ready', str(_repo_spec(repo, ready=True))])
+    assert 'vocabulary' not in result.output
+    assert result.exit_code == 0
+
+
+def test_check_ready_is_silent_on_an_estate_block_without_the_user_file(tmp_path, monkeypatch):
+    repo = _vocabulary_repo(tmp_path, monkeypatch)
+    spec = _repo_spec(repo, ready=True)
+    # The hermetic user-level path does not exist.
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert 'vocabulary' not in result.output
+    assert result.exit_code == 0
+    _user_vocabulary(tmp_path, monkeypatch)
+    monkeypatch.setenv('KEEL_VOCABULARY', 'off')
+    result = runner.invoke(app, ['check-ready', str(spec)])
+    assert 'vocabulary' not in result.output
+    assert result.exit_code == 0
+
+
+def test_check_ready_is_silent_on_a_not_bound_project(tmp_path, monkeypatch):
+    repo = _vocabulary_repo(tmp_path, monkeypatch)
+    _user_vocabulary(tmp_path, monkeypatch)
+    _project_vocabulary(repo, _PROJECT_NOT_BOUND)
+    result = runner.invoke(app, ['check-ready', str(_repo_spec(repo, ready=True))])
+    assert 'vocabulary' not in result.output
+    assert result.exit_code == 0
+
+
+@pytest.mark.parametrize('silence', ['user file off', 'user file absent', 'not bound'])
+def test_a_silent_notice_reads_no_instruction_file(tmp_path, monkeypatch, silence):
+    # An AGENTS.md saved as UTF-16 cannot be read as UTF-8; where a silence rule applies, the
+    # notice never opens it, so a repository that never adopted the vocabulary sees no line.
+    utf16_agents = '# Agents\n'.encode('utf-16')
+    for ready in (True, False):
+        case = tmp_path / ('ready' if ready else 'failing')
+        case.mkdir()
+        repo = _vocabulary_repo(case, monkeypatch, agents=utf16_agents)
+        if silence == 'user file off':
+            _user_vocabulary(case, monkeypatch)
+            monkeypatch.setenv('KEEL_VOCABULARY', 'off')
+        elif silence == 'user file absent':
+            monkeypatch.setenv('KEEL_VOCABULARY', str(case / 'nowhere' / 'vocabulary.toml'))
+        else:
+            _user_vocabulary(case, monkeypatch)
+            _project_vocabulary(repo, _PROJECT_NOT_BOUND)
+        spec = _repo_spec(repo, ready=ready)
+        result = runner.invoke(app, ['check-ready', str(spec)])
+        assert 'vocabulary' not in result.output, result.output
+        assert result.exit_code == _exit_without_block(spec, repo)
+
+
+def test_outside_git_the_notice_judges_the_nearest_folder_with_an_instruction_file(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv('GIT_CEILING_DIRECTORIES', str(tmp_path.resolve().parent))
+    _user_vocabulary(tmp_path, monkeypatch)
+    folder = (tmp_path / 'voyage-folder').resolve()
+    sub = folder / 'sub'
+    sub.mkdir(parents=True)
+    (folder / 'AGENTS.md').write_text(_STALE_BLOCK, encoding='utf-8')
+    (sub / 'CLAUDE.md').write_text('# Claude\n', encoding='utf-8')
+    (sub / 'spec.md').write_text(READY_SPEC, encoding='utf-8')
+    (folder / 'spec.md').write_text(READY_SPEC, encoding='utf-8')
+
+    # Outside git, sub's own instruction file ends the walk and decides alone: no block, silent.
+    result = runner.invoke(app, ['check-ready', str(sub / 'spec.md')])
+    assert 'vocabulary' not in result.output, result.output
+    assert result.exit_code == 0
+
+    result = runner.invoke(app, ['check-ready', str(folder / 'spec.md')])
+    expected = (
+        f'WARN: the vocabulary block in {folder / "AGENTS.md"} is stale '
+        f'(block {_OLD_DIGEST}, resolved {_resolved_head(folder)}) — run keel vocabulary --write'
+    )
+    assert _notice_lines(result.output) == [expected], result.output
+    assert result.exit_code == 0
+
+
+def test_inside_git_the_notice_walks_past_a_nested_file_without_a_block(tmp_path, monkeypatch):
+    repo = _vocabulary_repo(tmp_path, monkeypatch)
+    _user_vocabulary(tmp_path, monkeypatch)
+    (repo / 'docs' / 'AGENTS.md').write_text('# Docs\n', encoding='utf-8')
+    result = runner.invoke(app, ['check-ready', str(_repo_spec(repo, ready=True))])
+    expected = (
+        f'WARN: the vocabulary block in {repo / "AGENTS.md"} is stale '
+        f'(block {_OLD_DIGEST}, resolved {_resolved_head(repo)}) — run keel vocabulary --write'
+    )
+    assert _notice_lines(result.output) == [expected], result.output
+    assert result.exit_code == 0
+
+
+def test_check_ready_is_silent_on_a_current_block(tmp_path, monkeypatch):
+    from keel.vocabulary import render_block, resolve
+
+    repo = _vocabulary_repo(tmp_path, monkeypatch, agents='# Agents\n')
+    _user_vocabulary(tmp_path, monkeypatch)
+    (repo / 'AGENTS.md').write_text(render_block(resolve(repo, assume_scope=True)), 'utf-8')
+    result = runner.invoke(app, ['check-ready', str(_repo_spec(repo, ready=True))])
+    assert 'vocabulary' not in result.output
+    assert result.exit_code == 0
+
+
+def test_check_ready_warns_on_an_instruction_file_beside_the_block_without_one(
+    tmp_path, monkeypatch
+):
+    from keel.vocabulary import render_block, resolve
+
+    repo = _vocabulary_repo(tmp_path, monkeypatch, agents='# Agents\n')
+    _user_vocabulary(tmp_path, monkeypatch)
+    (repo / 'AGENTS.md').write_text(render_block(resolve(repo, assume_scope=True)), 'utf-8')
+    (repo / 'CLAUDE.md').write_text('# Claude\n', encoding='utf-8')
+    result = runner.invoke(app, ['check-ready', str(_repo_spec(repo, ready=True))])
+    expected = (
+        f'WARN: the vocabulary block in {repo / "CLAUDE.md"} is missing '
+        f'(resolved {_resolved_head(repo)}) — run keel vocabulary --write'
+    )
+    assert _notice_lines(result.output) == [expected], result.output
+    assert result.exit_code == 0
+
+
+def _assert_one_fault_line(result, names: str, expected_exit: int) -> None:
+    lines = [line for line in result.output.splitlines() if 'vocabulary' in line]
+    assert len(lines) == 1, result.output
+    assert lines[0].startswith('WARN: the vocabulary block could not be judged — '), lines[0]
+    assert names in lines[0], lines[0]
+    assert result.exit_code == expected_exit, result.output
+
+
+def test_a_malformed_user_file_prints_one_warning_and_keeps_the_exit_code(tmp_path, monkeypatch):
+    for ready in (True, False):
+        case = tmp_path / ('ready' if ready else 'failing')
+        case.mkdir()
+        repo = _vocabulary_repo(case, monkeypatch)
+        user = _user_vocabulary(case, monkeypatch, body='schema = [broken\n')
+        spec = _repo_spec(repo, ready=ready)
+        result = runner.invoke(app, ['check-ready', str(spec)])
+        _assert_one_fault_line(result, str(user), _exit_without_block(spec, repo))
+
+
+def test_a_malformed_project_file_prints_one_warning_and_keeps_the_exit_code(tmp_path, monkeypatch):
+    for ready in (True, False):
+        case = tmp_path / ('ready' if ready else 'failing')
+        case.mkdir()
+        repo = _vocabulary_repo(case, monkeypatch)
+        project = _project_vocabulary(repo, _SCHEMA_LINE + 'tally = 3\n')
+        spec = _repo_spec(repo, ready=ready)
+        result = runner.invoke(app, ['check-ready', str(spec)])
+        _assert_one_fault_line(result, str(project), _exit_without_block(spec, repo))
+
+
+def test_an_undecodable_agents_file_prints_one_warning_and_keeps_the_exit_code(
+    tmp_path, monkeypatch
+):
+    undecodable = b'# Agents \xff\xfe\n' + _STALE_BLOCK.encode('utf-8')
+    for ready in (True, False):
+        case = tmp_path / ('ready' if ready else 'failing')
+        case.mkdir()
+        repo = _vocabulary_repo(case, monkeypatch, agents=undecodable)
+        _user_vocabulary(case, monkeypatch)
+        spec = _repo_spec(repo, ready=ready)
+        result = runner.invoke(app, ['check-ready', str(spec)])
+        _assert_one_fault_line(result, 'AGENTS.md', _exit_without_block(spec, repo))
+
+
+def test_an_unexpected_fault_in_the_notice_prints_one_warning(tmp_path, monkeypatch):
+    def broken(*args, **kwargs):
+        raise OSError(5, 'Input/output error', 'AGENTS.md')
+
+    repo = _vocabulary_repo(tmp_path, monkeypatch)
+    _user_vocabulary(tmp_path, monkeypatch)
+    monkeypatch.setattr('keel.cli.resolve', broken)
+    result = runner.invoke(app, ['check-ready', str(_repo_spec(repo, ready=True))])
+    _assert_one_fault_line(result, 'AGENTS.md', 0)
+
+
+def test_cli_reference_documents_the_stale_block_notice():
+    reference = _CLI_REFERENCE.read_text(encoding='utf-8')
+    row = next(line for line in reference.splitlines() if line.startswith('| `keel check-ready'))
+    assert (
+        '`WARN: the vocabulary block in <file> is stale (block <a>, resolved <b>) — '
+        'run keel vocabulary --write`'
+    ) in row
