@@ -54,7 +54,9 @@ Follow the phases; the gates are the load-bearing part:
 - **Specify → DoR gate.** Iterate the spec's shape with
   `keel check-ready <spec> --structure-only` (Part A only). Then run the
   `pre-mortem-prompt.md` pass with a non-author reviewer — dispatch the bundled
-  `pre-mortem-review` subagent — fold the findings back in, save its returned output verbatim
+  `pre-mortem-review` subagent, pasting the output of `keel vocabulary` for the spec's folder beside
+  the spec unless that output reports `not bound` or an error (then paste nothing, and the
+  reviewer raises no noun findings) — fold the findings back in, save its returned output verbatim
   to `<spec-stem>.premortem[-r<N>].md` with a `Spec-hash:` from `keel spec-hash <spec>` taken after the
   last fold the pass read, and record the certification block, `Post-fold coherence:` included,
   naming that file (B2). The full `keel check-ready` passes only once that certification is
@@ -62,7 +64,9 @@ Follow the phases; the gates are the load-bearing part:
 - **Decompose → the series gate.** One PR per spec section (`spec-template.md` has the PR↔section
   manifest). Score each PR → model tier. Then run the SERIES pass: the same `pre-mortem-review`
   agent, pointed at the GENERATED series (the PR prompts and their DAG) read against the spec,
-  because that artifact is the one the spec pass never saw. Save its returned output verbatim as
+  because that artifact is the one the spec pass never saw; paste the output of `keel vocabulary`
+  for the spec's folder beside what you send unless it reports `not bound` or an error (then
+  paste nothing). Save its returned output verbatim as
   `<spec-stem>.series-premortem.md` and record `Series reviewer:`, `Series verdict:` and
   `Series artifact:` under `### Series review` in the certification block;
   `keel decompose-check <spec>` passes only once it is recorded (D1/D2).
