@@ -16,6 +16,13 @@ Tags start at 0.4.0; earlier versions were released before the public history be
   git top level that replaces both or declares the project not bound. A directory is in scope when
   an instruction file on its walk carries keel's vocabulary block, and the digest is a sha256 over
   exactly what that block renders, the noun names and the rule, so it is the same on every machine.
+- **`keel vocabulary [PATH] [--json]` (consumer-affecting).** The command prints what the resolver
+  returns for a directory (the current one by default): each layer with its source, each noun with
+  its layer, axis and senses, the allowed terms, the rule, the retired nouns, the notes and the
+  digest, or `not bound — <reason>`. `--json` prints the same as one object with the keys `path`,
+  `in_scope`, `layers`, `nouns`, `allowed`, `rule`, `retired`, `notes`, `not_bound` and `digest`.
+  It exits 0 when the vocabulary resolves, a not-bound project included, and 2 when a vocabulary
+  file is malformed, printing the error that names the file.
 
 ### Changed
 
