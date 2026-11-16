@@ -892,6 +892,9 @@ _REPAIR = 'leave exactly one begin and one end marker'
 _WRITE_HINT = 'run `keel vocabulary --write`'
 
 
+@pytest.mark.skipif(
+    hasattr(os, 'geteuid') and os.geteuid() == 0, reason='root can write a read-only file'
+)
 def test_an_unwritable_file_is_refused_before_anything_is_written(tmp_path: Path) -> None:
     repo = _bare_repo(tmp_path / 'repo')
     _project_file(repo, PROJECT_FLEET)
@@ -934,6 +937,36 @@ def test_a_failing_write_exits_two_and_undoes_the_earlier_ones(
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert str(claude) in result.output
     assert 'Why:' in result.output
+    assert not (repo / 'AGENTS.md').exists()
+    assert claude.read_bytes() == b'# Claude\n'
+
+
+def test_a_write_that_fails_midway_puts_back_its_own_file_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    claude = repo / 'CLAUDE.md'
+    claude.write_bytes(b'# Claude\n')
+    real_write = Path.write_bytes
+    failed: list[Path] = []
+
+    def failing_write(self: Path, data: bytes) -> int:
+        if self.name == 'CLAUDE.md' and not failed:
+            failed.append(self)
+            real_write(self, b'')
+            raise OSError(28, 'No space left on device', str(self))
+        return real_write(self, data)
+
+    monkeypatch.setattr(Path, 'write_bytes', failing_write)
+
+    result = runner.invoke(app, ['vocabulary', str(repo), '--write'])
+
+    assert failed == [claude]
+    assert result.exit_code == 2, result.output
+    assert 'Traceback' not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert 'could not restore' not in result.output
     assert not (repo / 'AGENTS.md').exists()
     assert claude.read_bytes() == b'# Claude\n'
 

@@ -432,7 +432,7 @@ def _undo(written: list[_Plan]) -> list[Path]:
     for plan in reversed(written):
         try:
             if plan.original is None:
-                plan.path.unlink()
+                plan.path.unlink(missing_ok=True)
             else:
                 plan.path.write_bytes(plan.original)
         except OSError:
@@ -469,7 +469,7 @@ def _write_block(vocab: Vocabulary, files: list[Path]) -> None:
         try:
             plan.path.write_bytes(plan.raw)
         except OSError as exc:
-            left = _undo(written)
+            left = _undo([*written, plan])
             typer.echo(str(_unwritable(plan.path, str(exc))))
             if left:
                 typer.echo('could not restore: ' + ', '.join(str(path) for path in left))
