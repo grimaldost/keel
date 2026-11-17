@@ -666,6 +666,52 @@ def test_a_silent_notice_reads_no_instruction_file(tmp_path, monkeypatch, silenc
         assert result.exit_code == _exit_without_block(spec, repo)
 
 
+def test_a_user_level_file_makes_an_undecodable_instruction_file_a_fault_line(
+    tmp_path, monkeypatch
+):
+    # The user-level file applies to the whole machine: with one present, a repository that has no
+    # block and no project list is still judged, so its UTF-16 AGENTS.md prints the fault line.
+    # With the user-level file off the same run prints nothing, and the exit code is the same.
+    utf16_agents = '# Agents\n'.encode('utf-16')
+    for ready in (True, False):
+        case = tmp_path / ('ready' if ready else 'failing')
+        case.mkdir()
+        repo = _vocabulary_repo(case, monkeypatch, agents=utf16_agents)
+        _user_vocabulary(case, monkeypatch)
+        spec = _repo_spec(repo, ready=ready)
+        result = runner.invoke(app, ['check-ready', str(spec)])
+        faults = _notice_lines(result.output)
+        assert len(faults) == 1, result.output
+        assert faults[0].startswith('WARN: the vocabulary block could not be judged'), faults
+        assert 'AGENTS.md' in faults[0], faults
+        assert result.exit_code == (0 if ready else 1), result.output
+        monkeypatch.setenv('KEEL_VOCABULARY', 'off')
+        silent = runner.invoke(app, ['check-ready', str(spec)])
+        assert 'vocabulary' not in silent.output, silent.output
+        assert result.exit_code == silent.exit_code
+
+
+def test_the_reference_says_the_user_level_file_applies_to_the_whole_machine():
+    row = next(
+        line
+        for line in _CLI_REFERENCE.read_text(encoding='utf-8').splitlines()
+        if line.startswith('| `keel check-ready <spec> [--structure-only]`')
+    )
+    row = ' '.join(row.split())
+    fault_sentence = 'WARN: the vocabulary block could not be judged'
+    assert fault_sentence in row
+    after = row.split(fault_sentence, 1)[1]
+    sentence, _, rest = after.partition('Like the upgrade line,')
+    assert rest, 'the sentence must come before "Like the upgrade line,"'
+    for words in (
+        'user-level file applies to the whole machine',
+        'never adopted the vocabulary',
+        'on every run',
+        'not valid UTF-8',
+    ):
+        assert words in sentence, words
+
+
 def test_outside_git_the_notice_judges_the_nearest_folder_with_an_instruction_file(
     tmp_path, monkeypatch
 ):
