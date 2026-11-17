@@ -505,6 +505,14 @@ def _plan_block(vocab: Vocabulary, path: Path) -> _Plan:
     return _Plan(path, raw, original, f'{verb} {path} ({digest})')
 
 
+def _held_now(path: Path) -> bytes | None:
+    """The file's bytes, or None when they cannot be read (which never equals the original)."""
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
+
+
 def _undo(written: list[_Plan]) -> list[Path]:
     """Put back what each written file held before; return the files that could not be."""
     left: list[Path] = []
@@ -512,7 +520,7 @@ def _undo(written: list[_Plan]) -> list[Path]:
         try:
             if plan.original is None:
                 plan.path.unlink(missing_ok=True)
-            else:
+            elif _held_now(plan.path) != plan.original:
                 plan.path.write_bytes(plan.original)
         except OSError:
             left.append(plan.path)
