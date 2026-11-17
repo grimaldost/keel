@@ -91,10 +91,9 @@ Tags start at 0.4.0; earlier versions were released before the public history be
 - **"When / who" in the pre-mortem template tells the dispatcher to paste the vocabulary.** The
   "Who" bullet still names who runs the pass (a fresh agent that did not author the spec, the
   bundled `pre-mortem-review` agent, an orchestrator's pre-series hook, or a manual pass) and now
-  adds that whoever dispatches it runs `keel vocabulary` in the spec's folder and pastes its output
-  beside the spec, unless the output reports `not bound` or an error, in which case nothing is
-  pasted; the lens reads nouns only against a pasted vocabulary. A displacing rewrite
-  (CONTRIBUTING, Body budgets) inside the "Who" bullet: the cut words are the parenthetical "a
+  adds that whoever dispatches it runs `keel vocabulary` in the spec's folder and pastes its output,
+  unless the output reports `not bound` or an error, in which case nothing is pasted; the lens
+  reads nouns only against a pasted vocabulary. A displacing rewrite (CONTRIBUTING, Body budgets) inside the "Who" bullet: the cut words are the parenthetical "a
   stateless pass, so the judgment is externalized, not the author's own", and the "can execute it,
   or run it as" scaffolding around the three ways to run the pass. The section's word count did
   not grow: 148 words before, 148 after; the fenced block is untouched. A new test,
