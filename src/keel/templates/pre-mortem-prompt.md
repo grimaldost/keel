@@ -9,10 +9,9 @@ Part A passes and before execution.
 - **When:** the end of Specify — the closing step of the DoR gate (2→3 boundary).
   The spec and its PR↔section manifest already exist; this runs before the spec
   becomes a runnable series and before any code.
-- **Who:** a fresh agent that has not authored the spec (a stateless pass, so the
-  judgment is externalized, not the author's own). keel's bundled
-  `pre-mortem-review` agent can execute it, or run it as an orchestrator
-  pre-series hook, or a manual pass.
+- **Who:** a fresh non-author agent: the bundled `pre-mortem-review`, an orchestrator
+  pre-series hook, or a manual pass. The dispatcher runs `keel vocabulary` in the spec's folder,
+  pasting its output unless it reports `not bound` or an error; nouns read only against it.
 - **Single home:** the bundled agent READS this file at run start and applies every directive in
   it; its own body carries identity, dispatch and the output contract only. So this file is the
   one place a directive is added, reworded or retired — there is no second copy to keep in step
