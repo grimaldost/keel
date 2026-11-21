@@ -937,6 +937,8 @@ def test_a_failing_write_exits_two_and_undoes_the_earlier_ones(
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert str(claude) in result.output
     assert 'Why:' in result.output
+    assert 'could not restore' not in result.output
+    assert 'nothing written.' in result.output
     assert not (repo / 'AGENTS.md').exists()
     assert claude.read_bytes() == b'# Claude\n'
 
@@ -969,6 +971,82 @@ def test_a_write_that_fails_midway_puts_back_its_own_file_too(
     assert 'could not restore' not in result.output
     assert not (repo / 'AGENTS.md').exists()
     assert claude.read_bytes() == b'# Claude\n'
+
+
+def test_a_restore_that_fails_is_reported_with_the_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    claude = repo / 'CLAUDE.md'
+    claude.write_bytes(b'# Claude\n')
+    real_write = Path.write_bytes
+    failed: list[Path] = []
+
+    def failing_write(self: Path, data: bytes) -> int:
+        if self.name == 'CLAUDE.md':
+            if not failed:
+                failed.append(self)
+                real_write(self, b'')
+            raise OSError(28, 'No space left on device', str(self))
+        return real_write(self, data)
+
+    monkeypatch.setattr(Path, 'write_bytes', failing_write)
+
+    result = runner.invoke(app, ['vocabulary', str(repo), '--write'])
+
+    assert failed == [claude]
+    assert result.exit_code == 2, result.output
+    assert 'Traceback' not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert any(
+        line.startswith('could not restore:') and str(claude) in line
+        for line in result.output.splitlines()
+    )
+    assert 'nothing written.' not in result.output
+    assert not (repo / 'AGENTS.md').exists()
+
+
+def test_a_file_that_cannot_be_read_back_is_restored_anyway(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _bare_repo(tmp_path / 'repo')
+    _project_file(repo, PROJECT_FLEET)
+    claude = repo / 'CLAUDE.md'
+    claude.write_bytes(b'# Claude\n')
+    real_write = Path.write_bytes
+    real_read = Path.read_bytes
+    writes: list[bytes] = []
+    failed: list[Path] = []
+
+    def failing_write(self: Path, data: bytes) -> int:
+        if self.name == 'CLAUDE.md':
+            writes.append(data)
+            if not failed:
+                failed.append(self)
+                raise PermissionError(13, 'Permission denied', str(self))
+        return real_write(self, data)
+
+    def failing_read(self: Path) -> bytes:
+        if self.name == 'CLAUDE.md' and failed:
+            raise OSError(5, 'Input/output error', str(self))
+        return real_read(self)
+
+    monkeypatch.setattr(Path, 'write_bytes', failing_write)
+    monkeypatch.setattr(Path, 'read_bytes', failing_read)
+
+    result = runner.invoke(app, ['vocabulary', str(repo), '--write'])
+
+    assert failed == [claude]
+    assert len(writes) == 2
+    assert writes[1] == b'# Claude\n'
+    assert result.exit_code == 2, result.output
+    assert 'Traceback' not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert 'could not restore' not in result.output
+    assert 'nothing written.' in result.output
+    assert not (repo / 'AGENTS.md').exists()
+    assert real_read(claude) == b'# Claude\n'
 
 
 def test_a_rule_naming_the_banner_words_does_not_block_the_next_write(tmp_path: Path) -> None:
