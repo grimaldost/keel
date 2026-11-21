@@ -5,7 +5,14 @@ moves a machine-parsed contract — the gate ledger’s schema, a CLI exit code 
 literal marker `(consumer-affecting)`; the changelog gate’s marker arm watches for it.
 Tags start at 0.4.0; earlier versions were released before the public history began.
 
-## [Unreleased]
+## [0.25.0] - 2026-11-21
+
+A minor release: keel ships its own work-unit nouns as a resolvable vocabulary, `keel vocabulary`
+prints it and writes it as a marked block into a repository's instruction files, and the
+pre-mortem reviewer reads unit nouns against a vocabulary its dispatcher pastes. No
+Definition-of-Ready check changes, and the catalogue still holds 27 ids. `keel check-ready` gains
+one warning line for a stale or missing vocabulary block, with no check id, which never changes the
+exit code. The pre-mortem directive block did not grow.
 
 ### Added
 
@@ -93,13 +100,19 @@ Tags start at 0.4.0; earlier versions were released before the public history be
   bundled `pre-mortem-review` agent, an orchestrator's pre-series hook, or a manual pass) and now
   adds that whoever dispatches it runs `keel vocabulary` in the spec's folder and pastes its output,
   unless the output reports `not bound` or an error, in which case nothing is pasted; the lens
-  reads nouns only against a pasted vocabulary. A displacing rewrite (CONTRIBUTING, Body budgets) inside the "Who" bullet: the cut words are the parenthetical "a
-  stateless pass, so the judgment is externalized, not the author's own", and the "can execute it,
-  or run it as" scaffolding around the three ways to run the pass. The section's word count did
-  not grow: 148 words before, 148 after; the fenced block is untouched. A new test,
-  `tests/test_premortem_vocabulary_lens.py`, pins the lens clauses of the block, the two dispatch
-  steps of the `apply-method` skill, and this section's mention of `keel vocabulary` and
-  `not bound`, one case each.
+  reads nouns only against a pasted vocabulary. A displacing rewrite (CONTRIBUTING, Body budgets)
+  inside the "Who" bullet: the cut words are the parenthetical "a stateless pass, so the judgment is
+  externalized, not the author's own", and the "can execute it, or run it as" scaffolding around
+  the three ways to run the pass. The section's word count did not grow: 148 words before, 148
+  after; the fenced block is untouched. A new test, `tests/test_premortem_vocabulary_lens.py`, pins
+  the lens clauses of the block, the two dispatch steps of the `apply-method` skill, and this
+  section's mention of `keel vocabulary` and `not bound`, one case each.
+- **The glossary names keel's units of work.** `docs/glossary.md` gains entries for *program /
+  series / task; wave* (the three nested scopes, and the two senses of *wave*), *phase* (one of the
+  eight lifecycle phases, and the larger stretch of work some keel text means) and *round* (one
+  repetition of a review pass, and a work round that runs a named subset of the phases);
+  `docs/concepts.md` and `docs/phases-reference.md` point at them, and `concepts.md` says a
+  project's own names for its work units are project knowledge it keeps (ADR-0003).
 
 ## [0.24.2] - 2026-10-27
 
